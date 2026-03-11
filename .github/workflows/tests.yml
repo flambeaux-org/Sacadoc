@@ -1,0 +1,28 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install Python dependencies
+        run: uv sync
+
+      - name: Install Playwright browser (Chromium + OS deps)
+        run: uv run playwright install --with-deps chromium
+
+      - name: Run test suite
+        run: uv run pytest -x
+        env:
+          # Run Playwright headless in CI; set HEADLESS=0 locally for a headed browser
+          HEADLESS: "1"
