@@ -7,7 +7,7 @@ from core.models import Utilisateur, AdresseMail, Organisateur
 
 
 @pytest.mark.django_db
-def test_user_login_with_fixture(page: Page, live_server):
+def test_user_register_with_fixture(page: Page, live_server):
     page.goto(f"{live_server.url}/inscription_famille")
 
     email = "test@test.org"
