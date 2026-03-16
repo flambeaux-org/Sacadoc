@@ -6,6 +6,7 @@
 import os
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+VERSION = "develop"
 
 def GetVersion():
     """ Recherche du numéro de version """
