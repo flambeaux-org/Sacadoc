@@ -153,6 +153,7 @@
                                 {% if rattachement.categorie == 3 %}{% blocktrans %}Fiche contact{% endblocktrans %}{% endif %}
                             </td>
                             <td class="project-state">
+                                {% if rattachement.categorie != 1 %}
                                 <small>
                                     <ul class="list-unstyled">
                                         {% if rattachement.certification_date %}
@@ -165,6 +166,7 @@
                                         {% endfor %}
                                     </ul>
                                 </small>
+                                {% endif %}
                             </td>
                             <td class="text-right">
                                 <a href="{% url 'portail_individu_identite' idrattachement=rattachement.pk %}" class="btn btn-sm btn-primary" title="{% trans "Ouvrir la fiche" %}">
