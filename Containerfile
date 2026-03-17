@@ -12,8 +12,9 @@ ENV VIRTUAL_ENV=/opt/venv
 
 WORKDIR /app
 
-RUN curl -LsSO https://github.com/flambeaux-org/Sacadoc/raw/refs/heads/main/requirements.txt && \
-    uv python install 3.10 && \
+COPY . .
+
+RUN uv python install 3.10 && \
     uv venv "$VIRTUAL_ENV" && \
     uv pip install -r requirements.txt && \
     uv pip install 'setuptools<82' && \
