@@ -19,13 +19,57 @@ from individus.utils import utils_pieces_manquantes
 
 class Formulaire(FormulaireBase, ModelForm):
     # Type de pièce
-    selection_piece = forms.TypedChoiceField(label=_("Type de document"), choices=[], required=True, help_text=_("Sélectionnez un type de document dans la liste. Sélectionnez 'Autre type' s'il ne s'agit pas d'un document prédéfini."))
-    choix_individu = forms.TypedChoiceField(label=_("Individu concerné"), choices=[], required=False, help_text=_("Sélectionnez le nom de l'individu concerné ou la famille s'il s'agit d'un document qui concerne toute la famille."))
-    document = forms.FileField(label=_("Document 1"), help_text=_("Sélectionnez un document à joindre (pdf, jpg ou png)."), required=True, validators=[FileExtensionValidator(allowed_extensions=['pdf', 'png', 'jpg'])])
-    document1 = forms.FileField(label=_("Document 2"), help_text=_("Sélectionnez un document à joindre (pdf, jpg ou png)."), required=False, validators=[FileExtensionValidator(allowed_extensions=['pdf', 'png', 'jpg'])])
-    document2 = forms.FileField(label=_("Document 3"), help_text=_("Sélectionnez un document à joindre (pdf, jpg ou png)."), required=False, validators=[FileExtensionValidator(allowed_extensions=['pdf', 'png', 'jpg'])])
-    document3 = forms.FileField(label=_("Document 4"), help_text=_("Sélectionnez un document à joindre (pdf, jpg ou png)."), required=False, validators=[FileExtensionValidator(allowed_extensions=['pdf', 'png', 'jpg'])])
-    document4 = forms.FileField(label=_("Document 5"), help_text=_("Sélectionnez un document à joindre (pdf, jpg ou png)."), required=False, validators=[FileExtensionValidator(allowed_extensions=['pdf', 'png', 'jpg'])])
+    selection_piece = forms.TypedChoiceField(
+        label=_("Type de document"),
+        choices=[],
+        required=True,
+        help_text=_(
+            "Sélectionnez un type de document dans la liste. Sélectionnez 'Autre type' s'il ne s'agit pas d'un document prédéfini."
+        ),
+    )
+    choix_individu = forms.TypedChoiceField(
+        label=_("Individu concerné"),
+        choices=[],
+        required=False,
+        help_text=_(
+            "Sélectionnez le nom de l'individu concerné ou la famille s'il s'agit d'un document qui concerne toute la famille."
+        ),
+    )
+    document = forms.FileField(
+        label=_("Document 1"),
+        help_text=_("Sélectionnez un document à joindre (pdf, jpg ou png). Poids maximum : 25MB."),
+        required=True,
+        widget=forms.FileInput(attrs={'class': 'form-control-file', 'accept': '.pdf,.png,.jpg,.jpeg', "data-max-size": 25*1024*1024}),
+        validators=[FileExtensionValidator(allowed_extensions=["pdf", "png", "jpg", "jpeg"])],
+    )
+    document1 = forms.FileField(
+        label=_("Document 2"),
+        help_text=_("Sélectionnez un document à joindre (pdf, jpg ou png). Poids maximum : 25MB."),
+        required=False,
+        widget=forms.FileInput(attrs={'class': 'form-control-file', 'accept': '.pdf,.png,.jpg,.jpeg', "data-max-size": 25*1024*1024}),
+        validators=[FileExtensionValidator(allowed_extensions=["pdf", "png", "jpg", "jpeg"])],
+    )
+    document2 = forms.FileField(
+        label=_("Document 3"),
+        help_text=_("Sélectionnez un document à joindre (pdf, jpg ou png). Poids maximum : 25MB."),
+        required=False,
+        widget=forms.FileInput(attrs={'class': 'form-control-file', 'accept': '.pdf,.png,.jpg,.jpeg', "data-max-size": 25*1024*1024}),
+        validators=[FileExtensionValidator(allowed_extensions=["pdf", "png", "jpg", "jpeg"])],
+    )
+    document3 = forms.FileField(
+        label=_("Document 4"),
+        help_text=_("Sélectionnez un document à joindre (pdf, jpg ou png). Poids maximum : 25MB."),
+        required=False,
+        widget=forms.FileInput(attrs={'class': 'form-control-file', 'accept': '.pdf,.png,.jpg,.jpeg', "data-max-size": 25*1024*1024}),
+        validators=[FileExtensionValidator(allowed_extensions=["pdf", "png", "jpg", "jpeg"])],
+    )
+    document4 = forms.FileField(
+        label=_("Document 5"),
+        help_text=_("Sélectionnez un document à joindre (pdf, jpg ou png). Poids maximum : 25MB."),
+        required=False,
+        widget=forms.FileInput(attrs={'class': 'form-control-file', 'accept': '.pdf,.png,.jpg,.jpeg', "data-max-size": 25*1024*1024}),
+        validators=[FileExtensionValidator(allowed_extensions=["pdf", "png", "jpg", "jpeg"])],
+    )
 
     class Meta:
         model = Piece
@@ -169,6 +213,19 @@ $(document).ready(function() {
     $('#id_document2').change(On_change_document);
     $('#id_document3').change(On_change_document);
     $('#id_document4').change(On_change_document);
+});
+
+// Check for file size before submitting
+$('#portail_transmettre_piece_form').submit(function(e) {
+    for (const element of this.elements) {
+        if (element.type === "file" && element.files.length > 0 && element.dataset.maxSize) {
+            const maxSize = parseInt(element.dataset.maxSize, 10);
+            if (element.files[0].size > maxSize) {
+                toastr.error(`Le fichier "${element.files[0].name}" dépasse la taille maximale de ${maxSize / (1024 * 1024)}MB.`);
+                return false;
+            }
+        }
+    }
 });
 </script>
 """

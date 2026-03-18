@@ -114,45 +114,45 @@
                 margin-left: -0.25rem;
                 margin-right: -0.25rem;
             }
-            
+
             .piece-item {
                 background: #fff;
                 transition: all 0.2s ease;
                 min-height: 60px;
             }
-            
+
             .piece-item:hover {
                 box-shadow: 0 2px 8px rgba(0,0,0,0.1);
                 transform: translateY(-1px);
             }
-            
+
             .piece-item strong {
                 line-height: 1.3;
             }
-            
+
             .piece-item small {
                 font-size: 0.8rem;
                 line-height: 1.2;
             }
-            
+
             /* Background spécial pour les pièces expirées */
             .bg-warning-light {
                 background-color: #fff3cd !important;
             }
-            
+
             /* Boutons compacts */
             .piece-item .btn-group-sm .btn {
                 padding: 0.25rem 0.5rem;
                 font-size: 0.75rem;
             }
-            
+
             /* Input files compacts */
             .form-control-file.form-control-sm {
                 font-size: 0.8rem;
                 height: calc(1.5em + 0.5rem + 2px);
                 padding: 0.25rem 0.5rem;
             }
-            
+
             /* Responsive : 1 colonne sur mobile */
             @media (max-width: 767px) {
                 .piece-item {
@@ -381,6 +381,18 @@ $(function () {
             toastr.error("Veuillez remplir tous les champs (Individu, Structure, Activité et Groupe).");
             return false;
         }
+        
+        // Check for file size before submitting
+        for (const element of this.elements) {
+            if (element.type === "file" && element.files.length > 0 && element.dataset.maxSize) {
+                const maxSize = parseInt(element.dataset.maxSize, 10);
+                if (element.files[0].size > maxSize) {
+                    toastr.error(`Le fichier "${element.files[0].name}" dépasse la taille maximale de ${maxSize / (1024 * 1024)}MB.`);
+                    return false;
+                }
+            }
+        }
+
         const formData = new FormData(this);
         const $btn = $("#btn_submit");
         $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin mr-2"></i> Envoi en cours...');
@@ -444,10 +456,10 @@ $(function () {
 
         const $btn = $(this);
         $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin mr-1"></i>Suppression...');
-        
+
         // Fermer la modal
         $('#modalConfirmSuppression').modal('hide');
-        
+
         // Remplacer le contenu de la colonne par un skeleton pendant le chargement
         const skeletonHtml = `
             <div class='piece-item border border-secondary rounded p-2'>
@@ -460,9 +472,9 @@ $(function () {
                 </div>
             </div>
         `;
-        
+
         $colToDelete.html(skeletonHtml);
-        
+
         // Suppression via AJAX
         $.ajax({
             url: "/documents/supprimer_piece/" + pieceToDelete + "/",
@@ -476,10 +488,10 @@ $(function () {
                     .done(function(data) {
                         // Créer un élément temporaire pour parser le HTML
                         const $tempDiv = $('<div>').html(data.form_html);
-                        
+
                         // Chercher la colonne contenant le document_<type_piece_id> (la pièce maintenant manquante)
                         const $newPieceCol = $tempDiv.find(`input[name="document_${typePieceToDelete}"]`).closest('.col-md-6, .col-12');
-                        
+
                         if ($newPieceCol.length > 0) {
                             // Remplacer UNIQUEMENT cette colonne avec le HTML du formulaire Django
                             $colToDelete.html($newPieceCol.html()).hide().fadeIn(300);
@@ -487,7 +499,7 @@ $(function () {
                             // Fallback : masquer la colonne si la pièce n'est plus nécessaire
                             $colToDelete.fadeOut(300, function() { $(this).remove(); });
                         }
-                        
+
                         toastr.success('Pièce supprimée avec succès');
                     })
                     .fail(function() {
