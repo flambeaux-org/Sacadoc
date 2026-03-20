@@ -37,9 +37,23 @@ class Liste(Page, crud.Liste):
 
     def get_context_data(self, **kwargs):
         context = super(Liste, self).get_context_data(**kwargs)
-        context['box_titre'] = "Liste des inscriptions d'une activité"
-        context["impression_titre"] = Activite.objects.get(pk=self.Get_activite()).nom if self.Get_activite() else ""
-        context["impression_introduction"] = Groupe.objects.get(pk=self.Get_groupe()).nom if self.Get_groupe() else ""
+        context["box_titre"] = "Liste des inscriptions d'une activité"
+        try:
+            context["impression_titre"] = (
+                Activite.objects.get(pk=self.Get_activite()).nom
+                if self.Get_activite()
+                else ""
+            )
+        except Activite.DoesNotExist:
+            context["impression_titre"] = ""
+        try:
+            context["impression_introduction"] = (
+                Groupe.objects.get(pk=self.Get_groupe()).nom
+                if self.Get_groupe()
+                else ""
+            )
+        except Groupe.DoesNotExist:
+            context["impression_introduction"] = ""
         context["impression_conclusion"] = ""
         context["afficher_menu_brothers"] = True
         context["active_checkbox"] = True
