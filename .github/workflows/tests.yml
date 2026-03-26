@@ -23,10 +23,10 @@ jobs:
         run: uv run playwright install --with-deps chromium
 
       - name: Run migrations
-        run: DJANGO_SETTINGS_MODULE=noethysweb.settings_test uv run manage.py migrate
+        run: DJANGO_SETTINGS_MODULE=noethysweb.settings_test uv run noethysweb/manage.py migrate
 
       - name: Run test suite
-        run: uv run pytest -x
+        run: cd noethysweb && uv run pytest -x
         env:
           # Run Playwright headless in CI; set HEADLESS=0 locally for a headed browser
           HEADLESS: "1"
