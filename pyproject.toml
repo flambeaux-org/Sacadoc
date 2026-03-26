@@ -61,7 +61,6 @@ dependencies = [
   "pillow==11.0.0",
   "platformdirs==3.5.1",
   "ply==3.11",
-  "pycairo==1.23.0",
   "pycparser==2.21",
   "pycryptodome==3.10.4",
   "pycryptodomex==3.17",
