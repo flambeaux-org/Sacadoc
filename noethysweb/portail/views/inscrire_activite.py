@@ -131,7 +131,7 @@ def Valid_form(request):
         return JsonResponse({"erreur": "Vous devez sélectionner au moins un tarif"}, status=401)
 
         # Vérifie qu'il n'y a pas déjà une demande en attente pour la même activité et le même individu
-        for demande in PortailRenseignement.objects.filter(famille=famille, individu=individu, etat="ATTENTE",
+    for demande in PortailRenseignement.objects.filter(famille=famille, individu=individu, etat="ATTENTE",
                                                            code="inscrire_activite"):
             try:
                 activite_id = json.loads(demande.nouvelle_valeur).split(";")[0]
