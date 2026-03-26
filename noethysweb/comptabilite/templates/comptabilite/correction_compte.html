@@ -1,0 +1,13 @@
+{% extends "core/box_in_page.html" %}
+{% load crispy_forms_tags %}
+
+{% block contenu_page %}
+    <div class="box box-primary">
+        <div class="box-header with-border">
+        </div>
+        <div class="box-body">
+            {# Le helper.layout s'occupe de tout afficher proprement #}
+            {% crispy form %}
+        </div>
+    </div>
+{% endblock contenu_page %}
