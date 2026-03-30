@@ -165,7 +165,8 @@ class View(DjangoBaseView):
                 montant=montant,
                 compte=compte,
                 mode_id=6,
-                num_piece=str(piece_id)[:20],
+                num_piece=str(reglement.pk),
+                ref_piece=str(piece_id)[:20],
                 regul_avance=False,
                 remb_avance=False,
             )
