@@ -42,25 +42,41 @@ class View(CustomView, TemplateView):
         comptes = budget.compte.all()
         condition_structure = Q(structure__in=self.request.user.structures.all()) | Q(structure__isnull=True)
 
-        # Importation des catégories
-        dict_categories = {categorie.pk: categorie for categorie in ComptaCategorie.objects.filter(condition_structure)}
+        categories_budget = ComptaCategorieBudget.objects.select_related("categorie").filter(budget=budget)
+        dict_budgete = {cb.categorie: cb.montant for cb in categories_budget}
+        ids_categories_autorisees = [cb.categorie_id for cb in categories_budget]
 
         # Importation des ventilations
-        condition = (
+        condition_realise = (
+                Q(categorie__in=ids_categories_autorisees) &
                 Q(operation__compte__in=comptes) &
                 Q(operation__date__gte=budget.date_debut) &
                 Q(operation__date__lte=budget.date_fin)
         )
-        ventilations_tresorerie = Counter({ventilation["categorie"]: ventilation["total"] for ventilation in ComptaVentilation.objects.values("categorie").filter(condition).annotate(total=Sum("montant"))})
-        dict_realise = {dict_categories[idcategorie]: montant for idcategorie, montant in dict(ventilations_tresorerie).items()}
+        # On récupère les totaux par ID de catégorie
+        ventilations_data = ComptaVentilation.objects.filter(condition_realise) \
+            .values("categorie") \
+            .annotate(total=Sum("montant"))
 
-        # Importation des catégories budgétaires
-        categories_budget = list(ComptaCategorieBudget.objects.select_related("categorie").filter(budget=budget))
-        dict_budgete = {categorie_budget.categorie: categorie_budget.montant for categorie_budget in categories_budget}
+        # 3. Extraction de TOUS les IDs de catégories concernés (Budget + Réalisé)
+        ids_categories_realise = [v["categorie"] for v in ventilations_data if v["categorie"]]
+        ids_categories_budget = [c.pk for c in dict_budgete.keys()]
+        tous_les_ids = list(set(ids_categories_realise + ids_categories_budget))
 
-        # Liste complète des catégories concernées (union des deux ensembles)
+        # 4. Importation unique de tous les objets catégories nécessaires
+        # On ne filtre plus par structure ici, mais uniquement par les IDs trouvés
+        dict_categories = {c.pk: c for c in ComptaCategorie.objects.filter(pk__in=tous_les_ids)}
+
+        # 5. Construction du dictionnaire du réalisé avec les objets catégories
+        dict_realise = {}
+        for v in ventilations_data:
+            cat_obj = dict_categories.get(v["categorie"])
+            if cat_obj:
+                dict_realise[cat_obj] = v["total"]
+
+        # 6. Liste finale triée (Union des clés des deux dictionnaires)
         categories = sorted(
-            {**dict_budgete, **dict_realise}.keys(),
+            set(list(dict_budgete.keys()) + list(dict_realise.keys())),
             key=lambda x: (x.type, x.nom)
         )
 
@@ -97,8 +113,6 @@ class View(CustomView, TemplateView):
         total_budgete = (regroupements["credit"]["budgete"] if "credit" in regroupements else decimal.Decimal(0)) - (regroupements["debit"]["budgete"] if "debit" in regroupements else decimal.Decimal(0))
         total_pourcentage = (float(total_realise) * 100 / float(total_budgete)) if total_budgete else None
         total_ecart = total_realise - total_budgete
-
-        lignes.append({"id": 99999999, "regroupement": True, "label": "Total"})
         lignes.append({"id": 99999998, "pid": 99999999, "regroupement": False, "label": "", "realise": float(total_realise), "budgete": float(total_budgete),
                        "pourcentage": total_pourcentage if total_pourcentage else None, "ecart": float(total_ecart)})
 
