@@ -4148,7 +4148,7 @@ class ComptaOperation(models.Model):
     idoperation = models.AutoField(verbose_name="ID", db_column="IDoperation", primary_key=True)
     type = models.CharField(verbose_name="Type", max_length=50, choices=[("debit", "Débit"), ("credit", "Crédit")])
     date = models.DateField(verbose_name="Date")
-    libelle = models.CharField(verbose_name="Libellé", max_length=200)
+    libelle = models.CharField(verbose_name="Libellé", max_length=400)
     tiers = models.ForeignKey(ComptaTiers, verbose_name="Tiers", on_delete=models.PROTECT, blank=True, null=True)
     mode = models.ForeignKey(ModeReglement, verbose_name="Mode de règlement", on_delete=models.PROTECT, blank=True, null=True)
     num_piece = models.CharField(verbose_name="Numéro de pièce", max_length=200, blank=True, null=True)
