@@ -42,7 +42,7 @@ class Liste_commun():
         if self.request.user.is_staff:
             condition = Q(structure__in=self.request.user.structures.all()) | Q(structure__isnull=True)
         else:
-            condition = Q(structure__in=self.request.user.structures.filter(visible=True)) | Q(structure__isnull=True)
+            condition = Q(structure__in=self.request.user.structures.filter(actif=True)) | Q(structure__isnull=True)
 
         return condition
 
@@ -281,7 +281,7 @@ class BaseView():
         if self.request.user.is_staff:
             condition = Q(structure__in=self.request.user.structures.all()) | Q(structure__isnull=True)
         else:
-            condition = Q(structure__in=self.request.user.structures.filter(visible=True)) | Q(structure__isnull=True)
+            condition = Q(structure__in=self.request.user.structures.filter(actif=True)) | Q(structure__isnull=True)
 
         return condition
 

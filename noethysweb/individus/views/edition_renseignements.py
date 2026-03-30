@@ -30,7 +30,7 @@ def Generer_pdf(request):
     options["rattachements"] = rattachements
 
     # Création du PDF
-    impression = utils_impression_renseignements.Impression(titre="Renseignements", dict_donnees=options)
+    impression = utils_impression_renseignements.Impression(titre="Renseignements", dict_donnees=options, request=request)
     if impression.erreurs:
         return JsonResponse({"erreur": impression.erreurs[0]}, status=401)
     nom_fichier = impression.Get_nom_fichier()

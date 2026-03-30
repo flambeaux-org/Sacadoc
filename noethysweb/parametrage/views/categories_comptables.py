@@ -36,12 +36,6 @@ class Liste(Page, crud.Liste):
         condition_structure = self.Get_condition_structure()
         if condition_structure is not None:
             qs = qs.filter(condition_structure)
-
-        # Exclusion spécifique aux utilisateurs classiques
-        if not self.request.user.is_superuser:
-            # Supposons que 'structure=None' ou 'structure="all"' signifie toutes les structures
-            qs = qs.exclude(structure__isnull=True)  # ou .exclude(structure="all")
-
         return qs
 
     def get_context_data(self, **kwargs):
