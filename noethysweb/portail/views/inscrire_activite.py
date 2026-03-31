@@ -232,48 +232,48 @@ def Valid_form(request):
                 logger.error(f"Erreur inattendue lors de l'enregistrement de la pièce {nom_champ}: {e}")
                 # On continue malgré l'erreur pour ne pas bloquer l'inscription
 
-        # 9. Envoi mail aux directeurs
-        # On récupère la structure depuis l'activité sélectionnée
-        structure = activite.structure
+    # 9. Envoi mail aux directeurs
+    # On récupère la structure depuis l'activité sélectionnée
+    structure = activite.structure
 
-        if structure and structure.adresse_exp:
-            try:
-                # Construction de l'URL (on utilise 'request' directement, pas 'self.request')
-                url_admin = request.build_absolute_uri(
-                    reverse_lazy("demandes_portail_liste")
-                )
+    if structure and structure.adresse_exp:
+        try:
+            # Construction de l'URL (on utilise 'request' directement, pas 'self.request')
+            url_admin = request.build_absolute_uri(
+                reverse_lazy("demandes_portail_liste")
+            )
 
-                # Contenu du mail
-                contenu_message = """
-                    <p>Bonjour,</p>
-                    <p>Une nouvelle demande d'inscription a été déposée par <b>%s</b> pour l'activité <b>%s</b>.</p>
-                    <p>Vous pouvez consulter la demandes sur le portail : <a href="%s" target="_blank">Accéder au portail</a>.</p>
-                    <p>L'administrateur du portail</p>
-                """ % (request.user.famille, activite.nom, url_admin)
+            # Contenu du mail
+            contenu_message = """
+                <p>Bonjour,</p>
+                <p>Une nouvelle demande d'inscription a été déposée par <b>%s</b> pour l'activité <b>%s</b>.</p>
+                <p>Vous pouvez consulter la demandes sur le portail : <a href="%s" target="_blank">Accéder au portail</a>.</p>
+                <p>L'administrateur du portail</p>
+            """ % (request.user.famille, activite.nom, url_admin)
 
-                # Création de l'email en base de données
-                mail = Mail.objects.create(
-                    categorie="demande_inscription",
-                    objet="Nouvelle inscription en attente : %s" % individu.Get_nom(),
-                    html=contenu_message,
-                    adresse_exp=structure.adresse_exp,
-                    utilisateur=request.user,
-                )
+            # Création de l'email en base de données
+            mail = Mail.objects.create(
+                categorie="demande_inscription",
+                objet="Nouvelle inscription en attente : %s" % individu.Get_nom(),
+                html=contenu_message,
+                adresse_exp=structure.adresse_exp,
+                utilisateur=request.user,
+            )
 
-                # Ajout du destinataire (l'adresse de la structure)
-                destinataire = Destinataire.objects.create(
-                    categorie="demande_inscription",
-                    adresse=structure.adresse_exp.adresse
-                )
-                mail.destinataires.add(destinataire)
+            # Ajout du destinataire (l'adresse de la structure)
+            destinataire = Destinataire.objects.create(
+                categorie="demande_inscription",
+                adresse=structure.adresse_exp.adresse
+            )
+            mail.destinataires.add(destinataire)
 
-                # Envoi effectif
-                utils_email.Envoyer_model_mail(idmail=mail.pk, request=request)
-                logger.info(f"Mail de notification envoyé à la structure {structure.nom}")
+            # Envoi effectif
+            utils_email.Envoyer_model_mail(idmail=mail.pk, request=request)
+            logger.info(f"Mail de notification envoyé à la structure {structure.nom}")
 
-            except Exception as e:
-                logger.error(f"Erreur lors de l'envoi du mail de notification : {e}")
-                # On ne bloque pas la réponse de succès pour une erreur de mail
+        except Exception as e:
+            logger.error(f"Erreur lors de l'envoi du mail de notification : {e}")
+            # On ne bloque pas la réponse de succès pour une erreur de mail
 
 
     messages.add_message(request, messages.SUCCESS, "Votre demande d'inscription a été transmise")
