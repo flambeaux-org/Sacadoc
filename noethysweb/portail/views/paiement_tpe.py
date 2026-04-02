@@ -59,6 +59,11 @@ def paiement_tpe(request):
 
     # --- CAS HELLOASSO ---
     if plateforme == "HELLOASSO":
+        HELLOASSO_DEV = False  # POUR DEV
+        if HELLOASSO_DEV:
+            base_url = "http://127.0.0.1:8000"
+        else:
+            base_url = "https://sacadoc.flambeaux.org"
         base_url = "https://sacadoc.flambeaux.org"
         #base_url = "https://wizardly-unmasticatory-ali.ngrok-free.dev"
         config = HelloAssoConfig.objects.filter(activites=activite, actif=True).first()

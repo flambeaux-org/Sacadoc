@@ -11,7 +11,7 @@ from portail.views.base import CustomView
 from core.models import (
     TokenHA, Prestation, HelloAssoConfig, ModeReglement,
     CompteBancaire, Reglement, Ventilation, ComptaOperation,
-    ComptaVentilation, StripeCompte
+    ComptaVentilation, StripeCompte, Paiement
 )
 
 logger = logging.getLogger(__name__)
@@ -100,8 +100,8 @@ class View(DjangoBaseView):
                     activite = config.activites.first()
                     compte = CompteBancaire.objects.filter(
                         structure=activite.structure).first() or CompteBancaire.objects.filter(pk=1).first()
-
-                    self.valider_paiement_final(prestation, montant, tag, orderId or order.get('id'), compte)
+                    systeme = "HELLOASSO"
+                    self.valider_paiement_final(prestation, montant, tag, orderId or order.get('id'), compte, systeme)
                     messages.success(request, "Paiement HelloAsso validé !")
                 return redirect('portail_facturation')
 
@@ -127,7 +127,8 @@ class View(DjangoBaseView):
                 if not Reglement.objects.filter(observations__icontains=tag).exists():
                     compte = CompteBancaire.objects.filter(
                         structure=prestation.activite.structure).first() or CompteBancaire.objects.first()
-                    self.valider_paiement_final(prestation, montant, tag, session.id, compte)
+                    systeme = "STRIPE"
+                    self.valider_paiement_final(prestation, montant, tag, session.id, compte, systeme)
                     messages.success(request, "Paiement Stripe validé !")
                 return redirect('portail_facturation')
         except Exception as e:
@@ -135,7 +136,7 @@ class View(DjangoBaseView):
             messages.error(request, "Erreur lors de la validation Stripe.")
         return redirect('portail_facturation')
 
-    def valider_paiement_final(self, prestation, montant, tag, piece_id, compte):
+    def valider_paiement_final(self, prestation, montant, tag, piece_id, compte, systeme):
             print("DEBUG: Début règlement créé avec succès !")
             reglement = Reglement.objects.create(
                 famille=prestation.famille,
@@ -172,12 +173,28 @@ class View(DjangoBaseView):
             )
 
             # 4. Ventilation Comptable (Le compte n'est pas un argument de ComptaVentilation)
-            ComptaVentilation.objects.create(
+            ventilation = ComptaVentilation.objects.create(
                 date_budget=timezone.now().date(),
                 montant=montant,
                 analytique_id=1,
                 categorie_id=1,
                 operation=operation,
             )
+
+            # 5. Paiement pour suivi admin
+            paiement_obj = Paiement.objects.create(
+                famille=prestation.famille,
+                idtransaction=str(piece_id)[:20],
+                refdet=str(reglement.pk),
+                montant=montant,
+                systeme_paiement=systeme,
+                resultat="PAID",
+                message="Paiement validé",
+                ventilation=str(ventilation.pk),
+                horodatage=timezone.now(),
+            )
+            # Ajout du règlement dans le ManyToMany
+            paiement_obj.reglements.add(reglement)
+
             # ... ton code de création ...
             print("DEBUG: Règlement créé avec succès !")
