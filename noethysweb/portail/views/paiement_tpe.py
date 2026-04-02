@@ -117,7 +117,7 @@ def paiement_tpe(request):
         # Note : on double les {{ }} pour CHECKOUT_SESSION_ID pour que Python ne les interprète pas
         # mais on garde des simples { } pour stripe_compte.pk
         success_url = f"{base_url}/attente_paiement/?session_id={{CHECKOUT_SESSION_ID}}&compte_id={stripe_compte.pk}"
-        cancel_url = f"{base_url}/facturation/"
+        cancel_url = f"{base_url}/facturation"
 
         stripe.api_key = stripe_compte.secret_key
         try:
