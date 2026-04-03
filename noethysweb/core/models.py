@@ -1486,6 +1486,50 @@ class UniteRemplissage(models.Model):
                 objet.save()
             ordre += 1
 
+class Registre(models.Model):
+    # Constantes pour le type de date
+    TYPE_DATE_ACTIVITE = 'ACT'
+    TYPE_DATE_LISTE = 'LST'
+
+    CHOIX_TYPE_DATE = [
+        (TYPE_DATE_ACTIVITE, "Date de l'activité uniquement"),
+        (TYPE_DATE_LISTE, "Liste de dates spécifiques"),
+    ]
+
+    idregistre = models.AutoField(
+        verbose_name="ID",
+        db_column='IDevenement',
+        primary_key=True
+    )
+
+    activite = models.ForeignKey(
+        Activite,
+        verbose_name="Activité",
+        on_delete=models.CASCADE,
+    )
+
+    structure = models.ForeignKey(
+        Structure,
+        verbose_name="Structure",
+        on_delete=models.CASCADE,
+    )
+
+    type_date = models.CharField(
+        max_length=3,
+        choices=CHOIX_TYPE_DATE,
+        default=TYPE_DATE_ACTIVITE,
+        verbose_name="Type de gestion des dates"
+    )
+    date_seance = models.TextField(verbose_name="Dates sélectionnées", blank=True, null=True)
+    nom = models.CharField(verbose_name="Nom", max_length=200)
+    class Meta:
+        verbose_name = "Registre de présence"
+        verbose_name_plural = "Registres de présence"
+
+    def __str__(self):
+        return f"Registre {self.idregistre} - {self.activite.nom}"
+
+
 
 class Evenement(models.Model):
     idevenement = models.AutoField(verbose_name="ID", db_column='IDevenement', primary_key=True)
@@ -4725,3 +4769,10 @@ class SondageReponse(models.Model):
         if self.question.controle in ("decimal", "montant"):
             return float(decimal.Decimal(self.reponse or 0.0))
         return self.reponse or ""
+
+
+class Pointage(models.Model):
+    registre = models.ForeignKey(Registre, on_delete=models.CASCADE)
+    individu = models.ForeignKey(Individu, on_delete=models.CASCADE)
+    date_presence = models.DateField()
+    present = models.BooleanField(default=False)

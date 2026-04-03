@@ -1,0 +1,154 @@
+{% extends "core/crud/liste_in_box.html" %}
+{% load crispy_forms_tags %}
+{% load static %}
+{% load embed %}
+
+{% block extra_head %}
+<style>
+    /* Largeur et gras pour la colonne des noms */
+    #datatable_custom td:first-child, #datatable_custom th:first-child {
+        min-width: 200px;
+        font-weight: bold;
+        background-color: #f9f9f9;
+    }
+
+    /* Centrage des cases à cocher */
+    #datatable_custom td, #datatable_custom th {
+        text-align: center;
+        vertical-align: middle !important;
+    }
+
+    /* Style des entêtes de dates */
+    .header-date {
+        font-size: 0.85em;
+        line-height: 1.4;
+        min-width: 80px;
+    }
+
+    /* Taille des checkbox pour faciliter le clic */
+    .pointage-check, .check-all-column {
+        padding: 10px 0
+        transform: scale(1.3);
+        cursor: pointer;
+    }
+
+    /* --- GESTION ÉCRAN --- */
+    .print-mark {
+        display: none !important; /* Cache la croix sur l'écran */
+    }
+
+    /* --- GESTION IMPRESSION --- */
+    @media print {
+        .pointage-check, .check-all-column, #choix_activite, .btn, .dataTables_filter, .dataTables_length {
+            display: none !important; /* Cache tout ce qui est inutile sur papier */
+        }
+
+        .print-mark {
+            display: inline-block !important; /* Affiche la croix */
+            font-family: monospace;
+            font-weight: bold;
+            font-size: 14pt;
+        }
+
+        table { width: 100% !important; border-collapse: collapse; }
+        th, td { border: 1px solid #000 !important; padding: 5px !important; }
+    }
+</style>
+{% endblock %}
+
+{% block contenu_page %}
+    {% embed 'core/box.html' %}
+        {% block box_titre %}{{ box_titre }}{% endblock %}
+
+        {% block box_contenu %}
+            {# --- SÉLECTEUR --- #}
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text"><i class="fa fa-filter"></i> Registres</span>
+                        </div>
+                        <select id="choix_activite" class="form-control select2">
+                            {% for code, label in liste_activites %}
+                                <option {% if code == activite %}selected{% endif %} value="{{ code }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6 text-right">
+                    <span id="status_enregistrement" class="badge badge-secondary" style="display:none;">
+                        <i class="fa fa-spinner fa-spin"></i> Enregistrement...
+                    </span>
+                </div>
+            </div>
+
+            {# --- LA TABLE --- #}
+            <div class="table-responsive">
+                {% embed "core/crud/liste.html" %}{% endembed %}
+            </div>
+
+            <script>
+                $(document).ready(function() {
+                    // 1. Changement d'activité
+                    $('#choix_activite').on('change', function() {
+                        var val = $(this).val();
+                        if (val && val != "0") {
+                            window.location.href = "{% url url_liste %}/" + val;
+                        }
+                    });
+
+                    // 2. Gestion des croix d'impression en temps réel
+                    function updatePrintMark($checkbox) {
+                        var $mark = $checkbox.siblings('.print-mark');
+                        if ($checkbox.is(':checked')) {
+                            $mark.text('X');
+                        } else {
+                            $mark.text('');
+                        }
+                    }
+
+                    // 3. Enregistrement individuel
+                    $(document).on('change', '.pointage-check', function() {
+                        var $el = $(this);
+                        updatePrintMark($el); // Met à jour la croix pour l'imprimante
+                        sauvegarder($el.data('registre'), $el.data('individu'), $el.data('date'), $el.is(':checked'));
+                    });
+
+                    // 4. Enregistrement COLONNE ENTIERE
+                    $(document).on('change', '.check-all-column', function() {
+                        var date = $(this).data('date');
+                        var isChecked = $(this).is(':checked');
+                        var $colCheckboxes = $('.pointage-check[data-date="' + date + '"]');
+
+                        $colCheckboxes.prop('checked', isChecked);
+
+                        // Met à jour toutes les croix de la colonne
+                        $colCheckboxes.each(function() { updatePrintMark($(this)); });
+
+                        var id_registre = $colCheckboxes.first().data('registre');
+                        sauvegarder(id_registre, "tous", date, isChecked);
+                    });
+
+                    function sauvegarder(regId, indId, dateStr, etatBool) {
+                        $('#status_enregistrement').fadeIn().removeClass('badge-success').addClass('badge-secondary').html('<i class="fa fa-spinner fa-spin"></i> Enregistrement...');
+                        $.ajax({
+                            url: "{% url 'registre_presence_sauvegarder' %}",
+                            type: 'POST',
+                            data: {
+                                'id_registre': regId,
+                                'id_individu': indId,
+                                'date': dateStr,
+                                'etat': etatBool,
+                                'csrfmiddlewaretoken': '{{ csrf_token }}'
+                            },
+                            success: function(response) {
+                                $('#status_enregistrement').removeClass('badge-secondary').addClass('badge-success').html('<i class="fa fa-check"></i> Enregistré');
+                                setTimeout(function() { $('#status_enregistrement').fadeOut(); }, 1000);
+                            }
+                        });
+                    }
+                });
+            </script>
+        {% endblock box_contenu %}
+    {% endembed %}
+{% endblock contenu_page %}

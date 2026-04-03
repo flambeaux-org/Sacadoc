@@ -220,6 +220,11 @@ def GetMenuPrincipal(organisateur=None, user=None):
     menu_inscriptions.Add(code="inscriptions_modifier", titre="Modifier des inscriptions par lot", icone="file-text-o")
     menu_inscriptions.Add(code="inscriptions_changer_groupe", titre="Changer de groupe par lot", icone="file-text-o")
     menu_inscriptions.Add(code="famille_attestations", titre="Génerer les attestations de présence", icone="file-text-o")
+
+    menu_registre = menu_individus.Add(titre="Registre de présence")
+    menu_registre.Add(code="registre_presence", titre="Remplir et exporter un registre de présence", icone="file-text-o")
+    menu_registre.Add(code="config_registre_liste", titre="Configurer un registre de présence", icone="file-text-o")
+
     # menu_inscriptions.Add(code="liste_inscriptions_refus", titre="Liste des inscriptions refusées", icone="file-text-o")
     # menu_inscriptions.Add(code="suivi_inscriptions", titre="Suivi des inscriptions", icone="file-text-o")
     # menu_inscriptions.Add(code="inscriptions_impression", titre="Imprimer des inscriptions", icone="file-text-o")

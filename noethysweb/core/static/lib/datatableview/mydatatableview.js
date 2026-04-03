@@ -27,7 +27,7 @@ $(document).ready(function() {
         rowGroup: colonne_regroupement,
         lengthMenu: [
             [ 10, 25, 50, 100, 200, -1 ],
-            [ '10 lignes', '25 lignes', '50 lignes', '100 lignes', '200 lignes', 'Tout afficher' ]
+            [ '10 lignes', '25 lignes', '50 lignes', '100 lignes', '200 lignes', 'Tout afficher !' ]
         ],
         // dom: "<'pull-right'B><'pull-right'f><'table-scrollable't><'pull-left'i><'pull-right'p>",
         // dom: '<"dt-buttons-haut"<\'pull-right\'B><\'pull-right\'f><\'table-scrollable\'t>><\'pull-left\'i><\'pull-right\'p>',
@@ -66,24 +66,48 @@ $(document).ready(function() {
                     columns: ':visible'
                 },
                 customize: function ( win ) {
-                    $(win.document.body)
-                        .css( 'font-size', '7pt' )
-                        ;
+                    // 1. Style de base (ton code existant)
+                    $(win.document.body).css( 'font-size', '7pt' );
                     $(win.document.body).find( 'table' )
                         .css( 'font-size', 'inherit' )
                         .css( 'border-collapse', 'collapse' )
-                        .css( 'border', '1px solid black' )
-                    ;
+                        .css( 'border', '1px solid black' );
                     $(win.document.body).find('td').css( 'border', '1px solid black' );
-                    // $(win.document.body).find('th').css( 'border', '1px solid black' );
-                    // $(win.document.body).find('th').addClass('display').css('text-align', 'center');
-                    // $(win.document.body).find('table').addClass('display').css('text-align', 'center');
-                    // $(win.document.body).find('tr:nth-child(odd) td').each(function (index) {
-                    //     $(this).css('background-color', '#D0D0D0');
-                    // });
-                    $(win.document.body).find('h1').css('text-align','center');
-                    $(win.document.body).find('h1').css('font-size', '9pt');
-                    }
+
+                    // 2. GESTION DES COCHES (La partie manquante)
+                    // On parcourt chaque ligne du tableau de la fenêtre d'impression
+                    $(win.document.body).find('table tbody tr').each(function() {
+                        $(this).find('td').each(function() {
+                            // On vérifie si la cellule contient une checkbox cochée dans la table d'origine
+                            // Note : On utilise l'index de la ligne/colonne pour retrouver l'état réel
+                            var cellIndex = $(this).index();
+                            var rowIndex = $(this).parent().index();
+
+                            // On récupère la checkbox correspondante dans la page réelle (la grille de pointage)
+                            var originalCheckbox = $('.datatable tbody tr').eq(rowIndex).find('td').eq(cellIndex).find('input[type="checkbox"]');
+
+                            if (originalCheckbox.length > 0) {
+                                if (originalCheckbox.is(':checked')) {
+                                    // On remplace le visuel par un caractère clair pour l'imprimante
+                                    $(this).html('<b style="font-size:10pt;">[ X ]</b>');
+                                    $(this).css('background-color', '#EEE'); // Petit gris pour aider la lecture
+                                } else {
+                                    $(this).html(' [   ] '); // Case vide
+                                }
+                                $(this).css('text-align', 'center');
+                            }
+                        });
+                    });
+
+                    // 3. Centrage du titre (ton code existant)
+                    $(win.document.body).find('h1').css({'text-align':'center', 'font-size':'9pt'});
+
+                    // 4. Forcer l'impression des fonds de couleur (pour certains navigateurs)
+                    $(win.document.body).css({
+                        '-webkit-print-color-adjust': 'exact',
+                        'print-color-adjust': 'exact'
+                    });
+                }
             },
             {
                 extend: 'collection',
