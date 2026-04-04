@@ -109,7 +109,7 @@ class Liste(Page, crud.Liste):
         famille = columns.TextColumn("Famille", sources=["famille__nom"])
         individu_ville = columns.TextColumn("Ville de l'individu", processor="Get_ville_individu")
         famille_ville = columns.TextColumn("Ville de la famille", processor="Get_ville_famille")
-        date_naiss = columns.TextColumn("Date naiss.", processor=helpers.format_date("%d/%m/%Y"))
+        date_naiss = columns.TextColumn("Date naiss.", processor="get_naissance", sources=None)
         age = columns.TextColumn("Age", sources=['Get_age'], processor="Get_age")
         mail = columns.CompoundColumn("Email", processor="Get_mail")
         portable = columns.CompoundColumn("Portable", processor="Get_mobile")
@@ -143,6 +143,9 @@ class Liste(Page, crud.Liste):
 
         def Get_mobile(self, instance, *args, **kwargs):
             return instance.individu.tel_mobile
+
+        def get_naissance(self, instance, *args, **kwargs):
+            return instance.individu.date_naiss.strftime("%d/%m/%Y")
 
         def Formate_statut(self, instance, *args, **kwargs):
             if instance.statut == "attente":
