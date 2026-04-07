@@ -4,7 +4,6 @@
 #  Distribué sous licence GNU GPL.
 
 import logging, os, datetime, codecs, zipfile, requests, subprocess, glob
-import sys
 
 logger = logging.getLogger(__name__)
 from urllib.request import urlopen, urlretrieve
@@ -64,19 +63,19 @@ def backup_database():
     if 'default' not in databases:
         logger.debug("Aucune base de données 'default' trouvée.")
         return False
-    
+
     db_config = databases['default']
-    
+
     # On ne fait la sauvegarde que pour SQLite
     if db_config.get('ENGINE') != 'django.db.backends.sqlite3':
         logger.debug("La sauvegarde automatique n'est supportée que pour SQLite.")
         return False
-    
+
     db_path = db_config.get('NAME')
     if not db_path or not os.path.isfile(db_path):
         logger.debug(f"Fichier de base de données non trouvé: {db_path}")
         return False
-    
+
     # Création du nom de fichier avec timestamp
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     db_dir = os.path.dirname(db_path)
@@ -84,7 +83,7 @@ def backup_database():
     db_name, db_ext = os.path.splitext(db_filename)
     backup_filename = f"{db_name}_backup_{timestamp}{db_ext}"
     backup_path = os.path.join(db_dir, backup_filename)
-    
+
     try:
         logger.debug(f"Sauvegarde de la base de données avec SQLite backup: {db_path} -> {backup_path}")
 
@@ -142,19 +141,6 @@ def cleanup_old_backups(db_dir, db_name, db_ext, max_backups=5):
         logger.debug(f"Nettoyage terminé. {len(files_to_delete)} backup(s) supprimé(s).")
     except Exception as err:
         logger.error(f"Erreur lors du nettoyage des anciens backups: {err}")
-
-def install_requirements():
-    """Installe les dépendances Python"""
-    req_file = os.path.join(settings.BASE_DIR, "requirements.txt")
-    if os.path.isfile(req_file):
-        logger.debug("Installation des dépendances (pip install)...")
-        try:
-            # sys.executable assure qu'on utilise le même python que celui qui lance Django
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", req_file])
-            return
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Erreur pip install : {e}")
-            raise e  # On lève l'erreur pour déclencher le rollback
 
 def Update():
     # Recherche une version disponible
@@ -218,16 +204,6 @@ def Update():
                 fp.write(data)
                 fp.close()
                 continue
-        if i.endswith("requirements.txt") and not i.endswith('/'):
-            try:
-                os.makedirs(os.path.join(chemin_dest, os.path.dirname(i)))
-                data = zfile.read(i)
-                fp = open(os.path.join(chemin_dest, os.path.dirname(i)), "wb")
-                fp.write(data)
-                fp.close()
-                install_requirements()
-            except:
-                pass
 
     zfile.close()
     os.remove(chemin_fichier)
