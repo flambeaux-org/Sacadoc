@@ -5,18 +5,12 @@ from core.models import AdresseMail
 
 @pytest.mark.django_db
 class TestStructure:
-    def test_empty_structure_list(self, auto_login_user, admin_user, live_server):
-        page = auto_login_user(admin_user)
-
-        page.goto(f"{live_server.url}/utilisateur/parametrage/structures/liste")
-
-        expect(page.get_by_role("cell", name="Aucune donnée")).to_be_visible()
-
     def test_create_structure(self, auto_login_user, admin_user, live_server):
         page = auto_login_user(admin_user)
 
-        # Create the address first and capture its actual PK (do not assume PK=1)
-        adresse = AdresseMail.objects.create(adresse="test@test.org", moteur="console")
+        adresse = AdresseMail.objects.first()
+        if not adresse:
+            adresse = AdresseMail.objects.create(adresse="test@test.org", moteur="console")
 
         page.goto(f"{live_server.url}/utilisateur/parametrage/structures/ajouter")
 

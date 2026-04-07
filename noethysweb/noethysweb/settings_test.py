@@ -9,13 +9,16 @@ from noethysweb.settings import *  # noqa: F401, F403
 SECRET_KEY = "test-secret-key-not-for-production-only-used-in-pytest"
 
 # Keep debug off so debug_toolbar is NOT injected (it requires a real HTTP client).
-DEBUG = False
+DEBUG = True
 
 # Named SQLite file so --reuse-db can reuse the schema across local runs.
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": os.path.join(BASE_DIR, "test.sqlite3"),  # noqa: F405
+        "TEST": {
+            "NAME": os.path.join(BASE_DIR, "test.sqlite3"),
+        }
     }
 }
 
