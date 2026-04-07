@@ -100,7 +100,7 @@ class Liste(Page, crud.Liste):
         return "A" in self.kwargs.get("activite", "")
 
     class datatable_class(MyDatatable):
-        filtres = ["ipresent:individu", "fpresent:famille", "iscolarise:individu", "fscolarise:famille", "idinscription", "famille__nom", "individu__nom", "individu__prenom", "individu__ville_resid", "famille__ville_resid", "date_debut", "date_fin", "activite:activite", "groupe__nom", "statut", "categorie_tarif__nom"]
+        filtres = ["ipresent:individu", "fpresent:famille", "iscolarise:individu", "fscolarise:famille", "idinscription", "famille__nom", "individu__nom", "individu__prenom", "date_debut", "date_fin", "activite:activite", "groupe__nom", "statut", "categorie_tarif__nom"]
         check = columns.CheckBoxSelectColumn(label="")
         actions = columns.TextColumn("Actions", sources=None, processor="Get_actions_speciales")
         groupe = columns.TextColumn("Groupe", sources=["groupe__nom"])
@@ -109,10 +109,10 @@ class Liste(Page, crud.Liste):
         famille = columns.TextColumn("Famille", sources=["famille__nom"])
         individu_ville = columns.TextColumn("Ville de l'individu", processor="Get_ville_individu")
         famille_ville = columns.TextColumn("Ville de la famille", processor="Get_ville_famille")
-        date_naiss = columns.TextColumn("Date naiss.", sources=["individu__date_naiss"], processor=helpers.format_date("%d/%m/%Y"))
+        date_naiss = columns.TextColumn("Date naiss.", processor="Get_naissance")
         age = columns.TextColumn("Age", sources=['Get_age'], processor="Get_age")
-        mail = columns.CompoundColumn("Email", sources=["individu__mail"])
-        portable = columns.CompoundColumn("Portable", sources=["individu__tel_mobile"])
+        mail = columns.CompoundColumn("Email", processor="Get_mail")
+        portable = columns.CompoundColumn("Portable", processor="Get_mobile")
         tel_parents = columns.TextColumn("Tél responsables", sources=None, processor="Get_tel_parents")
         mail_parents = columns.TextColumn("Mail responsables", sources=None, processor="Get_mail_parents")
         num_cotisation = columns.TextColumn("N° adhésion", sources=None, processor="Get_num_cotisation")
@@ -137,6 +137,15 @@ class Liste(Page, crud.Liste):
 
         def Get_age(self, instance, *args, **kwargs):
             return instance.individu.Get_age()
+
+        def Get_mail(self, instance, *args, **kwargs):
+            return instance.individu.mail
+
+        def Get_mobile(self, instance, *args, **kwargs):
+            return instance.individu.tel_mobile
+
+        def Get_naissance(self, instance, *args, **kwargs):
+            return instance.individu.date_naiss.strftime("%d/%m/%Y")
 
         def Formate_statut(self, instance, *args, **kwargs):
             if instance.statut == "attente":
