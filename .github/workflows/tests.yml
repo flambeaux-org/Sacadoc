@@ -9,6 +9,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read # For checkout and comparing commits
+      pull-requests: write # For creating/updating PR comments
 
     steps:
       - uses: actions/checkout@v6
