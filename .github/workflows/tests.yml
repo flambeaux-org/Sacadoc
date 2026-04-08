@@ -35,9 +35,9 @@ jobs:
         run: |
           HEADLESS=1 pytest -v --cov=. --cov-report=term-missing --cov-report=html
 
-     - name: Upload Coverage HTML Report
-       uses: actions/upload-artifact@v7
-       if: always()
-       with:
-         name: coverage-report
-         path: htmlcov/
+      - name: Upload Coverage HTML Report
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: coverage-report
+          path: htmlcov/
