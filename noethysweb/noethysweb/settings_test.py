@@ -23,7 +23,7 @@ DATABASES = {
 }
 
 # Use an in-memory email backend so no real emails are sent during tests.
-EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 # Disable django-axes brute-force lockout — it would block repeated test logins.
 AXES_ENABLED = False
