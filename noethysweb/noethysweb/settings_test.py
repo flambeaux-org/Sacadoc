@@ -5,11 +5,10 @@ import os
 
 from noethysweb.settings import *  # noqa: F401, F403
 
-# Hardcoded dummy key — safe because this file is never used in production.
 SECRET_KEY = "test-secret-key-not-for-production-only-used-in-pytest"
 
-# Keep debug off so debug_toolbar is NOT injected (it requires a real HTTP client).
-DEBUG = True
+# debug is false to mimic production behavior
+DEBUG = False
 
 # Named SQLite file so --reuse-db can reuse the schema across local runs.
 DATABASES = {
@@ -40,6 +39,14 @@ MIDDLEWARE = [m for m in MIDDLEWARE if "axes" not in m]  # noqa: F405
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.MD5PasswordHasher",
 ]
+
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 
 # Explicitly disable Turnstile captcha — settings_production.py (imported by base
 # settings) may have re-enabled it. Must be set here, after the wildcard import.
