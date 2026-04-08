@@ -33,11 +33,10 @@ jobs:
       - name: Test with pytest
         working-directory: ./noethysweb
         run: |
-          HEADLESS=1 pytest -v --cov=. --cov-report=term-missing --cov-report=html
+          HEADLESS=1 pytest --junitxml=pytest.xml --cov-report=term-missing --cov=. | tee pytest-coverage.txt
 
-      - name: Upload Coverage HTML Report
-        uses: actions/upload-artifact@v7
-        if: always()
+      - name: Post Pytest Coverage Comment
+        uses: MishaKav/pytest-coverage-comment@main
         with:
-          name: coverage-report
-          path: noethysweb/htmlcov/
+          pytest-coverage-path: ./noethysweb/pytest-coverage.txt
+          junitxml-path: ./noethysweb/pytest.xml
