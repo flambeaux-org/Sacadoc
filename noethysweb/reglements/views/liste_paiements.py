@@ -42,7 +42,7 @@ class Liste(Page, crud.Liste):
 
         class Meta:
             structure_template = MyDatatable.structure_template
-            columns = ["idpaiement", "horodatage", "famille", "montant", "systeme_paiement", "idtransaction", "saisie", "resultat", "message", "reglements"]
+            columns = ["idpaiement", "horodatage", "famille", "montant", "systeme_paiement", "idtransaction", "saisie", "resultat",]
             processors = {
                 "horodatage": helpers.format_date("%d/%m/%Y %H:%M"),
                 "montant": "Formate_montant",

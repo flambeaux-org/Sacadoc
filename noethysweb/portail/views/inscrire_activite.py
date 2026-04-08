@@ -20,6 +20,8 @@ from portail.forms.inscrire_activite import Formulaire, Formulaire_extra
 from portail.views.base import CustomView
 from django.forms import formset_factory
 
+from core.models import Mail, Destinataire
+from outils.utils import utils_email
 
 def Get_activites_par_structure(request):
     structure_id = request.POST.get('structure_id')
@@ -131,7 +133,7 @@ def Valid_form(request):
         return JsonResponse({"erreur": "Vous devez sélectionner au moins un tarif"}, status=401)
 
         # Vérifie qu'il n'y a pas déjà une demande en attente pour la même activité et le même individu
-        for demande in PortailRenseignement.objects.filter(famille=famille, individu=individu, etat="ATTENTE",
+    for demande in PortailRenseignement.objects.filter(famille=famille, individu=individu, etat="ATTENTE",
                                                            code="inscrire_activite"):
             try:
                 activite_id = json.loads(demande.nouvelle_valeur).split(";")[0]
@@ -229,6 +231,50 @@ def Valid_form(request):
             except Exception as e:
                 logger.error(f"Erreur inattendue lors de l'enregistrement de la pièce {nom_champ}: {e}")
                 # On continue malgré l'erreur pour ne pas bloquer l'inscription
+
+    # 9. Envoi mail aux directeurs
+    # On récupère la structure depuis l'activité sélectionnée
+    structure = activite.structure
+
+    if structure and structure.adresse_exp:
+        try:
+            # Construction de l'URL (on utilise 'request' directement, pas 'self.request')
+            url_admin = request.build_absolute_uri(
+                reverse_lazy("demandes_portail_liste")
+            )
+
+            # Contenu du mail
+            contenu_message = """
+                <p>Bonjour,</p>
+                <p>Une nouvelle demande d'inscription a été déposée par <b>%s</b> pour l'activité <b>%s</b>.</p>
+                <p>Vous pouvez consulter la demandes sur le portail : <a href="%s" target="_blank">Accéder au portail</a>.</p>
+                <p>L'administrateur du portail</p>
+            """ % (request.user.famille, activite.nom, url_admin)
+
+            # Création de l'email en base de données
+            mail = Mail.objects.create(
+                categorie="demande_inscription",
+                objet="Nouvelle inscription en attente : %s" % individu.Get_nom(),
+                html=contenu_message,
+                adresse_exp=structure.adresse_exp,
+                utilisateur=request.user,
+            )
+
+            # Ajout du destinataire (l'adresse de la structure)
+            destinataire = Destinataire.objects.create(
+                categorie="demande_inscription",
+                adresse=structure.adresse_exp.adresse
+            )
+            mail.destinataires.add(destinataire)
+
+            # Envoi effectif
+            utils_email.Envoyer_model_mail(idmail=mail.pk, request=request)
+            logger.info(f"Mail de notification envoyé à la structure {structure.nom}")
+
+        except Exception as e:
+            logger.error(f"Erreur lors de l'envoi du mail de notification : {e}")
+            # On ne bloque pas la réponse de succès pour une erreur de mail
+
 
     messages.add_message(request, messages.SUCCESS, "Votre demande d'inscription a été transmise")
     return JsonResponse({"succes": True, "url": reverse_lazy("portail_activites")})

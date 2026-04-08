@@ -252,9 +252,30 @@
     .error-page {
         margin: 50px auto 0;
     }
-    
+
     .table-xxs {
         font-size:.750rem;
+    }
+
+    /* 1. On rend le corps de la carte "scrollable" horizontalement */
+    .card-body {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch; /* Pour la fluidité sur mobile */
+        padding: 0.75rem !important;
+    }
+
+    /* 2. On empêche le tableau de se ratatiner */
+    #table_exemple {
+        width: 100% !important;
+        min-width: 900px; /* Force une largeur minimale pour garantir le scroll sur mobile */
+        margin: 0 !important;
+        border-collapse: collapse !important;
+    }
+
+    /* 3. On s'assure que les cellules ne reviennent pas à la ligne */
+    #table_exemple td, #table_exemple th {
+        white-space: nowrap !important;
+        vertical-align: middle !important;
     }
 
 </style>

@@ -147,10 +147,11 @@ def Generer_pdf(request):
                 with open(full_path, 'rb') as f:
                     justif_pdf = PdfReader(f)
                     for i, page in enumerate(justif_pdf.pages):
+                        # On crée une nouvelle page A4 vierge qui servira de support
+                        nouvelle_page = writer.add_blank_page(width=largeur, height=hauteur)
+                        nouvelle_page.merge_translated_page(page, tx=0, ty=-50)
                         if i == 0:
-                            # On fusionne le bandeau PAR-DESSUS la première page
-                            page.merge_page(header_page)
-                        writer.add_page(page)
+                            nouvelle_page.merge_page(header_page)
             except Exception as e:
                 print(f"Erreur traitement PDF {op.num_piece}: {e}")
 
