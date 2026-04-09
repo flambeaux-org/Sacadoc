@@ -48,6 +48,9 @@ class GithubLoggingHandler(logging.Handler):
         safe_tb = self.sanitize_data(raw_tb)
         
         body = (
+            f"> ⚠️ **ATTENTION ÉQUIPE DEV** ⚠️\n"
+            f"> **Si vous prenez en charge cette issue, veuillez vous l'attribuer (Assignees) ou mettre une réaction (👀 ou 🛠️) sur ce message.** Cela évitera que nous fassions le travail en double !\n\n"
+            f"---\n\n"
             f"**An automated 500 error was caught.**\n\n"
             f"**Endpoint:** `{request_path}`\n\n"
             f"<details><summary><b>Click to view Traceback</b></summary>\n\n"

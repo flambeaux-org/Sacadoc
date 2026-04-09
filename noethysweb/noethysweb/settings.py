@@ -266,9 +266,16 @@ LOGGING = {
             'class': 'django.utils.log.AdminEmailHandler',
             'include_html': True,
         },
+        "github_issue": {
+            'level': 'ERROR',
+            'class': 'noethysweb.logging_handlers.GithubLoggingHandler',
+            'token': os.getenv('GITHUB_TOKEN', 'your_pat'),
+            'repo_owner': 'flambeaux-org',
+            'repo_name': 'Sacadoc'
+        }
     },
     'root': {
-        'handlers': ['console', 'file', 'mail_admins', 'json_file'],
+        'handlers': ['console', 'file', 'mail_admins', 'json_file', 'github_issue'],
         'level': 'DEBUG',
     },
 }
