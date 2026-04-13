@@ -65,6 +65,10 @@ class MyPasswordResetForm(PasswordResetForm):
         self.fields['email'].widget.attrs['placeholder'] = _("Saisissez votre adresse Email")
 
     def clean(self):
+        if not self.cleaned_data or "identifiant" not in self.cleaned_data:
+            raise ValidationError("Identifiant incorrect")
+        if "email" not in self.cleaned_data:
+            raise ValidationError("Email incorrect")
         identifiant = self.cleaned_data['identifiant']
         email = self.cleaned_data['email']
 
