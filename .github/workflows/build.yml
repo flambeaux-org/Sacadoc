@@ -28,6 +28,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Write version to file
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" > noethysweb/version.txt
+
+
       # Install the cosign tool except on PR
       # https://github.com/sigstore/cosign-installer
       - name: Install cosign

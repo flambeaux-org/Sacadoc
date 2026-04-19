@@ -13,6 +13,11 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils.html import format_html_join
 
+# TODO : voir pour les version si on veut un changelog ou si c'est les releases github, passer en notation de date direct ou pas 2026.03.23 (ou 2026.03.23-1)
+# utiliser une action pour créer la release ou la faire à la main et que l'action ajoute le n° de version lors du build
+# ou alors, c'est le système d'update qui ajout le n° de version dans un fichier au moment de la maj
+
+
 def Get_update_for_accueil(request=None):
     """Recherche si une nouvelle version est disponible"""
     key_cache = "last_check_update"
@@ -42,6 +47,10 @@ def _check_release(release):
 
 def search_update():
     """Recherche une nouvelle version de l'application sur GitHub et retourne son numéro de version si elle est plus récente que la version actuelle."""
+    if version.GetVersion() == "0.0.0":
+        logger.debug("Version de développement, pas de recherche de mise à jour.")
+        return
+
     logger.debug("Récupération de la dernière version...")
     try:
         r = requests.get("https://api.github.com/repos/flambeaux-org/Sacadoc/releases/latest", timeout=10)
