@@ -79,9 +79,6 @@ class Impression(utils_impression.Impression):
         inscriptions_accessibles = Inscription.objects.filter(individu__in=individus_inscrits)
         activites_accessibles = Activite.objects.filter(idactivite__in=inscriptions_accessibles.values('activite'))
         accessible_by_activity = Structure.objects.filter(idstructure__in=activites_accessibles.values('structure'))
-        if "request" not in self or self.request is None or "user" not in self.request or self.request.user is None:
-            logger.warning("Impossible de vérifier les accès de l'utilisateur pour les questionnaires, aucun utilisateur authentifié trouvé dans la requête.")
-            return
         accessible_by_user = self.request.user.structures.all()
         structures_accessibles = accessible_by_activity & accessible_by_user
 
