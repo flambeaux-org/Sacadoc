@@ -11,8 +11,6 @@ from individus.forms.edition_renseignements import Formulaire
 
 
 def Generer_pdf(request):
-    time.sleep(1)
-
     # Récupération des options
     form = Formulaire(request.POST, idfamille=int(request.POST.get("idfamille")))
     if not form.is_valid():
@@ -23,7 +21,7 @@ def Generer_pdf(request):
 
     # Création du PDF
     from individus.utils import utils_impression_renseignements
-    impression = utils_impression_renseignements.Impression(titre="Renseignements", dict_donnees=options)
+    impression = utils_impression_renseignements.Impression(titre="Renseignements", dict_donnees=options, request=request)
     if impression.erreurs:
         return JsonResponse({"erreur": impression.erreurs[0]}, status=401)
     nom_fichier = impression.Get_nom_fichier()
