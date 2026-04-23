@@ -34,6 +34,11 @@ jobs:
       - name: Install Playwright Browsers and OS Dependencies
         run: python -m playwright install --with-deps
 
+      - name: Run migrations
+        working-directory: ./noethysweb
+        run: |
+          python manage.py migrate
+
       - name: Test with pytest
         working-directory: ./noethysweb
         run: |
