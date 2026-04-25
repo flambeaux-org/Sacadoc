@@ -30,7 +30,7 @@ class View(CustomView, TemplateView):
             rattachement = Rattachement.objects.filter(individu=ins.individu).first()
             buffer = io.BytesIO()
             impression = utils_impression_renseignements.Impression(
-                dict_donnees={"rattachements": [rattachement.pk], "tri": "classe", "mode_condense": True})
+                dict_donnees={"rattachements": [rattachement.pk], "tri": "classe", "mode_condense": True}, request=self.request)
             # Vérifier les erreurs éventuelles
             if impression.erreurs:
                 return JsonResponse({"erreur": impression.erreurs[0]}, status=401)
