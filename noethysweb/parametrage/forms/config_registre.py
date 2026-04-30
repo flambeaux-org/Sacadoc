@@ -1,8 +1,4 @@
 # -*- coding: utf-8 -*-
-#  Copyright (c) 2019-2021 Ivan LUCAS.
-#  Noethysweb, application de gestion multi-activités.
-#  Distribué sous licence GNU GPL.
-
 from django import forms
 from django.forms import ModelForm
 from core.forms.base import FormulaireBase

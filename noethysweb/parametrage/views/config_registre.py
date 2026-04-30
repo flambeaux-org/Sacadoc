@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-#  Copyright (c) 2019-2021 Ivan LUCAS.
-#  Noethysweb, application de gestion multi-activités.
-#  Distribué sous licence GNU GPL.
 
 from django.urls import reverse_lazy
 from core.views.mydatatableview import MyDatatable, columns
