@@ -5,11 +5,14 @@ from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
 from django.urls import reverse_lazy
 from django.db.models import Q
+import logging
 
 from core.views import crud
 from core.views.customdatatable import CustomDatatable, Colonne
 from core.models import Registre, Inscription, Pointage
 from django.utils.safestring import mark_safe
+
+logger = logging.getLogger(__name__)
 
 class Page(crud.Page):
     model = Registre
@@ -187,4 +190,8 @@ def sauvegarder_pointage(request):
                 return JsonResponse({"status": "ok", "mode": "single"})
 
         except Exception as e:
-            return JsonResponse({"status": "error", "message": str(e)}, status=400)
+            logger.exception("Erreur lors de la sauvegarde du pointage")
+            return JsonResponse(
+                {"status": "error", "message": "Une erreur interne est survenue."},
+                status=400,
+            )
