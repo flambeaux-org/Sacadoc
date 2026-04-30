@@ -3,9 +3,8 @@
 #  Noethysweb, application de gestion multi-activités.
 #  Distribué sous licence GNU GPL.
 
-from django.urls import reverse_lazy, reverse
-from django.db.models import Count
-from core.views.mydatatableview import MyDatatable, columns, helpers
+from django.urls import reverse_lazy
+from core.views.mydatatableview import MyDatatable, columns
 from core.views import crud
 from core.models import Registre
 from parametrage.forms.config_registre import Formulaire
@@ -55,6 +54,12 @@ class Ajouter(Page, crud.Ajouter):
         kwargs = super(Ajouter, self).get_form_kwargs()
         kwargs["idregistre"] = None
         return kwargs
+
+    def form_valid(self, form):
+        # get structure from activite id
+        form.instance.structure_id = form.cleaned_data["activite"].structure_id
+
+        return super(Ajouter, self).form_valid(form)
 
 
 class Modifier(Page, crud.Modifier):

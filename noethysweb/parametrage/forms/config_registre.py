@@ -21,7 +21,6 @@ class Formulaire(FormulaireBase, ModelForm):
         fields = ["nom","activite", "structure", "type_date", "date_seance"]
         widgets = {
             "activite": Select2Widget(),
-            "structure": Select2Widget(),
             "date_seance": forms.TextInput(attrs={
                 'placeholder': '01/05/2024, 03/05/2024, 10/05/2024...',
                 'class': 'datepicker-multiple'  # Classe pour activer un JS si dispo
@@ -42,7 +41,6 @@ class Formulaire(FormulaireBase, ModelForm):
             Fieldset("Paramétrage du registre",
                      Field('nom'),
                      Field('activite'),
-                     Field('structure'),
                      Field('type_date', onchange="toggle_dates_field();"),
 
                      # Le champ de dates est affiché/masqué selon le type
