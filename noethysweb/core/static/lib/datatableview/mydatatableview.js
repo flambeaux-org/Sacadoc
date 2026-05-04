@@ -27,7 +27,7 @@ $(document).ready(function() {
         rowGroup: colonne_regroupement,
         lengthMenu: [
             [ 10, 25, 50, 100, 200, -1 ],
-            [ '10 lignes', '25 lignes', '50 lignes', '100 lignes', '200 lignes', 'Tout afficher !' ]
+            [ '10 lignes', '25 lignes', '50 lignes', '100 lignes', '200 lignes', 'Tout afficher' ]
         ],
         // dom: "<'pull-right'B><'pull-right'f><'table-scrollable't><'pull-left'i><'pull-right'p>",
         // dom: '<"dt-buttons-haut"<\'pull-right\'B><\'pull-right\'f><\'table-scrollable\'t>><\'pull-left\'i><\'pull-right\'p>',
@@ -73,13 +73,8 @@ $(document).ready(function() {
                         .css( 'border-collapse', 'collapse' )
                         .css( 'border', '1px solid black' );
                     $(win.document.body).find('td').css( 'border', '1px solid black' );
-
-                    // 2. GESTION DES COCHES (La partie manquante)
-                    // On parcourt chaque ligne du tableau de la fenêtre d'impression
                     $(win.document.body).find('table tbody tr').each(function() {
                         $(this).find('td').each(function() {
-                            // On vérifie si la cellule contient une checkbox cochée dans la table d'origine
-                            // Note : On utilise l'index de la ligne/colonne pour retrouver l'état réel
                             var cellIndex = $(this).index();
                             var rowIndex = $(this).parent().index();
 
