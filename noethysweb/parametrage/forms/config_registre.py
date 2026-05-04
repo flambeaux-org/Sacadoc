@@ -81,21 +81,32 @@ class Formulaire(FormulaireBase, ModelForm):
 
     def clean(self):
         """ Validation du format des dates """
-        type_date = self.cleaned_data.get("type_date")
-        date_seance = self.cleaned_data.get("date_seance")
-        activite = self.cleaned_data.get("activite")
+        cleaned_data = super().clean()
+
+        type_date = cleaned_data.get("type_date")
+        date_seance = cleaned_data.get("date_seance")
+        activite = cleaned_data.get("activite")
 
         if type_date == 'LST' and not date_seance:
             raise ValidationError("Veuillez saisir au moins une date pour ce type de registre.")
 
-        if type_date == 'ACT' and not date_seance:
+        if type_date == 'ACT':
+            if not activite:
+                raise ValidationError("Veuillez sélectionner une activité.")
+
             d_deb = activite.date_debut
             d_fin = activite.date_fin
 
-            # Blocage si dates manquantes (Illimitées)
-            if not d_deb or not d_fin:
+            # 🚫 Dates manquantes
+            if d_deb.year < 2000:
                 raise ValidationError(
                     "L'activité sélectionnée n'a pas de dates de début/fin définies. "
-                    "Veuillez choisir 'Liste de dates' (LST) et les saisir manuellement."
+                    "Veuillez choisir 'Liste de dates' ou paramétrer les dates de l'activité."
                 )
-        return self.cleaned_data
+
+            # 🚫 Période trop large
+            if (d_fin - d_deb).days > 30:
+                raise ValidationError(
+                    "La période de l'activité est trop large pour générer automatiquement des dates."
+                )
+        return cleaned_data
