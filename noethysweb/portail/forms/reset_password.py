@@ -20,7 +20,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.contrib.sites.shortcuts import get_current_site
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
-from core.models import Utilisateur, AdresseMail
+from core.models import Utilisateur, AdresseMail, Individu
 from core.utils import utils_portail
 from portail.utils import utils_secquest
 
@@ -52,7 +52,6 @@ class MySetPasswordForm(SetPasswordForm):
 
 class MyPasswordResetForm(PasswordResetForm):
     identifiant = forms.CharField(label="Identifiant", max_length=20)
-    email = forms.CharField(label="Email", max_length=254, widget=forms.EmailInput(attrs={'autocomplete': 'email'}))
     turnstile = TurnstileField()
 
     def __init__(self, *args, **kwargs):
@@ -64,17 +63,6 @@ class MyPasswordResetForm(PasswordResetForm):
         self.fields['email'].widget.attrs['title'] = _("Saisissez votre adresse Email")
         self.fields['email'].widget.attrs['placeholder'] = _("Saisissez votre adresse Email")
 
-    def clean(self):
-        identifiant = self.cleaned_data['identifiant']
-        email = self.cleaned_data['email']
-
-        # Vérifie la cohérence de l'adresse mail
-        try:
-            validate_email(email)
-        except:
-            raise ValidationError(_("L'adresse Email n'est pas valide"))
-
-        return self.cleaned_data
 
     def save(self, domain_override=None,
              subject_template_name='registration/password_reset_subject.txt',
@@ -98,7 +86,7 @@ class MyPasswordResetForm(PasswordResetForm):
 
         if utilisateur.categorie == "famille":
             # Vérifie que le mail correspond à un des parents de la famille
-            for rattachement in utilisateur.famille.rattachement_set.exclude(individu__statut=5).select_related("individu") :
+            for rattachement in utilisateur.famille.rattachement_set.exclude(individu__statut=Individu.STATUT_JEUNE).select_related("individu") :
                 if rattachement.individu.mail.lower() == email.lower():
                     break
             else:
