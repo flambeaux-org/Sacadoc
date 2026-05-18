@@ -11,6 +11,7 @@ from crispy_forms.layout import Layout, HTML, Fieldset
 from crispy_forms.bootstrap import Field
 from core.utils.utils_commandes import Commandes
 from core.models import AdresseMail
+from core.validators import validate_email_domain_mx
 
 
 class Formulaire(FormulaireBase, ModelForm):
@@ -90,6 +91,12 @@ class Formulaire(FormulaireBase, ModelForm):
         # Vérification des données saisies
         if not self.cleaned_data.get("adresse", None):
             self.add_error('adresse', "Vous devez renseigner l'adresse d'expédition")
+            return
+
+        try:
+            validate_email_domain_mx(self.cleaned_data["adresse"])
+        except forms.ValidationError as e:
+            self.add_error('adresse', e)
             return
 
         if self.cleaned_data["moteur"] == "smtp":
