@@ -175,7 +175,7 @@ urlpatterns = [
     path('parametrage/config_paiement_stripe/modifier/<int:pk>', config_paiement_stripe.Modifier.as_view(),         name='config_paiement_stripe_modifier'),
     path('parametrage/config_paiement_stripe/supprimer/<int:pk>', config_paiement_stripe.Supprimer.as_view(),         name='config_paiement_stripe_supprimer'),
 
-    # Passerelle paiement Stripe
+    # Registre de présence
     path('parametrage/config_registre/liste', config_registre.Liste.as_view(),         name='config_registre_liste'),
     path('parametrage/config_registre/ajouter', config_registre.Ajouter.as_view(),         name='config_registre_ajouter'),
     path('parametrage/config_registre/modifier/<int:pk>', config_registre.Modifier.as_view(),         name='config_registre_modifier'),

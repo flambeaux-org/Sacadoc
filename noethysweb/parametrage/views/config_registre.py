@@ -22,8 +22,7 @@ class Page(crud.Page):
 
 class Liste(Page, crud.Liste):
     def get_queryset(self):
-        # On filtre par la structure courante si nécessaire (souvent via self.request.user.structure)
-        return Registre.objects.filter(self.Get_filtres("Q"))
+        return Registre.objects.filter(self.Get_filtres("Q"), self.Get_condition_structure())
 
     def get_context_data(self, **kwargs):
         context = super(Liste, self).get_context_data(**kwargs)
@@ -62,10 +61,8 @@ class Ajouter(Page, crud.Ajouter):
 class Modifier(Page, crud.Modifier):
     form_class = Formulaire
 
-    def get_form_kwargs(self, **kwargs):
-        """ Envoie l'idregistre au formulaire si nécessaire """
-        form_kwargs = super(Modifier, self).get_form_kwargs(**kwargs)
-        # Utilise l'id du registre actuel
+    def get_form_kwargs(self):
+        form_kwargs = super(Modifier, self).get_form_kwargs()
         form_kwargs["idregistre"] = self.kwargs.get('pk', None)
         return form_kwargs
 

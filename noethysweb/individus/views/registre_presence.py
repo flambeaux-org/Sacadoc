@@ -4,8 +4,8 @@ from datetime import timedelta
 from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
 from django.urls import reverse_lazy
-from django.db.models import Q
 import logging
+from django.http import HttpResponseForbidden
 
 from core.views import crud
 from core.views.customdatatable import CustomDatatable, Colonne
@@ -143,9 +143,6 @@ class Liste(Page, crud.CustomListe):
         return context
 
 
-import json
-
-
 def sauvegarder_pointage(request):
     if request.method == "POST":
         try:
@@ -156,6 +153,9 @@ def sauvegarder_pointage(request):
 
             date_obj = datetime.datetime.strptime(date_str, "%d/%m/%Y").date()
             registre = get_object_or_404(Registre, pk=id_reg)
+
+            if not request.user.structures.filter(pk=registre.structure_id).exists():
+                return HttpResponseForbidden()
 
             # CAS A : ON COCHE TOUTE LA COLONNE
             if id_ind == "tous":
