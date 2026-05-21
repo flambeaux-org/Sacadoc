@@ -73,28 +73,28 @@ $(document).ready(function() {
                         .css( 'border-collapse', 'collapse' )
                         .css( 'border', '1px solid black' );
                     $(win.document.body).find('td').css( 'border', '1px solid black' );
-                    $(win.document.body).find('table tbody tr').each(function() {
-                        $(this).find('td').each(function() {
-                            var cellIndex = $(this).index();
-                            var rowIndex = $(this).parent().index();
 
-                            // On récupère la checkbox correspondante dans la page réelle (la grille de pointage)
-                            var originalCheckbox = $('.datatable tbody tr').eq(rowIndex).find('td').eq(cellIndex).find('input[type="checkbox"]');
-
-                            if (originalCheckbox.length > 0) {
-                                if (originalCheckbox.is(':checked')) {
-                                    // On remplace le visuel par un caractère clair pour l'imprimante
-                                    $(this).html('<b style="font-size:10pt;">[ X ]</b>');
-                                    $(this).css('background-color', '#EEE'); // Petit gris pour aider la lecture
-                                } else {
-                                    $(this).html(' [   ] '); // Case vide
+                    // Registre de présence only: replace checkboxes with printable marks
+                    if ($('.pointage-check').length > 0) {
+                        $(win.document.body).find('table tbody tr').each(function() {
+                            $(this).find('td').each(function() {
+                                var cellIndex = $(this).index();
+                                var rowIndex = $(this).parent().index();
+                                var originalCheckbox = $('.datatable tbody tr').eq(rowIndex).find('td').eq(cellIndex).find('input[type="checkbox"]');
+                                if (originalCheckbox.length > 0) {
+                                    if (originalCheckbox.is(':checked')) {
+                                        $(this).html('<b style="font-size:10pt;">[ X ]</b>');
+                                        $(this).css('background-color', '#EEE');
+                                    } else {
+                                        $(this).html(' [   ] ');
+                                    }
+                                    $(this).css('text-align', 'center');
                                 }
-                                $(this).css('text-align', 'center');
-                            }
+                            });
                         });
-                    });
+                    }
 
-                    // 3. Centrage du titre (ton code existant)
+                    // Centrage du titre
                     $(win.document.body).find('h1').css({'text-align':'center', 'font-size':'9pt'});
 
                     // 4. Forcer l'impression des fonds de couleur (pour certains navigateurs)

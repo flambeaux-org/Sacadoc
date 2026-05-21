@@ -17,7 +17,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='registre',
             name='nom',
-            field=models.CharField(default=1.0, max_length=200, verbose_name='Nom'),
+            field=models.CharField(default='', max_length=200, verbose_name='Nom'),
             preserve_default=False,
         ),
     ]

@@ -1498,7 +1498,7 @@ class Registre(models.Model):
 
     idregistre = models.AutoField(
         verbose_name="ID",
-        db_column='IDevenement',
+        db_column='IDregistre',
         primary_key=True
     )
 
