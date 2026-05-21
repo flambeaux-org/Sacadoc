@@ -5,21 +5,21 @@ from core.forms.base import FormulaireBase
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Fieldset, Field, HTML
 from core.utils.utils_commandes import Commandes
-from core.models import Activite, Registre, Structure
+from core.models import Registre
 from core.forms.select2 import Select2Widget
 from django.core.exceptions import ValidationError
-from core.widgets import DateRangePickerWidget
 
 
 class Formulaire(FormulaireBase, ModelForm):
     class Meta:
         model = Registre
-        fields = ["nom","activite", "structure", "type_date", "date_seance"]
+        # H-3: structure is excluded — set programmatically from the chosen activity
+        fields = ["nom", "activite", "type_date", "date_seance"]
         widgets = {
             "activite": Select2Widget(),
             "date_seance": forms.TextInput(attrs={
                 'placeholder': '01/05/2024, 03/05/2024, 10/05/2024...',
-                'class': 'datepicker-multiple'  # Classe pour activer un JS si dispo
+                'class': 'datepicker-multiple'
             }),
         }
 
@@ -29,7 +29,6 @@ class Formulaire(FormulaireBase, ModelForm):
 
         self.helper = FormHelper()
         self.helper.form_id = 'config_registre_form'
-        # ... (config standard du helper) ...
 
         self.helper.layout = Layout(
             Commandes(annuler_url="{% url 'config_registre_liste' %}"),
@@ -39,7 +38,6 @@ class Formulaire(FormulaireBase, ModelForm):
                      Field('activite'),
                      Field('type_date', onchange="toggle_dates_field();"),
 
-                     # Le champ de dates est affiché/masqué selon le type
                      HTML('<div id="div_liste_dates">'),
                      Field('date_seance'),
                      HTML(
@@ -60,9 +58,8 @@ class Formulaire(FormulaireBase, ModelForm):
                     $(document).ready(function() {
                         toggle_dates_field();
 
-                        // Si tu veux activer un sélecteur multi-dates (Flatpickr par exemple)
                         if (typeof flatpickr !== 'undefined') {
-                            flatpickr("#id_dates_seance", {
+                            flatpickr("#id_date_seance", {
                                 mode: "multiple",
                                 dateFormat: "d/m/Y",
                                 conjunction: ", "
@@ -74,7 +71,6 @@ class Formulaire(FormulaireBase, ModelForm):
         )
 
     def clean(self):
-        """ Validation du format des dates """
         cleaned_data = super().clean()
 
         type_date = cleaned_data.get("type_date")
@@ -91,16 +87,29 @@ class Formulaire(FormulaireBase, ModelForm):
             d_deb = activite.date_debut
             d_fin = activite.date_fin
 
-            # 🚫 Dates manquantes
-            if d_deb.year < 2000:
+            # M-3: guard against None before attribute access
+            if not d_deb:
                 raise ValidationError(
-                    "L'activité sélectionnée n'a pas de dates de début/fin définies. "
+                    "L'activité sélectionnée n'a pas de date de début. "
                     "Veuillez choisir 'Liste de dates' ou paramétrer les dates de l'activité."
                 )
 
-            # 🚫 Période trop large
+            if d_deb.year < 2000:
+                raise ValidationError(
+                    "L'activité sélectionnée n'a pas de dates valides. "
+                    "Veuillez choisir 'Liste de dates' ou paramétrer les dates de l'activité."
+                )
+
+            # M-4: guard against None date_fin
+            if not d_fin:
+                raise ValidationError(
+                    "L'activité sélectionnée n'a pas de date de fin. "
+                    "Veuillez choisir 'Liste de dates' ou définir une date de fin pour l'activité."
+                )
+
             if (d_fin - d_deb).days > 30:
                 raise ValidationError(
                     "La période de l'activité est trop large pour générer automatiquement des dates."
                 )
+
         return cleaned_data

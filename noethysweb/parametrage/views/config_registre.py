@@ -6,6 +6,7 @@ from core.views import crud
 from core.models import Registre
 from parametrage.forms.config_registre import Formulaire
 
+
 class Page(crud.Page):
     model = Registre
     url_liste = "config_registre_liste"
@@ -20,6 +21,7 @@ class Page(crud.Page):
         {"label": "Ajouter", "classe": "btn btn-success", "href": reverse_lazy(url_ajouter), "icone": "fa fa-plus"},
     ]
 
+
 class Liste(Page, crud.Liste):
     def get_queryset(self):
         return Registre.objects.filter(self.Get_filtres("Q"), self.Get_condition_structure())
@@ -32,14 +34,13 @@ class Liste(Page, crud.Liste):
         return context
 
     class datatable_class(MyDatatable):
-        # Colonnes adaptées au modèle Registre
         activite = columns.TextColumn("Activité", source="activite__nom")
         type_date = columns.TextColumn("Type de date", source="get_type_date_display")
         actions = columns.TextColumn("Actions", sources=None, processor='Get_actions_standard')
 
         class Meta:
             structure_template = MyDatatable.structure_template
-            columns = ["nom","activite", "type_date", "actions"]
+            columns = ["nom", "activite", "type_date", "actions"]
             ordering = ["activite"]
 
 
@@ -52,20 +53,29 @@ class Ajouter(Page, crud.Ajouter):
         return kwargs
 
     def form_valid(self, form):
-        # get structure from activite id
         form.instance.structure_id = form.cleaned_data["activite"].structure_id
-
         return super(Ajouter, self).form_valid(form)
 
 
 class Modifier(Page, crud.Modifier):
     form_class = Formulaire
 
+    def get_queryset(self):
+        # H-1: prevent accessing registres from other structures
+        return Registre.objects.filter(self.Get_condition_structure())
+
     def get_form_kwargs(self):
         form_kwargs = super(Modifier, self).get_form_kwargs()
         form_kwargs["idregistre"] = self.kwargs.get('pk', None)
         return form_kwargs
 
+    def form_valid(self, form):
+        # H-3: always derive structure from the chosen activity, never from POST data
+        form.instance.structure_id = form.cleaned_data["activite"].structure_id
+        return super(Modifier, self).form_valid(form)
+
 
 class Supprimer(Page, crud.Supprimer):
-    pass
+    def get_queryset(self):
+        # H-1: prevent deleting registres from other structures
+        return Registre.objects.filter(self.Get_condition_structure())

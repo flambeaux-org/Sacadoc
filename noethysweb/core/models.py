@@ -4775,4 +4775,3 @@ class Pointage(models.Model):
     registre = models.ForeignKey(Registre, on_delete=models.CASCADE)
     individu = models.ForeignKey(Individu, on_delete=models.CASCADE)
     date_presence = models.DateField()
-    present = models.BooleanField(default=False)

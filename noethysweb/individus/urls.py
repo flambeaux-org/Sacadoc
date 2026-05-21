@@ -220,5 +220,5 @@ urlpatterns = [
     path('individus/imprimer_liste_inscrits/generer_csv', secure_ajax(imprimer_liste_inscrits.Generer_csv), name='ajax_imprimer_liste_inscrits_generer_csv'),
     path('individus/famille_attestations/generer_pdf', secure_ajax(famille_attestations.Generer_pdf), name='ajax_famille_attestations_generer_pdf'),
     path('individus/questionnaires/individus/relance/', secure_ajax(liste_questionnaires_individus.traiter_relance), name='ajax_get_relance'),
-    path('registre/sauvegarder/', secure_ajax(registre_presence.sauvegarder_pointage), name='registre_presence_sauvegarder'),
+    path('individus/registre/sauvegarder/', secure_ajax(registre_presence.sauvegarder_pointage), name='registre_presence_sauvegarder'),
 ]
