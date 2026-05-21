@@ -92,8 +92,8 @@
                     // 1. Changement d'activité
                     $('#choix_activite').on('change', function() {
                         var val = $(this).val();
-                        if (val && val != "0") {
-                            window.location.href = "{% url url_liste %}/" + val;
+                        if (val && val !== "0") {
+                            window.location.href = "{% url url_liste %}/" + encodeURIComponent(val);
                         }
                     });
 
