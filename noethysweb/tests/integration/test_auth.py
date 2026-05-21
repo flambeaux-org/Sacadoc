@@ -1,5 +1,4 @@
 import pytest
-from django.urls import reverse
 
 from tests.unit.factories import UtilisateurFactory
 
@@ -11,7 +10,7 @@ class TestLoginView:
         assert response.status_code == 200
 
     def test_valid_login_redirects_to_accueil(self, client):
-        user = UtilisateurFactory(username="staff", categorie="utilisateur")
+        UtilisateurFactory(username="staff", categorie="utilisateur")
         response = client.post(
             "/connexion",
             # "turnstile" field is required by the form but validation is skipped
@@ -29,11 +28,10 @@ class TestLoginView:
             {"username": "nobody", "password": "wrong", "turnstile": "dummy"},
             follow=True,
         )
-        # Should remain on the login page (no redirect to accueil)
         final_url = (
             response.redirect_chain[-1][0] if response.redirect_chain else "/connexion"
         )
-        assert "/utilisateur/" not in final_url
+        assert "connexion" in final_url
 
     def test_unauthenticated_staff_page_redirects(self, client):
         response = client.get("/utilisateur/", follow=False)

@@ -45,7 +45,7 @@ jobs:
           HEADLESS=1 pytest --junitxml=pytest.xml --cov-report=term-missing --cov=. | tee pytest-coverage.txt
 
       - name: Post Pytest Coverage Comment
-        uses: MishaKav/pytest-coverage-comment@main
+        uses: MishaKav/pytest-coverage-comment@v1.7.2
         with:
           pytest-coverage-path: ./noethysweb/pytest-coverage.txt
           junitxml-path: ./noethysweb/pytest.xml
