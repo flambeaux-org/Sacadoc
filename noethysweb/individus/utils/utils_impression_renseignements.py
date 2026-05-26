@@ -19,7 +19,7 @@ from core.data import data_civilites
 from core.utils import utils_dates, utils_impression, utils_questionnaires
 from individus.utils import utils_vaccinations
 import os
-from reportlab.platypus import Spacer, KeepInFrame
+from reportlab.platypus import Spacer
 
 
 class Impression(utils_impression.Impression):
@@ -36,7 +36,6 @@ class Impression(utils_impression.Impression):
         # Récupération des IDs nécessaires pour filtrer les requêtes
         individus_ids = [r.individu_id for r in rattachements]
         familles_ids = [r.famille_id for r in rattachements]
-
         # Importation de tous les représentants
         dict_representants = {}
         for rattachement in Rattachement.objects.select_related("individu").filter(categorie=1, famille_id__in=familles_ids):
@@ -50,13 +49,9 @@ class Impression(utils_impression.Impression):
 
         # Importation de toutes les assurances
         dict_assurances = {}
-        for assurance in Assurance.objects.select_related("assureur").filter(Q(individu_id__in=individus_ids) | Q(famille_id__in=familles_ids), Q(date_debut__lte=datetime.date.today()) & (Q(date_fin__isnull=True) | Q(date_fin__gte=datetime.date.today()))).order_by("date_debut"):
-            dict_assurances[(assurance.individu_id, assurance.famille_id)] = assurance
 
         # Importation de toutes les scolarités
         dict_scolarites = {}
-        for scolarite in Scolarite.objects.select_related("ecole", "classe", "niveau").filter(individu_id__in=individus_ids, date_fin__gte=datetime.date.today()).order_by("date_debut"):
-            dict_scolarites[scolarite.individu_id] = scolarite
 
         # Importation de tous les contacts
         dict_contacts = {}
@@ -76,21 +71,21 @@ class Impression(utils_impression.Impression):
 
         # Importation des questionnaires
         individus_inscrits=[r.individu for r in rattachements]
-        inscriptions_accessibles = Inscription.objects.filter(individu__in=individus_inscrits)
-        activites_accessibles = Activite.objects.filter(idactivite__in=inscriptions_accessibles.values('activite'), actif=True)
-        accessible_by_activity = Structure.objects.filter(idstructure__in=activites_accessibles.values('structure'))
+        inscriptions_accessibles = Inscription.objects.filter(individu__in=individus_ids)
+        activites_accessibles = Activite.objects.filter(idactivite__in=inscriptions_accessibles.values('activite'))
+        accessible_by_activity = Structure.objects.filter(idstructure__in=activites_accessibles.values('structure'), actif=True)
         accessible_by_user = self.request.user.structures.all()
-        structures_accessibles = accessible_by_activity & accessible_by_user
+        if accessible_by_user.exists():
+            structures_accessibles = accessible_by_activity & accessible_by_user
+        else:
+            structures_accessibles = accessible_by_activity
 
         questionnaires_individus = utils_questionnaires.ChampsEtReponses(
             categorie="individu",
             structure=structures_accessibles,
             filtre_reponses=(Q(individu__in=individus_inscrits) & Q(reponse__isnull=False) & ~Q(
                 reponse="")))
-        questionnaires_familles = utils_questionnaires.ChampsEtReponses(
-            categorie="famille",
-            filtre_reponses=(Q(famille__in=[r.famille for r in rattachements]) & Q(reponse__isnull=False) & ~Q(
-                reponse="")))
+        questionnaires_familles = []
 
         # Préparation des polices
         style_defaut = ParagraphStyle(name="defaut", fontName="Helvetica", fontSize=7, spaceAfter=0, leading=9)
@@ -319,20 +314,12 @@ class Impression(utils_impression.Impression):
                 texte_vaccinations.append("<br/><br/><br/>")
             self.story.append(Tableau(titre="Autres vaccinations".upper(), aide="Indiquer les autres vaccinations en précisant la date de rappel", contenu=[Paragraph(", ".join(texte_vaccinations), style_defaut)]))
 
-            # Questionnaires
-            questions_famille = questionnaires_familles.GetDonnees(rattachement.famille_id)
-            if questions_famille:
-                contenu_tableau = [Paragraph("%s : <b>%s</b>" % (question["label"], question["reponse"]), style_defaut) for question in questions_famille if question["visible_fiche_renseignement"]]
-                self.story.append(Tableau(titre="Questionnaire familial".upper(), aide="", contenu=contenu_tableau))
-
             questions_individu = questionnaires_individus.GetDonnees(rattachement.individu_id)
+            print(questions_individu)
             if questions_individu:
                 contenu_tableau = [Paragraph("%s : <b>%s</b>" % (question["label"], question["reponse"]), style_defaut) for question in questions_individu if question["visible_fiche_renseignement"]]
-                self.story.append(Tableau(
-                    titre="Questionnaire individuel".upper(),
-                    aide="",
-                    contenu=[KeepInFrame(300, 500, contenu_tableau, mode='shrink')]
-                ))
+                self.story.append(Tableau(titre="Questionnaire individuel".upper(), aide="", contenu=contenu_tableau))
+
             # Certification
             if rattachement.certification_date:
                 texte_certification = "Fiche vérifiée par le responsable le %s" % utils_dates.ConvertDateToFR(rattachement.certification_date)
