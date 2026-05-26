@@ -19,7 +19,7 @@ from core.data import data_civilites
 from core.utils import utils_dates, utils_impression, utils_questionnaires
 from individus.utils import utils_vaccinations
 import os
-from reportlab.platypus import Spacer
+from reportlab.platypus import Spacer, KeepInFrame
 
 
 class Impression(utils_impression.Impression):
