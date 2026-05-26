@@ -21,7 +21,7 @@ class View(CustomView, TemplateView):
 
         # Récupérer les inscriptions nécessitant une vérification
         inscriptions = Inscription.objects.filter(
-            famille=famille, besoin_certification=True, activite__is_active=True,
+            famille=famille, besoin_certification=True, activite__actif=True,
         ).select_related("individu")
 
         # Préparer la liste pour le template

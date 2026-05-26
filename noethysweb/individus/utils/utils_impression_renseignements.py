@@ -77,7 +77,7 @@ class Impression(utils_impression.Impression):
         # Importation des questionnaires
         individus_inscrits=[r.individu for r in rattachements]
         inscriptions_accessibles = Inscription.objects.filter(individu__in=individus_inscrits)
-        activites_accessibles = Activite.objects.filter(idactivite__in=inscriptions_accessibles.values('activite'))
+        activites_accessibles = Activite.objects.filter(idactivite__in=inscriptions_accessibles.values('activite'), actif=True)
         accessible_by_activity = Structure.objects.filter(idstructure__in=activites_accessibles.values('structure'))
         accessible_by_user = self.request.user.structures.all()
         structures_accessibles = accessible_by_activity & accessible_by_user
