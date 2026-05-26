@@ -328,8 +328,11 @@ class Impression(utils_impression.Impression):
             questions_individu = questionnaires_individus.GetDonnees(rattachement.individu_id)
             if questions_individu:
                 contenu_tableau = [Paragraph("%s : <b>%s</b>" % (question["label"], question["reponse"]), style_defaut) for question in questions_individu if question["visible_fiche_renseignement"]]
-                self.story.append(Tableau(titre="Questionnaire individuel".upper(), aide="", contenu=contenu_tableau))
-
+                self.story.append(Tableau(
+                    titre="Questionnaire individuel".upper(),
+                    aide="",
+                    contenu=[KeepInFrame(300, 500, contenu_tableau, mode='shrink')]
+                ))
             # Certification
             if rattachement.certification_date:
                 texte_certification = "Fiche vérifiée par le responsable le %s" % utils_dates.ConvertDateToFR(rattachement.certification_date)
