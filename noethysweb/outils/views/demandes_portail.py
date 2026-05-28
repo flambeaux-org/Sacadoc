@@ -27,38 +27,39 @@ logger = logging.getLogger(__name__)
 
 def envoyer_email_refus(demande, email_objet=None, email_corps=None):
     """ Envoie un email si la demande est refusée """
-    print("Envoi d’un email de refus")
+    print("Envoi d'un email de refus")
 
     idadresse_exp = utils_portail.Get_parametre(code="connexion_adresse_exp")
     adresse_exp = AdresseMail.objects.filter(pk=idadresse_exp, actif=True).first()
     individu_f = Individu.objects.get(idindividu=demande.individu_id)
 
     if not adresse_exp:
-        logger.debug("Erreur : Pas d’adresse d’expédition paramétrée.")
-        return _("L’envoi de l’email a échoué. Merci de signaler cet incident à l’organisateur.")
+        logger.debug("Erreur : Pas d'adresse d'expédition paramétrée.")
+        return _("L'envoi de l'email a échoué. Merci de signaler cet incident à l'organisateur.")
 
     # Configuration du backend email
     backend = "django.core.mail.backends.console.EmailBackend"
     backend_kwargs = {}
 
-    if settings.EMAIL_BACKEND != "django.core.mail.backends.console.EmailBackend" and adresse_exp.moteur == "smtp":
-        backend = "django.core.mail.backends.smtp.EmailBackend"
-        backend_kwargs = {
-            "host": adresse_exp.hote,
-            "port": adresse_exp.port,
-            "username": adresse_exp.utilisateur,
-            "password": adresse_exp.motdepasse,
-            "use_tls": adresse_exp.use_tls
-        }
-    elif settings.EMAIL_BACKEND != "django.core.mail.backends.console.EmailBackend" and adresse_exp.moteur == "mailjet":
-        backend = "anymail.backends.mailjet.EmailBackend"
-        backend_kwargs = {
-            "api_key": adresse_exp.Get_parametre("api_key"),
-            "secret_key": adresse_exp.Get_parametre("api_secret"),
-        }
-    elif settings.EMAIL_BACKEND != "django.core.mail.backends.console.EmailBackend" and adresse_exp.moteur == "brevo":
-        backend = "anymail.backends.sendinblue.EmailBackend"
-        backend_kwargs = {"api_key": adresse_exp.Get_parametre("api_key")}
+    if not settings.DEBUG:
+        if adresse_exp.moteur == "smtp":
+            backend = "django.core.mail.backends.smtp.EmailBackend"
+            backend_kwargs = {
+                "host": adresse_exp.hote,
+                "port": adresse_exp.port,
+                "username": adresse_exp.utilisateur,
+                "password": adresse_exp.motdepasse,
+                "use_tls": adresse_exp.use_tls
+            }
+        elif adresse_exp.moteur == "mailjet":
+            backend = "anymail.backends.mailjet.EmailBackend"
+            backend_kwargs = {
+                "api_key": adresse_exp.Get_parametre("api_key"),
+                "secret_key": adresse_exp.Get_parametre("api_secret"),
+            }
+        elif adresse_exp.moteur == "brevo":
+            backend = "anymail.backends.sendinblue.EmailBackend"
+            backend_kwargs = {"api_key": adresse_exp.Get_parametre("api_key")}
 
     connection = djangomail.get_connection(backend=backend, fail_silently=False, **backend_kwargs)
     try:
@@ -68,14 +69,16 @@ def envoyer_email_refus(demande, email_objet=None, email_corps=None):
         return f"Connexion impossible au serveur de messagerie : {err}"
 
     # Création du message
-    objet = email_objet if email_objet else "Refus de votre inscription"
-    body = email_corps if email_corps else f"""Bonjour,
+    objet = email_objet.strip() if email_objet else "Refus de votre inscription"
+    activite_nom = demande.activite.nom if demande.activite else None
+    activite_str = f" à l'activité {activite_nom}" if activite_nom else ""
+    body = email_corps if (email_corps and email_corps.strip()) else f"""Bonjour,
 
-La demande d’inscription de {individu_f} vient d’être refusée par le directeur.
-Pour plus d’informations, merci de le contacter directement.
+La demande d'inscription de {individu_f}{activite_str} vient d'être refusée par le directeur.
+Pour plus d'informations, merci de le contacter directement.
 
 Cordialement,
-L’équipe de Sacadoc"""
+L'équipe de Sacadoc"""
 
     destinataire = demande.famille.mail
 
@@ -200,7 +203,7 @@ def Appliquer_modification(request):
     email_corps = request.POST.get("email_corps") or None
 
     # Importation et traitement de la demande
-    demande = PortailRenseignement.objects.select_related("famille", "individu").get(pk=iddemande)
+    demande = PortailRenseignement.objects.select_related("famille", "individu", "activite").get(pk=iddemande)
     redirection = Traiter_demande(request=request, demande=demande, etat=etat, email_objet=email_objet, email_corps=email_corps)
 
     return JsonResponse({"succes": True, "redirection": redirection})
