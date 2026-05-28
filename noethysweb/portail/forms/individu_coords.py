@@ -10,6 +10,7 @@ from crispy_forms.helper import FormHelper
 from crispy_forms.layout import HTML
 from core.models import Individu, Rattachement
 from core.forms.select2 import Select2Widget
+from core.validators import validate_email_domain_mx
 from core.widgets import Telephone, CodePostal, Ville
 from portail.forms.fiche import FormulaireBase
 
@@ -91,6 +92,18 @@ class Formulaire(FormulaireBase, ModelForm):
         # Finalisation du layout
         self.Set_layout()
         self.helper.layout.append(HTML(EXTRA_SCRIPT))
+
+    def clean_mail(self):
+        value = self.cleaned_data.get("mail")
+        if value:
+            validate_email_domain_mx(value)
+        return value
+
+    def clean_travail_mail(self):
+        value = self.cleaned_data.get("travail_mail")
+        if value:
+            validate_email_domain_mx(value)
+        return value
 
     def clean(self):
         # Adresse auto

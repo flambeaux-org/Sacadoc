@@ -1,5 +1,6 @@
 from core.data import data_civilites
 from core.models import Utilisateur
+from core.validators import validate_email_domain_mx
 from django import forms
 from django.contrib.auth.forms import SetPasswordForm
 from django.utils.translation import gettext_lazy as _
@@ -12,7 +13,7 @@ class InscriptionFamilleForm(SetPasswordForm):
     )
     nom = forms.CharField(label=_("Nom"), max_length=200)
     prenom = forms.CharField(label=_("Prénom"), max_length=200)
-    mail = forms.EmailField(label=_("Email personnel"), max_length=300)
+    mail = forms.EmailField(label=_("Email personnel"), max_length=300, validators=[validate_email_domain_mx])
     turnstile = TurnstileField()
 
 

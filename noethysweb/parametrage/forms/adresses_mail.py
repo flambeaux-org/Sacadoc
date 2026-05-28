@@ -11,6 +11,7 @@ from crispy_forms.layout import Layout, HTML, Fieldset
 from crispy_forms.bootstrap import Field
 from core.utils.utils_commandes import Commandes
 from core.models import AdresseMail
+from core.validators import validate_email_domain_mx
 
 
 class Formulaire(FormulaireBase, ModelForm):
@@ -85,6 +86,12 @@ class Formulaire(FormulaireBase, ModelForm):
             # L'extrascript est placé à la fin pour ne pas perturber le bouton submit du form principal
             HTML(EXTRA_SCRIPT),
         )
+
+    def clean_adresse(self):
+        adresse = self.cleaned_data.get("adresse", "")
+        if adresse:
+            validate_email_domain_mx(adresse)
+        return adresse
 
     def clean(self):
         # Vérification des données saisies
