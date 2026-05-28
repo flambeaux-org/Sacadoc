@@ -25,7 +25,7 @@ class Liste(Onglet, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['box_titre'] = _("Liste des traitements effectués par l'assistant sanitaire")
-        context['box_introduction'] = _("Pour ajouter un traitement merci de passer par l'onglet Outils/Assistant sanitaire.")
+        context['box_introduction'] = _("Pour ajouter un traitement merci de passer par l'onglet Individus/Assistant sanitaire.")
         context['onglet_actif'] = self.onglet_actif
         context['traitements'] = self.get_traitements()
         context['idfamille'] = self.kwargs.get('idfamille')
