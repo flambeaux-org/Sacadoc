@@ -87,16 +87,16 @@ class Formulaire(FormulaireBase, ModelForm):
             HTML(EXTRA_SCRIPT),
         )
 
+    def clean_adresse(self):
+        adresse = self.cleaned_data.get("adresse", "")
+        if adresse:
+            validate_email_domain_mx(adresse)
+        return adresse
+
     def clean(self):
         # Vérification des données saisies
         if not self.cleaned_data.get("adresse", None):
             self.add_error('adresse', "Vous devez renseigner l'adresse d'expédition")
-            return
-
-        try:
-            validate_email_domain_mx(self.cleaned_data["adresse"])
-        except forms.ValidationError as e:
-            self.add_error('adresse', e)
             return
 
         if self.cleaned_data["moteur"] == "smtp":

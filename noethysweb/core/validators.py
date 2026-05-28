@@ -6,6 +6,7 @@ import dns.exception
 
 
 def validate_email_domain_mx(value):
+    """Vérifie que le domaine de l'adresse email possède un enregistrement MX (ou A en fallback RFC 5321). Fail-open sur erreur réseau."""
     if not value or "@" not in value:
         return
     domain = value.rsplit("@", 1)[1].lower()
