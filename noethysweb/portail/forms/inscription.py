@@ -35,8 +35,9 @@ class InscriptionFamilleForm(SetPasswordForm):
                 field.widget.attrs["autocomplete"] = "family-name"
             elif name == "prenom":
                 field.widget.attrs["autocomplete"] = "given-name"
-            # elif name == "new_password1" or name == "new_password2":
-            #     field.widget.attrs["autocomplete"] = "new-password"
+            elif name == "mail":
+                field.widget.attrs["autocomplete"] = "email"
+
 
     def clean_new_password2(self):
         # Simulate user
