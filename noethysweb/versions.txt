@@ -1,3 +1,8 @@
+Version 1.3.5.6.54 (01/06/2026)
+* Validate email domains with MX lookup by @mpeterschmitt in https://github.com/flambeaux-org/Sacadoc/pull/136
+* Adds tests by @mpeterschmitt in https://github.com/flambeaux-org/Sacadoc/pull/127
+* Add refusal modal and customizable email for refusals by @mpeterschmitt in https://github.com/flambeaux-org/Sacadoc/pull/135
+
 Version 1.3.5.6.53 (26/05/2026)
 - Fix vérfication(cette fois ci c'est ok normalement)
 
