@@ -1,0 +1,118 @@
+name: Ruff Lint & Format
+
+on:
+  pull_request:
+    branches: ["**"]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  ruff:
+    name: Ruff Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      # ── Step 1: Auto-fix fixable issues ──────────────────────────────
+      - name: Run ruff check --fix (auto-fix lint issues)
+        run: uvx "ruff>=0.15.6" check --fix .
+
+      - name: Run ruff format (auto-format code)
+        run: uvx "ruff>=0.15.6" format .
+
+      - name: Commit and push auto-fixes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain)" ]; then
+            git add -A
+            git commit -m "style: auto-fix ruff lint and format issues"
+            git push
+          else
+            echo "No auto-fixable issues found."
+          fi
+
+      # ── Step 2: Report remaining non-fixable issues ──────────────────
+      - name: Run ruff check for remaining issues
+        id: ruff-report
+        run: |
+          set +e
+          output=$(uvx "ruff>=0.15.6" check . 2>&1)
+          exit_code=$?
+          set -e
+
+          # Write output to file for the comment step
+          echo "$output" > /tmp/ruff-report.txt
+          echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
+
+          if [ $exit_code -ne 0 ]; then
+            echo "::warning::Ruff found non-fixable lint issues."
+          else
+            echo "No remaining lint issues."
+          fi
+
+      - name: Comment on PR with non-fixable issues
+        if: steps.ruff-report.outputs.exit_code != '0'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('/tmp/ruff-report.txt', 'utf8').trim();
+
+            // Build a markdown comment
+            const body = [
+              '## Ruff Lint Report',
+              '',
+              'Auto-fixable issues have been fixed and committed.',
+              'The following **non-fixable** issues remain and need manual attention:',
+              '',
+              '```',
+              report,
+              '```',
+              '',
+              '> _This comment was generated automatically by the Ruff CI workflow._',
+            ].join('\n');
+
+            // Delete previous bot comments for this workflow to avoid spam
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            for (const comment of comments) {
+              if (
+                comment.user.type === 'Bot' &&
+                comment.body.includes('## Ruff Lint Report')
+              ) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: comment.id,
+                });
+              }
+            }
+
+            // Post the new comment
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+
+      - name: Fail if non-fixable issues remain
+        if: steps.ruff-report.outputs.exit_code != '0'
+        run: |
+          echo "Non-fixable ruff issues found. See the PR comment for details."
+          exit 1

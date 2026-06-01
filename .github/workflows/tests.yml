@@ -1,0 +1,48 @@
+name: Run Pytest
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libcairo2-dev
+
+      - name: Install dependencies
+        working-directory: ./noethysweb
+        run: uv sync --all-groups
+
+      - name: Install Playwright browsers and OS dependencies
+        working-directory: ./noethysweb
+        run: uv run playwright install --with-deps
+
+      - name: Run migrations
+        working-directory: ./noethysweb
+        run: uv run python manage.py migrate
+
+      - name: Test with pytest
+        working-directory: ./noethysweb
+        run: |
+          HEADLESS=1 uv run pytest --junitxml=pytest.xml --cov-report=term-missing --cov=. | tee pytest-coverage.txt
+
+      - name: Post Pytest Coverage Comment
+        uses: MishaKav/pytest-coverage-comment@v1.7.2
+        with:
+          pytest-coverage-path: ./noethysweb/pytest-coverage.txt
+          junitxml-path: ./noethysweb/pytest.xml
