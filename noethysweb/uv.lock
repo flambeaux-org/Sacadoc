@@ -1281,7 +1281,6 @@ dependencies = [
     { name = "requests-file" },
     { name = "requests-toolbelt" },
     { name = "rlpycairo" },
-    { name = "setuptools" },
     { name = "sgmllib3k" },
     { name = "six" },
     { name = "soupsieve" },
@@ -1393,7 +1392,6 @@ requires-dist = [
     { name = "requests-file", specifier = "==1.5.1" },
     { name = "requests-toolbelt", specifier = "==1.0.0" },
     { name = "rlpycairo", specifier = "==0.2.0" },
-    { name = "setuptools", specifier = "<82" },
     { name = "sgmllib3k", specifier = "==1.0.0" },
     { name = "six", specifier = "==1.16.0" },
     { name = "soupsieve", specifier = "==2.4.1" },
@@ -2112,15 +2110,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/74/3a/85e60d154f26ecdc1d47a63ac58bd9f32a5a9f3f771f6672197f02a00ade/rope-1.14.0.tar.gz", hash = "sha256:8803e3b667315044f6270b0c69a10c0679f9f322ed8efe6245a93ceb7658da69", size = 296801, upload-time = "2025-07-12T17:46:07.786Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/75/35/130469d1901da2b3a5a377539b4ffcd8a5c983f1c9e3ba5ffdd8d71ae314/rope-1.14.0-py3-none-any.whl", hash = "sha256:00a7ea8c0c376fc0b053b2f2f8ef3bfb8b50fecf1ebf3eb80e4f8bd7f1941918", size = 207143, upload-time = "2025-07-12T17:46:05.928Z" },
-]
-
-[[package]]
-name = "setuptools"
-version = "81.0.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/0d/1c/73e719955c59b8e424d015ab450f51c0af856ae46ea2da83eba51cc88de1/setuptools-81.0.0.tar.gz", hash = "sha256:487b53915f52501f0a79ccfd0c02c165ffe06631443a886740b91af4b7a5845a", size = 1198299, upload-time = "2026-02-06T21:10:39.601Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e1/e3/c164c88b2e5ce7b24d667b9bd83589cf4f3520d97cad01534cd3c4f55fdb/setuptools-81.0.0-py3-none-any.whl", hash = "sha256:fdd925d5c5d9f62e4b74b30d6dd7828ce236fd6ed998a08d81de62ce5a6310d6", size = 1062021, upload-time = "2026-02-06T21:10:37.175Z" },
 ]
 
 [[package]]

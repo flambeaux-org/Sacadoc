@@ -79,7 +79,6 @@ dependencies = [
   "requests-file==1.5.1",
   "requests-toolbelt==1.0.0",
   "rlpycairo==0.2.0",
-  "setuptools<82",
   "sgmllib3k==1.0.0",
   "six==1.16.0",
   "soupsieve==2.4.1",
