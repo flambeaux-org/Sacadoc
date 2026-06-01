@@ -18,6 +18,36 @@
             {% endembed %}
         </div>
     </div>
+
+    {# Modal de refus d'inscription #}
+    <div class="modal fade" id="modal_refus_inscription" role="dialog" aria-labelledby="modal_refus_titre">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header bg-red">
+                    <h5 class="modal-title" id="modal_refus_titre"><strong>Refuser l'inscription</strong></h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>Un email de refus sera envoyé à la famille. Vous pouvez modifier le contenu ci-dessous :</p>
+                    <input type="hidden" id="refus_iddemande">
+                    <div class="form-group">
+                        <label for="refus_objet">Objet de l'email</label>
+                        <input type="text" class="form-control" id="refus_objet">
+                    </div>
+                    <div class="form-group">
+                        <label for="refus_corps">Corps de l'email</label>
+                        <textarea class="form-control" id="refus_corps" rows="8"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal"><i class="fa fa-ban margin-r-5"></i>Annuler</button>
+                    <button type="button" class="btn btn-danger" onclick="confirmer_refus()"><i class="fa fa-thumbs-down margin-r-5"></i>Confirmer le refus</button>
+                </div>
+            </div>
+        </div>
+    </div>
 {% endblock contenu_page %}
 
 {% block scripts %}
@@ -71,6 +101,39 @@
                 }
             })
         };
+
+        function ouvrir_popup_refus(btn) {
+            var iddemande = $(btn).data('iddemande');
+            var nom = $(btn).data('nom');
+            var defaultBody = "Bonjour,\n\nLa demande d'inscription de " + nom + " vient d'être refusée par le directeur.\nPour plus d'informations, merci de le contacter directement.\n\nCordialement,\nL'équipe de Sacadoc";
+            $('#refus_iddemande').val(iddemande);
+            $('#refus_objet').val("Refus de votre inscription");
+            $('#refus_corps').val(defaultBody);
+            $('#modal_refus_inscription').modal('show');
+        }
+
+        function confirmer_refus() {
+            var iddemande = $('#refus_iddemande').val();
+            $.ajax({
+                type: "POST",
+                url: "{% url 'ajax_appliquer_modification_portail' %}",
+                data: {
+                    "iddemande": iddemande,
+                    "etat": "REFUS",
+                    "email_objet": $('#refus_objet').val(),
+                    "email_corps": $('#refus_corps').val()
+                },
+                datatype: "json",
+                success: function(data) {
+                    $('#modal_refus_inscription').modal('hide');
+                    var table = $('.datatable').DataTable();
+                    table.ajax.reload(null, false);
+                },
+                error: function(data) {
+                    toastr.error("Erreur");
+                }
+            });
+        }
 
         function tout_valider() {
             var listepk = get_coches();

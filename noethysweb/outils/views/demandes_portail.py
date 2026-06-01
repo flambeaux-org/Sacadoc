@@ -14,17 +14,18 @@ from core.models import PortailRenseignement, TypeSieste, Caisse, Individu, Sect
                         Medecin, ContactUrgence, Assurance, Information, QuestionnaireQuestion, Vaccin, Activite, Groupe,CategorieTarif, Inscription, AdresseMail
 from core.data import data_civilites
 from core.utils import utils_dates, utils_parametres
+from noethysweb import settings
 from portail.utils import utils_champs
 from django.core.mail import send_mail
 from django.core import mail as djangomail
 from django.core.mail import EmailMultiAlternatives
-from django.utils.html import strip_tags
+from django.utils.html import strip_tags, escape
 from core.utils import utils_portail
 import logging
 logger = logging.getLogger(__name__)
 
 
-def envoyer_email_refus(demande):
+def envoyer_email_refus(demande, email_objet=None, email_corps=None):
     """ Envoie un email si la demande est refusée """
     print("Envoi d'un email de refus")
 
@@ -37,27 +38,28 @@ def envoyer_email_refus(demande):
         return _("L'envoi de l'email a échoué. Merci de signaler cet incident à l'organisateur.")
 
     # Configuration du backend email
-    backend = 'django.core.mail.backends.console.EmailBackend'
+    backend = "django.core.mail.backends.console.EmailBackend"
     backend_kwargs = {}
 
-    if adresse_exp.moteur == "smtp":
-        backend = 'django.core.mail.backends.smtp.EmailBackend'
-        backend_kwargs = {
-            "host": adresse_exp.hote,
-            "port": adresse_exp.port,
-            "username": adresse_exp.utilisateur,
-            "password": adresse_exp.motdepasse,
-            "use_tls": adresse_exp.use_tls
-        }
-    elif adresse_exp.moteur == "mailjet":
-        backend = 'anymail.backends.mailjet.EmailBackend'
-        backend_kwargs = {
-            "api_key": adresse_exp.Get_parametre("api_key"),
-            "secret_key": adresse_exp.Get_parametre("api_secret"),
-        }
-    elif adresse_exp.moteur == "brevo":
-        backend = 'anymail.backends.sendinblue.EmailBackend'
-        backend_kwargs = {"api_key": adresse_exp.Get_parametre("api_key")}
+    if not settings.DEBUG:
+        if adresse_exp.moteur == "smtp":
+            backend = "django.core.mail.backends.smtp.EmailBackend"
+            backend_kwargs = {
+                "host": adresse_exp.hote,
+                "port": adresse_exp.port,
+                "username": adresse_exp.utilisateur,
+                "password": adresse_exp.motdepasse,
+                "use_tls": adresse_exp.use_tls
+            }
+        elif adresse_exp.moteur == "mailjet":
+            backend = "anymail.backends.mailjet.EmailBackend"
+            backend_kwargs = {
+                "api_key": adresse_exp.Get_parametre("api_key"),
+                "secret_key": adresse_exp.Get_parametre("api_secret"),
+            }
+        elif adresse_exp.moteur == "brevo":
+            backend = "anymail.backends.sendinblue.EmailBackend"
+            backend_kwargs = {"api_key": adresse_exp.Get_parametre("api_key")}
 
     connection = djangomail.get_connection(backend=backend, fail_silently=False, **backend_kwargs)
     try:
@@ -67,16 +69,16 @@ def envoyer_email_refus(demande):
         return f"Connexion impossible au serveur de messagerie : {err}"
 
     # Création du message
-    objet = "Refus de votre inscription"
-    body = f"""
-Bonjour,
+    objet = email_objet.strip() if email_objet else "Refus de votre inscription"
+    activite_nom = demande.activite.nom if demande.activite else None
+    activite_str = f" à l'activité {activite_nom}" if activite_nom else ""
+    body = email_corps if (email_corps and email_corps.strip()) else f"""Bonjour,
 
-La demande d'inscription de {individu_f} vient d'être refusée par le directeur.
-Pour plus d’informations, merci de le contacter directement.
+La demande d'inscription de {individu_f}{activite_str} vient d'être refusée par le directeur.
+Pour plus d'informations, merci de le contacter directement.
 
 Cordialement,
-L’équipe de Sacadoc
-"""
+L'équipe de Sacadoc"""
 
     destinataire = demande.famille.mail
 
@@ -103,7 +105,7 @@ L’équipe de Sacadoc
 
     connection.close()
 
-def Traiter_demande(request=None, demande=None, etat=None):
+def Traiter_demande(request=None, demande=None, etat=None, email_objet=None, email_corps=None):
     """ Traitement d'une demande donnée """
     redirection = None
 
@@ -185,7 +187,7 @@ def Traiter_demande(request=None, demande=None, etat=None):
                 return redirection
 
     if etat == "REFUS":
-        envoyer_email_refus(demande)
+        envoyer_email_refus(demande, email_objet=email_objet, email_corps=email_corps)
         # Modifie l'état de la demande
         demande.traitement_date = datetime.datetime.now()
         demande.traitement_utilisateur = request.user
@@ -197,10 +199,12 @@ def Traiter_demande(request=None, demande=None, etat=None):
 def Appliquer_modification(request):
     iddemande = int(request.POST["iddemande"])
     etat = request.POST["etat"]
+    email_objet = request.POST.get("email_objet") or None
+    email_corps = request.POST.get("email_corps") or None
 
     # Importation et traitement de la demande
-    demande = PortailRenseignement.objects.select_related("famille", "individu").get(pk=iddemande)
-    redirection = Traiter_demande(request=request, demande=demande, etat=etat)
+    demande = PortailRenseignement.objects.select_related("famille", "individu", "activite").get(pk=iddemande)
+    redirection = Traiter_demande(request=request, demande=demande, etat=etat, email_objet=email_objet, email_corps=email_corps)
 
     return JsonResponse({"succes": True, "redirection": redirection})
 
@@ -404,7 +408,8 @@ class Liste(Page, crud.Liste):
                 if instance.etat in ("ATTENTE", "REFUS"):
                     html.append("""<button class='btn btn-success btn-xs' onclick="traiter_demande(%d, 'VALIDE')" title='Valider'><i class="fa fa-fw fa-thumbs-up"></i></button>""" % instance.pk)
                 if instance.etat in ("ATTENTE", "VALIDE"):
-                    html.append("""<button class='btn btn-danger btn-xs' onclick="traiter_demande(%d, 'REFUS')" title='Refuser'><i class="fa fa-fw fa-thumbs-down"></i></button>""" % instance.pk)
+                    nom_individu = escape(instance.individu.Get_nom()) if instance.individu else "l&#39;individu"
+                    html.append("""<button class='btn btn-danger btn-xs' title='Refuser' data-iddemande="%d" data-nom="%s" onclick="ouvrir_popup_refus(this)"><i class="fa fa-fw fa-thumbs-down"></i></button>""" % (instance.pk, nom_individu))
             return self.Create_boutons_actions(html)
 
         def Get_actions(self, instance, *args, **kwargs):
