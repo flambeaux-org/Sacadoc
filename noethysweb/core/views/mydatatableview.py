@@ -61,6 +61,7 @@ class MyDatatable(Datatable):
         # Colonnes cachées mémorisées
         if parametres.get("hidden_columns", None):
             self._meta.hidden_columns = json.loads(parametres["hidden_columns"])
+            self._meta.hidden_columns = [col for col in self._meta.hidden_columns if col is not None]
 
         # Page length mémorisées
         if parametres.get("page_length", None):

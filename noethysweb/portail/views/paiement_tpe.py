@@ -59,8 +59,11 @@ def paiement_tpe(request):
 
     # --- CAS HELLOASSO ---
     if plateforme == "HELLOASSO":
-        base_url = "https://sacadoc.flambeaux.org"
-        #base_url = "https://wizardly-unmasticatory-ali.ngrok-free.dev"
+        HELLOASSO_DEV = False  # POUR DEV
+        if HELLOASSO_DEV:
+            base_url = "http://127.0.0.1:8000"
+        else:
+            base_url = "https://sacadoc.flambeaux.org"
         config = HelloAssoConfig.objects.filter(activites=activite, actif=True).first()
         if not config:
             return JsonResponse({"success": False, "erreur": "Configuration HelloAsso manquante"}, status=400)
@@ -112,7 +115,7 @@ def paiement_tpe(request):
         # Note : on double les {{ }} pour CHECKOUT_SESSION_ID pour que Python ne les interprète pas
         # mais on garde des simples { } pour stripe_compte.pk
         success_url = f"{base_url}/attente_paiement/?session_id={{CHECKOUT_SESSION_ID}}&compte_id={stripe_compte.pk}"
-        cancel_url = f"{base_url}/facturation/"
+        cancel_url = f"{base_url}/facturation"
 
         stripe.api_key = stripe_compte.secret_key
         try:

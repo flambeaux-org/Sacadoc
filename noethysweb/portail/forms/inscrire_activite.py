@@ -130,7 +130,7 @@ class Formulaire_extra(FormulaireBase, forms.Form):
                             # Il y a des pièces de ce type - afficher chacune
                             for piece in pieces_ce_type:
                                 is_expired = piece.date_fin < date_reference if piece.date_fin else False
-                                
+
                                 if is_expired:
                                     status_icon = "⚠️"
                                     status_class = "danger"
@@ -150,7 +150,7 @@ class Formulaire_extra(FormulaireBase, forms.Form):
                                             <div class='d-flex align-items-center'>
                                                 <div class='flex-grow-1 mr-2'>
                                                     <strong class='d-block' style='font-size: 0.9rem;'>{type_piece.nom}</strong>
-                                                    <small class='text-muted'>{piece.individu.prenom if piece.individu else 'Famille'} • 
+                                                    <small class='text-muted'>{piece.individu.prenom if piece.individu else 'Famille'} •
                                                         <span class='text-{status_class}'>{status_icon} {status_text}</span>
                                                     </small>
                                                 </div>
@@ -164,11 +164,11 @@ class Formulaire_extra(FormulaireBase, forms.Form):
                                                 </div>
                                             </div>
                                 """))
-                                
+
                                 # Si la pièce est expirée ET que l'upload est imposé, ajouter inline l'upload
                                 if is_expired and activite.portail_inscriptions_imposer_pieces:
                                     nom_field = f"document_{type_piece.pk}"
-                                    
+
                                     # Préparation du modèle si disponible
                                     modele_html = ""
                                     portail_document = PortailDocument.objects.filter(
@@ -181,18 +181,18 @@ class Formulaire_extra(FormulaireBase, forms.Form):
                                         modele_url = piece_info.get("document").document.url
                                     else:
                                         modele_url = None
-                                    
+
                                     if modele_url:
                                         modele_html = f"<a href='{modele_url}' target='_blank' class='btn btn-xs btn-outline-info ml-2' title='Télécharger le modèle'><i class='fa fa-download'></i></a>"
-                                    
+
                                     self.fields[nom_field] = forms.FileField(
                                         label="",
-                                        help_text="",
+                                        help_text="Formats acceptés : PDF, PNG, JPG. Poids maximum : 25MB.",
                                         required=True,
-                                        widget=forms.FileInput(attrs={'class': 'form-control-file form-control-sm', 'accept': '.pdf,.png,.jpg,.jpeg'}),
+                                        widget=forms.FileInput(attrs={'class': 'form-control-file form-control-sm', 'accept': '.pdf,.png,.jpg,.jpeg', "data-max-size": 25*1024*1024}),
                                         validators=[FileExtensionValidator(allowed_extensions=['pdf', 'png', 'jpg', 'jpeg'])]
                                     )
-                                    
+
                                     layout_elements.append(HTML(f"""
                                             <div class='mt-2 p-2 bg-warning-light rounded'>
                                                 <small class='text-danger d-block mb-1'><i class='fa fa-exclamation-triangle'></i> Pièce expirée - Remplacer :</small>
@@ -204,7 +204,7 @@ class Formulaire_extra(FormulaireBase, forms.Form):
                                                 </div>
                                             </div>
                                     """))
-                                
+
                                 layout_elements.append(HTML("""</div></div>"""))
                         else:
                             # Aucune pièce de ce type - Version compacte
@@ -214,17 +214,17 @@ class Formulaire_extra(FormulaireBase, forms.Form):
                                         <div class='d-flex align-items-center'>
                                             <div class='flex-grow-1'>
                                                 <strong class='d-block' style='font-size: 0.9rem;'>{type_piece.nom}</strong>
-                                                <small class='text-muted'>❌ Manquante • 
+                                                <small class='text-muted'>❌ Manquante •
                                                     {'À fournir ci-dessous' if activite.portail_inscriptions_imposer_pieces else 'À fournir ultérieurement'}
                                                 </small>
                                             </div>
                                         </div>
                             """))
-                            
+
                             # Si l'upload est imposé, ajouter inline l'upload
                             if activite.portail_inscriptions_imposer_pieces:
                                 nom_field = f"document_{type_piece.pk}"
-                                
+
                                 # Préparation du modèle si disponible
                                 modele_html = ""
                                 portail_document = PortailDocument.objects.filter(
@@ -237,18 +237,18 @@ class Formulaire_extra(FormulaireBase, forms.Form):
                                     modele_url = piece_info.get("document").document.url
                                 else:
                                     modele_url = None
-                                
+
                                 if modele_url:
                                     modele_html = f"<a href='{modele_url}' target='_blank' class='btn btn-xs btn-outline-info ml-2' title='Télécharger le modèle'><i class='fa fa-download'></i></a>"
-                                
+
                                 self.fields[nom_field] = forms.FileField(
                                     label="",
-                                    help_text="",
+                                    help_text="Formats acceptés : PDF, PNG, JPG. Poids maximum : 25MB.",
                                     required=True,
-                                    widget=forms.FileInput(attrs={'class': 'form-control-file form-control-sm', 'accept': '.pdf,.png,.jpg,.jpeg'}),
+                                    widget=forms.FileInput(attrs={'class': 'form-control-file form-control-sm', 'accept': '.pdf,.png,.jpg,.jpeg', "data-max-size": 25*1024*1024}),
                                     validators=[FileExtensionValidator(allowed_extensions=['pdf', 'png', 'jpg', 'jpeg'])]
                                 )
-                                
+
                                 layout_elements.append(HTML(f"""
                                         <div class='mt-2 p-2 bg-light rounded'>
                                             <small class='text-primary d-block mb-1'><i class='fa fa-upload'></i> Fournir la pièce :</small>
@@ -260,9 +260,9 @@ class Formulaire_extra(FormulaireBase, forms.Form):
                                             </div>
                                         </div>
                                 """))
-                            
+
                             layout_elements.append(HTML("""</div></div>"""))
-                    
+
                     # Fermeture de la grille
                     layout_elements.append(HTML("""</div>"""))
 
@@ -339,7 +339,7 @@ $(function () {
     const $divExtra = $("#form_extra");
     const $placeholder = $("#placeholder_extra");
 
-    let dataActivites = []; 
+    let dataActivites = [];
 
     // Initialisation : on vide l'activité au chargement de la page
     $activite.empty().append(new Option("Sélectionnez d'abord une structure", ""));
@@ -376,15 +376,15 @@ $(function () {
     // --- CASCADE 2 : ACTIVITÉ -> GROUPE & FORM EXTRA ---
     $activite.on("change", function() {
         const activiteId = $(this).val();
-        
+
         if (activiteId) {
         // 1. ON ACTIVE LE CHAMP (on retire le "grisé")
         $groupe.prop('disabled', false);
         $groupe.empty();
-        
+
         // 2. Remplissage des groupes
         const selectedAct = dataActivites.find(a => String(a.id) === String(activiteId));
-        
+
         if (selectedAct && selectedAct.groupes) {
             $.each(selectedAct.groupes, function(_, g) {
                 $groupe.append(new Option(g.nom, g.idgroupe));

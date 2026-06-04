@@ -29,11 +29,11 @@ class Formulaire(FormulaireBase, ModelForm):
     validite_type = forms.TypedChoiceField(label="Validité", choices=choix_validite, initial='ILLIMITEE', required=False)
     date_debut = forms.DateField(label="Date de début", required=True, widget=DatePickerWidget())
     date_fin = forms.DateField(label="Date de fin", required=False, widget=DatePickerWidget())
-    document = forms.FileField(label="Document 1", required=True)
-    document1 = forms.FileField(label="Document 2", required=False)
-    document2 = forms.FileField(label="Document 3", required=False)
-    document3 = forms.FileField(label="Document 4", required=False)
-    document4 = forms.FileField(label="Document 5", required=False)
+    document = forms.FileField(label="Document 1", required=True, widget=forms.FileInput(attrs={"data-max-size": 25*1024*1024}))
+    document1 = forms.FileField(label="Document 2", required=False, widget=forms.FileInput(attrs={"data-max-size": 25*1024*1024}))
+    document2 = forms.FileField(label="Document 3", required=False, widget=forms.FileInput(attrs={"data-max-size": 25*1024*1024}))
+    document3 = forms.FileField(label="Document 4", required=False, widget=forms.FileInput(attrs={"data-max-size": 25*1024*1024}))
+    document4 = forms.FileField(label="Document 5", required=False, widget=forms.FileInput(attrs={"data-max-size": 25*1024*1024}))
     class Meta:
         model = Piece
         fields = "__all__"
@@ -311,5 +311,17 @@ $(document).ready(function() {
     $('#id_document4').change(On_change_document);
 });
 
+// Check for file size before submitting
+$('#famille_pieces_form').submit(function(e) {
+    for (const element of this.elements) {
+        if (element.type === "file" && element.files.length > 0 && element.dataset.maxSize) {
+            const maxSize = parseInt(element.dataset.maxSize, 10);
+            if (element.files[0].size > maxSize) {
+                toastr.error(`Le fichier "${element.files[0].name}" dépasse la taille maximale de ${maxSize / (1024 * 1024)}MB.`);
+                return false;
+            }
+        }
+    }
+});
 </script>
 """

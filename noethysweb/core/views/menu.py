@@ -56,7 +56,7 @@ def GetMenuPrincipal(organisateur=None, user=None):
     # menu_renseignements.Add(code="secteurs_liste", titre="Secteurs géographiques", icone="file-text-o")
     # menu_renseignements.Add(code="types_sieste_liste", titre="Types de sieste", icone="file-text-o")
     # menu_renseignements.Add(code="types_regimes_alimentaires_liste", titre="Types de régimes alimentaires", icone="file-text-o")
-    #menu_renseignements.Add(code="types_maladies_liste", titre="Types de maladies", icone="file-text-o")
+    menu_renseignements.Add(code="types_maladies_liste", titre="Types de maladies", icone="file-text-o")
 
     #menu_renseignements.Add(code="medecins_liste", titre="Médecins", icone="file-text-o")
     # menu_renseignements.Add(code="assureurs_liste", titre="Assureurs", icone="file-text-o")
@@ -456,6 +456,8 @@ def GetMenuPrincipal(organisateur=None, user=None):
     #menu_comptabilite_operations.Add(code="operations_budgetaires_liste", titre="Liste des opérations budgétaires", icone="file-text-o")
     menu_comptabilite_operations.Add(code="virements_liste", titre="Liste des virements interne", icone="file-text-o")
     menu_comptabilite_operations.Add(code="edition_justifs", titre="Edition PDF des justificatifs", icone="file-text-o")
+    menu_comptabilite_operations.Add(code="correction_compte", titre="Correction du compte d'une opération", icone="file-text-o")
+
 
     # Analyse
     menu_comptabilite_analyse = menu_comptabilite.Add(titre="Analyse")

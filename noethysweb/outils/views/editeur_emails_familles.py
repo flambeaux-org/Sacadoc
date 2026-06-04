@@ -5,7 +5,7 @@
 
 from django.urls import reverse_lazy, reverse
 from core.views import crud
-from core.models import Famille, Destinataire, Mail
+from core.models import Famille, Destinataire, Mail, Inscription, Activite
 from core.views.mydatatableview import MyDatatable, columns, helpers
 from outils.views.editeur_emails import Page_destinataires
 
@@ -17,7 +17,16 @@ class Liste(Page_destinataires, crud.Liste):
     categorie = "famille"
 
     def get_queryset(self):
-        return Famille.objects.filter(self.Get_filtres("Q"))
+        activites_accessibles = Activite.objects.filter(self.Get_condition_structure())
+        id_familles_inscrites = Inscription.objects.filter(
+            activite__in=activites_accessibles
+        ).values_list('famille', flat=True)
+
+        return Famille.objects.filter(
+            idfamille__in=id_familles_inscrites
+        ).filter(
+            self.Get_filtres("Q")
+        ).distinct()
 
     def get_context_data(self, **kwargs):
         context = super(Liste, self).get_context_data(**kwargs)

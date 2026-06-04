@@ -10,6 +10,7 @@ from core.models import (
     Rattachement,
 )
 from core.utils import utils_questionnaires
+from core.validators import validate_email_domain_mx
 from django import forms
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Submit, Div, HTML, Fieldset
@@ -48,7 +49,7 @@ class IndividuForm(forms.ModelForm):
     tel_mobile = forms.CharField(
         required=False, label="Téléphone portable", max_length=100
     )
-    mail = forms.EmailField(required=False, label="Email personnel", max_length=300)
+    mail = forms.EmailField(required=False, label="Email personnel", max_length=300, validators=[validate_email_domain_mx])
 
     # Numéro de sécurité sociale
     secu = forms.CharField(

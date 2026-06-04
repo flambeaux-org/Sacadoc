@@ -21,7 +21,7 @@ class View(CustomView, TemplateView):
 
         # Récupérer les inscriptions nécessitant une vérification
         inscriptions = Inscription.objects.filter(
-            famille=famille, besoin_certification=True
+            famille=famille, besoin_certification=True, activite__actif=True,
         ).select_related("individu")
 
         # Préparer la liste pour le template
@@ -30,7 +30,7 @@ class View(CustomView, TemplateView):
             rattachement = Rattachement.objects.filter(individu=ins.individu).first()
             buffer = io.BytesIO()
             impression = utils_impression_renseignements.Impression(
-                dict_donnees={"rattachements": [rattachement.pk], "tri": "classe", "mode_condense": True})
+                dict_donnees={"rattachements": [rattachement.pk], "tri": "classe", "mode_condense": True}, request=self.request)
             # Vérifier les erreurs éventuelles
             if impression.erreurs:
                 return JsonResponse({"erreur": impression.erreurs[0]}, status=401)
@@ -50,22 +50,17 @@ class View(CustomView, TemplateView):
         return context
 
     def post(self, request, *args, **kwargs):
-        """Bouton de validation : met besoin_certification=False pour l'inscription"""
         inscription_id = request.POST.get("inscription_id")
-        print(inscription_id)
         if not inscription_id:
             messages.error(request, "Inscription non spécifiée.")
             return redirect(request.path)
 
         inscription = get_object_or_404(Inscription, pk=inscription_id)
         individu = get_object_or_404(Individu, pk=inscription.individu.pk)
-        print(inscription)
-        print(individu)
         inscription.besoin_certification = False
         inscription.save()
 
         rattachement = get_object_or_404(Rattachement, individu=individu)
-        print(rattachement)
         rattachement.certification_date = datetime.datetime.now()
         rattachement.save()
 

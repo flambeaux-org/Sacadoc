@@ -5,7 +5,7 @@
 
 from django.urls import reverse_lazy, reverse
 from core.views import crud
-from core.models import Individu, Destinataire, Mail, Rattachement
+from core.models import Individu, Destinataire, Mail, Rattachement, Activite, Inscription
 from core.views.mydatatableview import MyDatatable, columns, helpers
 from outils.views.editeur_emails import Page_destinataires
 
@@ -17,7 +17,12 @@ class Liste(Page_destinataires, crud.Liste):
     categorie = "individu"
 
     def get_queryset(self):
-        return Individu.objects.filter(self.Get_filtres("Q"))
+        activites_accessibles = Activite.objects.filter(self.Get_condition_structure())
+        return Individu.objects.filter(
+            inscription__activite__in=activites_accessibles
+        ).filter(
+            self.Get_filtres("Q")
+        ).prefetch_related('rattachement_set__famille').distinct()
 
     def get_context_data(self, **kwargs):
         context = super(Liste, self).get_context_data(**kwargs)
@@ -48,10 +53,12 @@ class Liste(Page_destinataires, crud.Liste):
 
             # Cas pour l'Individu
             if model_name == "Individu":
-                rattachement = Rattachement.objects.filter(individu=instance).select_related('famille').first()
-                if rattachement and rattachement.famille and rattachement.famille.mail:
-                    return rattachement.famille.mail
-                return ""  # Si pas de rattachement ou d'email
+                rattachements = instance.rattachement_set.all()
+                if rattachements:
+                    famille = rattachements[0].famille
+                    if famille and famille.mail:
+                        return famille.mail
+                return getattr(instance, "mail", "")
 
             # Cas généraux pour tout autre modèle (Famille, Collaborateur, Contact, etc.)
             elif hasattr(instance, "mail"):
