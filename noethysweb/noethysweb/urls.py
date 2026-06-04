@@ -56,11 +56,7 @@ urlpatterns += [
     path('media/photo/<int:pk>/',            media_views.PhotoDocumentView.as_view(),           name='serve_photo_document'),
 ]
 
-if settings.DEBUG:
-    # Ajoute le répertoire Media
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
-    if settings.ENABLE_DEBUG_TOOLBAR:
+if settings.DEBUG and settings.ENABLE_DEBUG_TOOLBAR:
         # Ajoute le debugtoolbar
         import debug_toolbar
         urlpatterns = [
