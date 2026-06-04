@@ -7,6 +7,7 @@ from django.urls import include, path
 from django.conf import settings
 from django.conf.urls.static import static
 from core.views import erreurs
+from core.views import media as media_views
 
 
 urlpatterns = [
@@ -43,6 +44,17 @@ for nom_plugin in settings.PLUGINS:
 # Ajout de l'URL du portail
 if settings.PORTAIL_ACTIF:
     urlpatterns.append(path(settings.URL_PORTAIL, include('portail.urls')))
+
+# Documents protégés — accessibles aux staff et aux familles
+urlpatterns += [
+    path('media/piece/<int:pk>/',            media_views.PieceDocumentView.as_view(),           name='serve_piece_document'),
+    path('media/quotient/<int:pk>/',         media_views.QuotientDocumentView.as_view(),        name='serve_quotient_document'),
+    path('media/assurance/<int:pk>/',        media_views.AssuranceDocumentView.as_view(),       name='serve_assurance_document'),
+    path('media/information/<int:pk>/',      media_views.InformationDocumentView.as_view(),     name='serve_information_document'),
+    path('media/compta_operation/<int:pk>/', media_views.ComptaOperationDocumentView.as_view(), name='serve_compta_operation_document'),
+    path('media/portail_document/<int:pk>/', media_views.PortailDocumentView.as_view(),         name='serve_portail_document'),
+    path('media/photo/<int:pk>/',            media_views.PhotoDocumentView.as_view(),           name='serve_photo_document'),
+]
 
 if settings.DEBUG:
     # Ajoute le répertoire Media

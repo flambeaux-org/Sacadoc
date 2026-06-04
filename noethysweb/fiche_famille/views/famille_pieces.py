@@ -113,7 +113,7 @@ class Liste(Page, crud.Liste):
             kwargs = view.kwargs
             # Ajoute l'id de la ligne
             kwargs["pk"] = instance.pk
-            document_url = f'/media/{instance.document}'
+            document_url = reverse('serve_piece_document', args=[instance.pk]) if instance.document else None
 
             # Récupération des informations pertinentes pour le titre du document
             type_piece = instance.type_piece.nom if instance.type_piece else ""
@@ -123,15 +123,13 @@ class Liste(Page, crud.Liste):
             # Construction du titre du document pour le lien de téléchargement
             titre_document = f"{type_piece} - {individu} - {famille}"
 
-            # Construction du lien de téléchargement avec l'icône et l'attribut download
-            bouton_telecharger = f'<a href="{document_url}" class="btn btn-default btn-xs" download="{titre_document}"><i class="fa fa-download"></i></a>'
-
             html = [
                 self.Create_bouton_modifier(url=reverse(view.url_modifier, kwargs=kwargs)),
                 self.Create_bouton_supprimer(url=reverse(view.url_supprimer, kwargs=kwargs)),
-                self.Create_bouton_ouvrir(url=document_url),
-                bouton_telecharger,
             ]
+            if document_url:
+                bouton_telecharger = f'<a href="{document_url}" class="btn btn-default btn-xs" download="{titre_document}"><i class="fa fa-download"></i></a>'
+                html += [self.Create_bouton_ouvrir(url=document_url), bouton_telecharger]
             return self.Create_boutons_actions(html)
 
 
