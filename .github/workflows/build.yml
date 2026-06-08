@@ -29,7 +29,9 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Write version to file
-        run: sed -i "s/VERSION = \"0.0.0\"/VERSION = \"${GITHUB_REF#refs/tags/}\"/" noethysweb/noethysweb/version.py
+        run: |
+          echo -i "s/VERSION = \"0.0.0\"/VERSION = \"${GITHUB_REF#refs/tags/}\"/" noethysweb/noethysweb/version.py
+          sed -i "s/VERSION = \"0.0.0\"/VERSION = \"${GITHUB_REF#refs/tags/}\"/" noethysweb/noethysweb/version.py
 
 
 
