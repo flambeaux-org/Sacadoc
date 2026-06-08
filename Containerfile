@@ -18,7 +18,7 @@ RUN uv python install 3.10 && \
     uv venv "$VIRTUAL_ENV" && \
     uv pip install -r requirements.txt && \
     uv pip install 'setuptools<82' && \
-    uv run noethysweb/manage.py collectstatic --noinput && \
+    uv run noethysweb/manage.py collectstatic --noinput
 
 WORKDIR /app/noethysweb
 
