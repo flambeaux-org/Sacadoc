@@ -19,7 +19,6 @@ RUN uv python install 3.10 && \
     uv pip install -r requirements.txt && \
     uv pip install 'setuptools<82' && \
     uv run noethysweb/manage.py collectstatic --noinput && \
-    sed -i 's/VERSION = "develop"/VERSION = "${VERSION}"/' noethysweb/noethysweb/version.py
 
 WORKDIR /app/noethysweb
 

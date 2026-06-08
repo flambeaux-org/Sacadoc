@@ -11,7 +11,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.cache import cache
 from django.shortcuts import redirect
 from portail.views.menu import GetMenuPrincipal
-from noethysweb.version import GetVersion
+from noethysweb.version import VERSION
 from core.models import Organisateur, Parametre, PortailMessage, Famille, Structure
 from core.utils import utils_parametres, utils_portail, utils_historique
 from django.db.models import OuterRef, Subquery
@@ -51,7 +51,7 @@ class CustomView(LoginRequiredMixin, UserPassesTestMixin):
         context = super(CustomView, self).get_context_data(**kwargs)
 
         # Version application
-        context['version_application'] = cache.get_or_set('version_application', GetVersion())
+        context['version_application'] = VERSION
 
         # Organisateur
         organisateur = cache.get('organisateur')

@@ -34,7 +34,7 @@ def _check_release(release):
     logger.debug("version disponible =" + release["tag_name"])
 
     # Lecture version actuelle
-    version_actuelle_txt = version.GetVersion()
+    version_actuelle_txt = version.VERSION
     version_actuelle_tuple = version.GetVersionTuple(version_actuelle_txt)
     logger.debug("version actuelle =" + version_actuelle_txt)
 
@@ -47,7 +47,7 @@ def _check_release(release):
 
 def search_update():
     """Recherche une nouvelle version de l'application sur GitHub et retourne son numéro de version si elle est plus récente que la version actuelle."""
-    if version.GetVersion() == "0.0.0":
+    if version.VERSION == "0.0.0":
         logger.debug("Version de développement, pas de recherche de mise à jour.")
         return
 
@@ -64,7 +64,7 @@ def search_update():
 
 
 def get_changelog():
-    """Récupère le changelog des 30 dernières versions et le tag de la dernière version si elle est plus récette que la courante."""
+    """Récupère le changelog des 30 dernières versions et le tag de la dernière version si elle est plus récente que la courante."""
     logger.debug("Récupération du changelog des 30 dernières versions...")
     try:
         r = requests.get("https://api.github.com/repos/flambeaux-org/Sacadoc/releases?per_page=30", timeout=10)
@@ -258,8 +258,6 @@ def _manual_update():
     os.remove(chemin_fichier)
     logger.debug("Installation terminee.")
 
-    # Efface le numéro de version du cache
-    cache.delete("version_application")
 
     # AutoReloadWSGI
     logger.debug("AutoReloadWSGI...")
