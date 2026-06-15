@@ -31,6 +31,25 @@ class TestTransmettrePiece:
         response = logged_client.get(reverse("portail_transmettre_piece"))
         assert response.status_code == 200
 
+    def test_upload_creates_piece(self, logged_client, famille_user):
+        """POST with a file and selection_piece=9999 creates a Piece in the DB."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        user, famille, _ratt = famille_user
+        doc = SimpleUploadedFile("doc.png", b"\x89PNG\r\n", content_type="image/png")
+        response = logged_client.post(
+            reverse("portail_transmettre_piece"),
+            {
+                "selection_piece": 9999,
+                "titre": "Test document",
+                "famille": famille.pk,
+                "auteur": user.pk,
+                "document": doc,
+            },
+        )
+        assert response.status_code == 302
+        assert Piece.objects.filter(famille=famille, titre="Test document").exists()
+
 
 @pytest.mark.django_db
 class TestSupprimerPiece:

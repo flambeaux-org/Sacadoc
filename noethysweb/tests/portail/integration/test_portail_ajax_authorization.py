@@ -66,3 +66,87 @@ def test_famille_passes_decorator(logged_client, famille_user):
     # Not blocked by the decorator (would be 400/403); the view handled it.
     assert response.status_code == 200
     assert RegimeAlimentaire.objects.filter(nom="Sans gluten").exists()
+
+
+# ---------------------------------------------------------------------------
+# Phase E: AJAX functional tests — verify object creation
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_ajouter_maladie_creates_type(logged_client, famille_user):
+    from core.models import TypeMaladie
+
+    response = logged_client.post(
+        reverse("portail_ajax_ajouter_maladie"), {"valeur": "Varicelle"}, **AJAX
+    )
+    assert response.status_code == 200
+    assert TypeMaladie.objects.filter(nom="Varicelle").exists()
+
+
+@pytest.mark.django_db
+def test_ajouter_allergie_creates_type(logged_client, famille_user):
+    from core.models import TypeAllergie
+
+    response = logged_client.post(
+        reverse("portail_ajax_ajouter_allergie"), {"valeur": "Cacahuètes"}, **AJAX
+    )
+    assert response.status_code == 200
+    assert TypeAllergie.objects.filter(nom="Cacahuètes").exists()
+
+
+@pytest.mark.django_db
+def test_ajouter_dispmed_creates_type(logged_client, famille_user):
+    from core.models import TypeDispmed
+
+    response = logged_client.post(
+        reverse("portail_ajax_ajouter_dispmed"), {"valeur": "Lunettes"}, **AJAX
+    )
+    assert response.status_code == 200
+    assert TypeDispmed.objects.filter(nom="Lunettes").exists()
+
+
+@pytest.mark.django_db
+def test_ajouter_medecin_creates_medecin(logged_client, famille_user):
+    import json
+
+    from core.models import Medecin
+
+    valeurs = json.dumps({"nom": "Dupont", "prenom": "", "rue_resid": "", "ville_resid": ""})
+    response = logged_client.post(
+        reverse("portail_ajax_ajouter_medecin"), {"valeurs": valeurs}, **AJAX
+    )
+    assert response.status_code == 200
+    assert Medecin.objects.filter(nom="DUPONT").exists()
+
+
+@pytest.mark.django_db
+def test_ajouter_assureur_creates_assureur(logged_client, famille_user):
+    import json
+
+    from core.models import Assureur
+
+    valeurs = json.dumps({"nom": "Matmut", "rue_resid": "", "ville_resid": ""})
+    response = logged_client.post(
+        reverse("portail_ajax_ajouter_assureur"), {"valeurs": valeurs}, **AJAX
+    )
+    assert response.status_code == 200
+    assert Assureur.objects.filter(nom="MATMUT").exists()
+
+
+@pytest.mark.django_db
+def test_ajax_annulation_portail_deletes_renseignement(logged_client, famille_user):
+    """Posting a valid iddemande deletes the PortailRenseignement and returns a redirect URL."""
+    from core.models import PortailRenseignement
+
+    _user, famille, _ratt = famille_user
+    renseignement = PortailRenseignement.objects.create(
+        famille=famille, categorie="individu_identite", code="nom"
+    )
+    response = logged_client.post(
+        reverse("ajax_annulation_portail"),
+        {"iddemande": renseignement.pk, "etat": "annulation"},
+        **AJAX,
+    )
+    assert response.status_code == 200
+    assert not PortailRenseignement.objects.filter(pk=renseignement.pk).exists()

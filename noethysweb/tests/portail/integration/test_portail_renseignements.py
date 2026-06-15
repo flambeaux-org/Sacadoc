@@ -121,3 +121,115 @@ def test_identite_modifier_saves_change(logged_client, famille_user):
 def test_famille_parametres_modifier_renders(logged_client):
     response = logged_client.get(reverse("portail_famille_parametres_modifier"))
     assert response.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Phase A: Modifier POST handlers — verify form saves reach the database
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_coords_modifier_saves(logged_client, famille_user):
+    """POST to coords modifier persists the address change on Individu."""
+    from core.models import Individu
+
+    _user, _famille, ratt = famille_user
+    enfant = ratt[1].individu
+    url = reverse("portail_individu_coords_modifier", kwargs={"idrattachement": ratt[1].pk})
+    data = form_post_data(logged_client.get(url).context["form"])
+    data["rue_resid"] = "1 rue de la Paix"
+    assert logged_client.post(url, data).status_code == 302
+    assert Individu.objects.get(pk=enfant.pk).rue_resid == "1 rue de la Paix"
+
+
+@pytest.mark.django_db
+def test_regimes_alimentaires_modifier_saves(logged_client, famille_user):
+    """POST with a RegimeAlimentaire PK links it to the individu via M2M."""
+    from core.models import Individu, RegimeAlimentaire
+
+    _user, _famille, ratt = famille_user
+    enfant = ratt[1].individu
+    regime = RegimeAlimentaire.objects.create(nom="Végétarien")
+    url = reverse(
+        "portail_individu_regimes_alimentaires_modifier",
+        kwargs={"idrattachement": ratt[1].pk},
+    )
+    data = form_post_data(logged_client.get(url).context["form"])
+    data["regimes_alimentaires"] = [regime.pk]
+    assert logged_client.post(url, data).status_code == 302
+    assert Individu.objects.get(pk=enfant.pk).regimes_alimentaires.filter(pk=regime.pk).exists()
+
+
+@pytest.mark.django_db
+def test_maladies_modifier_saves(logged_client, famille_user):
+    """POST with a TypeMaladie PK links it to the individu via M2M."""
+    from core.models import Individu, TypeMaladie
+
+    _user, _famille, ratt = famille_user
+    enfant = ratt[1].individu
+    maladie = TypeMaladie.objects.create(nom="Varicelle")
+    url = reverse("portail_individu_maladies_modifier", kwargs={"idrattachement": ratt[1].pk})
+    data = form_post_data(logged_client.get(url).context["form"])
+    data["maladies"] = [maladie.pk]
+    assert logged_client.post(url, data).status_code == 302
+    assert Individu.objects.get(pk=enfant.pk).maladies.filter(pk=maladie.pk).exists()
+
+
+@pytest.mark.django_db
+def test_allergies_modifier_saves(logged_client, famille_user):
+    """POST to allergies modifier persists the free-text conduct field."""
+    from core.models import Individu
+
+    _user, _famille, ratt = famille_user
+    enfant = ratt[1].individu
+    url = reverse("portail_individu_allergies_modifier", kwargs={"idrattachement": ratt[1].pk})
+    data = form_post_data(logged_client.get(url).context["form"])
+    data["allergies_detail"] = "Éviter le gluten"
+    assert logged_client.post(url, data).status_code == 302
+    assert Individu.objects.get(pk=enfant.pk).allergies_detail == "Éviter le gluten"
+
+
+@pytest.mark.django_db
+def test_dispmed_modifier_saves(logged_client, famille_user):
+    """POST to dispmed modifier persists the free-text conduct field."""
+    from core.models import Individu
+
+    _user, _famille, ratt = famille_user
+    enfant = ratt[1].individu
+    url = reverse("portail_individu_dispmed_modifier", kwargs={"idrattachement": ratt[1].pk})
+    data = form_post_data(logged_client.get(url).context["form"])
+    data["dispmed_detail"] = "Lunettes correctrices obligatoires"
+    assert logged_client.post(url, data).status_code == 302
+    assert Individu.objects.get(pk=enfant.pk).dispmed_detail == "Lunettes correctrices obligatoires"
+
+
+@pytest.mark.django_db
+def test_medecin_modifier_saves(logged_client, famille_user):
+    """POST with a Medecin PK sets it as the individu's treating physician."""
+    from core.models import Individu, Medecin
+
+    _user, _famille, ratt = famille_user
+    enfant = ratt[1].individu
+    medecin = Medecin.objects.create(nom="Dupont")
+    url = reverse("portail_individu_medecin_modifier", kwargs={"idrattachement": ratt[1].pk})
+    data = form_post_data(logged_client.get(url).context["form"])
+    data["medecin"] = medecin.pk
+    assert logged_client.post(url, data).status_code == 302
+    assert Individu.objects.get(pk=enfant.pk).medecin_id == medecin.pk
+
+
+@pytest.mark.django_db
+def test_individu_questionnaire_modifier_submits(logged_client, famille_user):
+    """POST to the individu questionnaire modifier returns 302 (no questions configured → no-op)."""
+    _user, _famille, ratt = famille_user
+    url = reverse("portail_individu_questionnaire_modifier", kwargs={"idrattachement": ratt[1].pk})
+    assert logged_client.get(url).status_code == 200
+    assert logged_client.post(url, {}).status_code == 302
+
+
+@pytest.mark.django_db
+def test_famille_questionnaire_modifier_submits(logged_client):
+    """POST to the famille questionnaire modifier returns 302 (no questions configured → no-op)."""
+    url = reverse("portail_famille_questionnaire_modifier")
+    assert logged_client.get(url).status_code == 200
+    assert logged_client.post(url, {}).status_code == 302

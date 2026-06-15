@@ -15,7 +15,9 @@ handlers, IPN callbacks). Billing/receipt *pages* are still covered.
 > "Bugs found" below and leave the test failing (or `xfail` with a reference) rather than
 > weakening the assertion to force green. The point of this suite is partly to *find* these.
 
-> **Status: implemented.** 229 tests pass, 5 `xfail(strict)` mark the 4 documented bugs.
+> **Status: implemented.** 239 tests pass, 5 `xfail(strict)` mark the documented bugs.
+> Coverage audit (Phases A–E) complete: POST handlers, sub-resource CRUD, auth flows,
+> misc pages, and AJAX functional tests all added.
 > Test files use a `test_portail_*` prefix because pytest's prepend import mode requires
 > globally-unique module basenames (a bare `test_auth.py` collides with
 > `tests/integration/test_auth.py`). No `__init__.py` under `tests/portail/` — that would
