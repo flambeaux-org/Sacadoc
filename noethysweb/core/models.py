@@ -3750,9 +3750,9 @@ class PortailDocument(models.Model):
     choix_couleur = [("primary", "Bleu foncé"), ("info", "Bleu clair"), ("success", "Vert"), ("warning", "Jaune"), ("danger", "Rouge"), ("gray", "Gris")]
     couleur_fond = models.CharField(verbose_name="Couleur de fond", max_length=100, choices=choix_couleur, default="primary", help_text="Couleur de fond de l'icône. Bleu foncé par défaut.")
     document = models.FileField(verbose_name="Document", upload_to=get_uuid_path, help_text="Privilégiez un document au format PDF.")
-    structure = models.ForeignKey(Structure, verbose_name="Structure", on_delete=models.PROTECT, blank=True, null=True)
+    structure = models.ForeignKey(Structure, verbose_name="Structure", on_delete=models.PROTECT, blank=False, null=False)
     type_piece = models.ForeignKey(TypePiece, verbose_name="Type de pièce", related_name="type_piece_document", on_delete=models.PROTECT, blank=True, null=True, help_text="Si ce document correspond à un type de pièce existant, sélectionnez-le dans la liste proposée.")
-    activites = models.ManyToManyField(Activite, verbose_name="Activités", related_name="document_activites", blank=True, help_text="Sélectionnez une ou plusieurs activités dans la liste.")
+    activites = models.ManyToManyField(Activite, verbose_name="Activités", related_name="document_activites", blank=False, help_text="Sélectionnez une ou plusieurs activités dans la liste.")
     groupes = models.ManyToManyField(Groupe, verbose_name="Groupes", related_name="document_groupes", blank=True, help_text="Sélectionnez un ou plusieurs groupes dans la liste.")
 
     class Meta:
