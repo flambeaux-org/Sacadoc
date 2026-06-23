@@ -1,3 +1,6 @@
+Version 1.3.5.6.59 (23/06/2026)
+- Fix structure field validation in notes form
+
 Version 1.3.5.6.58 (23/06/2026)
 - Send email to organizer on successful Stripe payment
 
