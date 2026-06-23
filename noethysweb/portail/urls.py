@@ -117,7 +117,7 @@ urlpatterns = [
     path('documents', documents.View.as_view(), name='portail_documents'),
     path('documents/supprimer_piece/<int:pk>/', documents.supprimer_piece, name='supprimer_piece'),
     path('documents/transmettre', transmettre_piece.Ajouter.as_view(), name='portail_transmettre_piece'),
-    path('documents/modifier/<int:pk>/',transmettre_piece.Modifier.as_view(), name="portail_documents_modifier"),
+    path('documents/modifier/<int:pk>/',transmettre_piece.Modifier.as_view(), name="portail_documents_parents_modifier"),
 
     # Activités
     path('activites', activites.View.as_view(), name='portail_activites'),
