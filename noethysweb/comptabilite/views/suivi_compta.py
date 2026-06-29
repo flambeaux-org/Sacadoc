@@ -185,6 +185,5 @@ class View(CustomView, TemplateView):
                 "total": total
             })
 
-        print(liste_reglements_encaissement)
         # Retourne le tout avec les autres infos existantes
         return lignes, soldes_hors_bilan, liste_deductions, liste_reglements_encaissement
