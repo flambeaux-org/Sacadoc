@@ -11,16 +11,15 @@ from django.urls import reverse_lazy, reverse
 
 
 class Colonne():
-    def __init__(self, code="", label="", classe="CharField", label_filtre="", sortable=True):
+    def __init__(self, code="", label="", classe="CharField", label_filtre=""):
         self.code = code
         self.label = label
         self.classe = classe
         self.label_filtre = label_filtre
-        self.sortable = sortable
 
 
 class CustomDatatable():
-    def __init__(self, colonnes=[], lignes=[], filtres=[], ):
+    def __init__(self, colonnes=[], lignes=[], filtres=[]):
         self.colonnes = colonnes
         self.lignes = lignes
 
