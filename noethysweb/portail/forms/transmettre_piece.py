@@ -157,12 +157,9 @@ class Formulaire(FormulaireBase, ModelForm):
         self.cleaned_data["individu"] = individu
 
         # 2. Détermination AUTOMATIQUE de la famille (Sécurisation)
-        # Si on a un individu, la famille doit obligatoirement être celle de cet individu !
-        if individu and hasattr(individu, 'famille'):
-            self.cleaned_data["famille"] = individu.rattachement_set.first().famille
-        elif piece and "famille" in piece:
-            # Si pas d'individu direct mais que la pièce prédéfinie est liée à une famille
-            self.cleaned_data["famille"] = piece["famille"]
+        # Sur le portail, la pièce est toujours rattachée à la famille connectée :
+        # on évite ainsi toute pièce orpheline (sans famille).
+        self.cleaned_data["famille"] = self.request.user.famille
 
         # Durée de validité
         self.cleaned_data["date_debut"] = datetime.date.today()
