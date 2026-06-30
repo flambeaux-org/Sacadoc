@@ -4206,6 +4206,8 @@ class ComptaOperation(models.Model):
     avance = models.ForeignKey(ComptaAvance, verbose_name="Avance", on_delete=models.PROTECT, blank=True, null=True)
     remb_avance = models.IntegerField( verbose_name="Référence de régularisation", default=0, blank=True, null=True, help_text="Identifiant utilisé pour relier les opérations entre elles (ex: ID de régularisation)")
     regul_avance = models.BooleanField(verbose_name="Opération de régularisation d'avance", default=False)
+    observation = models.CharField(verbose_name="Libellé", max_length=400, blank=True, null=True)
+    pointage = models.BooleanField(verbose_name="Opération pointée", default=False)
     class Meta:
         db_table = "compta_operations"
         verbose_name = "Opération de trésorerie"

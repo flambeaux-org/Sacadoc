@@ -72,5 +72,6 @@ urlpatterns = [
     path('comptabilite/operations_tresorerie/get_form_ventilation', secure_ajax(operations_tresorerie.Get_form_ventilation), name='ajax_operations_tresorerie_form_ventilation'),
     path('comptabilite/operations_tresorerie/generer_pdf', secure_ajax(edition_justifs.Generer_pdf), name='ajax_comptabilite_generer_pdf'),
     path('comptabilite/avances/regul/modification', secure_ajax(avances_regul.Exporter), name='exporter_avances'),
+    path('comptabilite/operations_budgetaires/pointage', secure_ajax(operations_tresorerie.Pointer_operation_ajax), name='Pointer_operation_ajax')
 
 ]

@@ -30,6 +30,39 @@
                 }
                 $(document).ready(function() {
                     $('#choix_categorie').change(On_change_categorie);
+
+                    // --- SCRIPT GLOBAL DE POINTAGE ---
+                    // La délégation sur $(document) permet de détecter les coches même après un rechargement Ajax de la Datatable
+                    $(document).off('change', '.action-pointage').on('change', '.action-pointage', function() {
+                        var checkbox = $(this);
+                        var idop = checkbox.data('idoperation');
+                        var isChecked = checkbox.is(':checked');
+                        var csrftoken = $("[name=csrfmiddlewaretoken]").val();
+
+                        checkbox.prop('disabled', true);
+                        $.ajax({
+                            url: "{% url 'Pointer_operation_ajax' %}",
+                            type: "POST",
+                            data: {
+                                'idoperation': idop,
+                                'pointage': isChecked,
+                                'csrfmiddlewaretoken': csrftoken
+                            },
+                            success: function(response) {
+                                if (response.statut !== 'ok') {
+                                    alert('Erreur : ' + response.message);
+                                    checkbox.prop('checked', !isChecked);
+                                }
+                            },
+                            error: function() {
+                                alert('Impossible d\'enregistrer le pointage.');
+                                checkbox.prop('checked', !isChecked);
+                            },
+                            complete: function() {
+                                checkbox.prop('disabled', false);
+                            }
+                        });
+                    });
                 });
             </script>
 
