@@ -1,3 +1,8 @@
+Version 1.3.5.6.61 (29/06/2026)
+- bug transmettre pièce
+- Procédure famille pour pièce sans famille
+- Bug dans la compta
+
 Version 1.3.5.6.60 (25/06/2026)
 - Fix FieldError when removing recipients in editeur_emails saisie_libre (encrypted adresse field)
 
