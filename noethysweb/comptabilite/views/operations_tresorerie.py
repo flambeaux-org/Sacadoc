@@ -467,9 +467,9 @@ class Liste(Page, crud.Liste):
 
     class datatable_class(MyDatatable):
         filtres = ["idoperation", "type", "date", "libelle", "mode", "releve", "num_piece", "debit", "credit",
-                   "montant"]
+                   "montant", "pointage"]
 
-        pointage = columns.TextColumn("Pointage", sources=["idoperation"], processor="Get_checkbox_pointage")
+        pointage = columns.TextColumn("Pointage", sources=["pointage"], processor="Get_checkbox_pointage")
         debit = columns.TextColumn("Débit", sources=["montant"], processor="Get_montant_debit")
         credit = columns.TextColumn("Crédit", sources=["montant"], processor="Get_montant_credit")
         actions = columns.TextColumn("Actions", sources=None, processor='Get_actions_speciales')
