@@ -1,3 +1,9 @@
+Version 1.3.5.6.66 (01/07/2026)
+- filtre suivi admin
+- liste pièces individus et pas famille
+- édition pdf + pièce dans renseignements
+- correction export pdf dans pdf (edition justif)
+
 Version 1.3.5.6.65 (01/07/2026)
 - filtre pointage compta
 

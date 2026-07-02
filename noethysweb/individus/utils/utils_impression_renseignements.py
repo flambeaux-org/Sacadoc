@@ -67,7 +67,7 @@ class Impression(utils_impression.Impression):
             dict_informations[information.individu_id].append(information)
 
         # Importation des vaccinations
-        dict_vaccinations = utils_vaccinations.Get_tous_vaccins()
+        dict_vaccinations = utils_vaccinations.Get_tous_vaccins(individus_ids)
 
         # Importation des questionnaires
         individus_inscrits=[r.individu for r in rattachements]
@@ -315,7 +315,6 @@ class Impression(utils_impression.Impression):
             self.story.append(Tableau(titre="Autres vaccinations".upper(), aide="Indiquer les autres vaccinations en précisant la date de rappel", contenu=[Paragraph(", ".join(texte_vaccinations), style_defaut)]))
 
             questions_individu = questionnaires_individus.GetDonnees(rattachement.individu_id)
-            print(questions_individu)
             if questions_individu:
                 contenu_tableau = [Paragraph("%s : <b>%s</b>" % (question["label"], question["reponse"]), style_defaut) for question in questions_individu if question["visible_fiche_renseignement"]]
                 self.story.append(Tableau(titre="Questionnaire individuel".upper(), aide="", contenu=contenu_tableau))
