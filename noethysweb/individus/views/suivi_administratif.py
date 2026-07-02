@@ -23,6 +23,7 @@ class Page(crud.Page):
 
 class Liste(Page, crud.CustomListe):
     template_name = "individus/suivi_administratif.html"
+    filtres = ["individu__nom", "individu__prenom", "besoin_certification"]
 
     colonnes = [
         Colonne("individu", "Individu"),
