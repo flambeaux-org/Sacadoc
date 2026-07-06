@@ -67,7 +67,7 @@ def formater_piece_jointe(piece, individu, largeur, hauteur):
                 img = PILImage.open(full_path)
                 img = ImageOps.exif_transpose(img)
             except Exception:
-                logger.warning("EXIF invalide pour piece %s", piece.pk)
+                logger.warning("EXIF invalide pour piece")
                 img = PILImage.open(full_path)
 
             img_w, img_h = img.size
