@@ -137,21 +137,44 @@ def Generer_pdf(request):
         # Cas 2 : Le document est un PDF
         elif doc_name.endswith('.pdf'):
             try:
-                # On finalise le bandeau seul sur sa page (transparente)
-                can.showPage()
-                can.save()
-                header_reader = PdfReader(io.BytesIO(buffer_header.getvalue()))
-                header_page = header_reader.pages[0]
 
-                # Lecture du justificatif PDF
+                # 1. DÉFINITION DE LA ZONE DE CONTRAINTE (LE CADRE)
+
+                cadre_w = largeur - 100  # Largeur du cadre (ex: 495 px)
+                cadre_h = hauteur - 100  # Hauteur du cadre (ex: 692 px)
+                cadre_x = (largeur - cadre_w) / 2
+                cadre_y = 40  # Marge basse sécurisée
+                can.setStrokeColor(colors.HexColor("#A0A0A0"))
+                can.setLineWidth(1)
+                can.rect(cadre_x, cadre_y, cadre_w, cadre_h, fill=0, stroke=1)
+                can.showPage();
+                can.save()
+
+                header_page = PdfReader(io.BytesIO(buffer_header.getvalue())).pages[0]
+
                 with open(full_path, 'rb') as f:
+
                     justif_pdf = PdfReader(f)
+
                     for i, page in enumerate(justif_pdf.pages):
-                        # On crée une nouvelle page A4 vierge qui servira de support
                         nouvelle_page = writer.add_blank_page(width=largeur, height=hauteur)
-                        nouvelle_page.merge_translated_page(page, tx=0, ty=-50)
-                        if i == 0:
-                            nouvelle_page.merge_page(header_page)
+                        orig_w = float(page.mediabox.width)
+                        orig_h = float(page.mediabox.height)
+                        ratio_w = cadre_w / orig_w
+                        ratio_h = cadre_h / orig_h
+                        ratio_scale = min(ratio_w, ratio_h)
+                        page.scale_by(ratio_scale)
+
+                        # Calcul des offsets pour centrer le PDF au milieu du cadre
+                        tx = cadre_x  # Aligné pile sur le bord gauche du cadre
+
+                        # ty configuré pour coller le haut du PDF sous le haut du cadre
+                        hauteur_reduite_pdf = orig_h * ratio_scale
+                        ty = (cadre_y + cadre_h) - hauteur_reduite_pdf
+                        nouvelle_page.merge_translated_page(page, tx=tx, ty=ty)
+
+                        # Application du fond (En-tête + Cadre)
+                        nouvelle_page.merge_page(header_page)
             except Exception as e:
                 print(f"Erreur traitement PDF {op.num_piece}: {e}")
 

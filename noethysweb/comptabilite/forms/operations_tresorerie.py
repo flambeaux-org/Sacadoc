@@ -219,6 +219,10 @@ class Formulaire(FormulaireBase, ModelForm):
                     style="margin-bottom:20px;"
                 ),
             ),
+            Fieldset(
+                "Divers",
+                Field("observation"),
+            ),
         )
 
     def clean(self):

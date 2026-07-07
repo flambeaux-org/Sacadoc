@@ -24,7 +24,30 @@ from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Hidden, Fieldset, Div
 from crispy_forms.bootstrap import Field, PrependedText
 from core.utils import utils_preferences
+from django.views.decorators.http import require_POST
+from django.shortcuts import get_object_or_404
 
+
+@require_POST
+def Pointer_operation_ajax(request):
+    """
+    Vue Ajax pour modifier le statut de pointage (Sauvegarde dans les préférences).
+    """
+    idoperation = request.POST.get('idoperation')
+    pointage = request.POST.get('pointage') == 'true'
+
+    if not idoperation:
+        return JsonResponse(
+            {"statut": "erreur", "message": "ID manquant"},
+            status=400
+        )
+
+    operation = get_object_or_404(ComptaOperation, idoperation=idoperation)
+
+    operation.pointage = pointage
+    operation.save(update_fields=["pointage"])
+
+    return JsonResponse({"statut": "ok"})
 
 
 def Get_form_ventilation(request):
@@ -348,7 +371,8 @@ class Liste(Page, crud.Liste):
     template_name = "core/crud/liste_avec_categorie.html"
 
     def get_queryset(self):
-        return ComptaOperation.objects.select_related("tiers", "mode").filter(Q(compte=self.Get_categorie()) & self.Get_filtres("Q"))
+        return ComptaOperation.objects.select_related("tiers", "mode").filter(
+            Q(compte=self.Get_categorie()) & self.Get_filtres("Q"))
 
     def get_context_data(self, **kwargs):
         context = super(Liste, self).get_context_data(**kwargs)
@@ -362,22 +386,19 @@ class Liste(Page, crud.Liste):
         operations = ComptaOperation.objects.filter(compte_id=self.Get_categorie())
 
         # 2. CORRECTION STRICTE DU DOUBLE COMPTAGE (PRODUIT CARTÉSIEN)
-        # On extrait d'abord les IDs des opérations qui touchent à une catégorie 'orga'
         ids_operations_orga = ComptaVentilation.objects.filter(
             categorie__orga=True
         ).values_list('operation_id', flat=True)
 
-        # On exclut ces IDs (Aucune jointure n'est faite sur 'operations', donc pas de doublons)
         operations = operations.exclude(pk__in=ids_operations_orga)
 
         # 3. EXCLUSION DES AVANCES
-        # On exclut les opérations qui ont une avance ET qui ne sont PAS des régularisations
         operations = operations.exclude(
             avance__isnull=False,
             regul_avance=False
         )
 
-        # 4. Calcul de l'agrégation saine directement sur le QuerySet d'opérations
+        # 4. Calcul de l'agrégation saine
         stats = operations.aggregate(
             total_debit=Sum(
                 Case(
@@ -399,7 +420,7 @@ class Liste(Page, crud.Liste):
         total_credit = stats["total_credit"] or 0
         solde_final = total_credit - total_debit
 
-        # --- Totaux par avance (une ligne par personne) ---
+        # --- Totaux par avance ---
         from django.db.models import F, Value
 
         avances_stats = (
@@ -445,14 +466,17 @@ class Liste(Page, crud.Liste):
         return context
 
     class datatable_class(MyDatatable):
-        filtres = ["idoperation", "type", "date", "libelle", "mode", "releve", "num_piece", "debit", "credit", "montant"]
+        filtres = ["idoperation", "type", "date", "libelle", "mode", "releve", "num_piece", "debit", "credit",
+                   "montant", "pointage"]
+
+        pointage = columns.TextColumn("Pointage", sources=["pointage"], processor="Get_checkbox_pointage")
         debit = columns.TextColumn("Débit", sources=["montant"], processor="Get_montant_debit")
         credit = columns.TextColumn("Crédit", sources=["montant"], processor="Get_montant_credit")
         actions = columns.TextColumn("Actions", sources=None, processor='Get_actions_speciales')
 
         class Meta:
             structure_template = MyDatatable.structure_template
-            columns = ["date", "num_piece", "libelle", "mode", "debit", "credit", "actions"]
+            columns = ["pointage", "date", "num_piece", "libelle", "mode", "debit", "credit", "actions"]
             ordering = ["date"]
             processors = {
                 "date": helpers.format_date('%d/%m/%Y'),
@@ -463,6 +487,15 @@ class Liste(Page, crud.Liste):
                 "num_piece": "N° Pièce",
                 "releve": "Relevé",
             }
+
+        def Get_checkbox_pointage(self, instance, **kwargs):
+            checked = "checked" if instance.pointage else ""
+            return (
+                f'<center>'
+                f'<input type="checkbox" class="action-pointage" '
+                f'data-idoperation="{instance.pk}" {checked}>'
+                f'</center>'
+            )
 
         def Get_libelle_avance(self, instance, **kwargs):
             avance_nom = f" - (Avance de {instance.avance.nom})" if instance.avance else ""
@@ -508,13 +541,11 @@ class Ajouter(Page, crud.Ajouter):
     form_class = Formulaire
     type = None
     def dispatch(self, request, *args, **kwargs):
-        # récupère le type passé depuis as_view(type=...)
         self.type = kwargs.pop('type', getattr(self, 'type', 'debit'))
         return super().dispatch(request, *args, **kwargs)
 
     def get_form_kwargs(self, **kwargs):
         form_kwargs = super().get_form_kwargs(**kwargs)
-        # Passe le type au formulaire
         form_kwargs['type'] = self.type
         return form_kwargs
 class Modifier(Page, crud.Modifier):
