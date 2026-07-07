@@ -55,6 +55,52 @@ def paiement_tpe(request):
     except (Prestation.DoesNotExist, ValueError, TypeError) as e:
         return JsonResponse({"success": False, "erreur": "Données invalides"}, status=400)
 
+        # 1. On récupère les prestations et on calcule le déjà réglé via l'annotation
+    prestations = (
+            Prestation.objects
+            .filter(
+                famille=prestation.famille,
+                activite=activite
+            )
+            .annotate(
+                montant_regle=Coalesce(
+                    Sum("ventilation__montant"),
+                    Value(decimal.Decimal(0)),
+                    output_field=DecimalField()
+                )
+            )
+        )
+
+        # 2. On calcule le total restant dû en faisant la somme (Montant - Montant réglé)
+        # On utilise ExpressionWrapper pour s'assurer que Django gère correctement la soustraction de Decimal
+    total_restant = prestations.aggregate(
+            reste_a_payer=Coalesce(
+                Sum(
+                    ExpressionWrapper(
+                        F('montant') - F('montant_regle'),
+                        output_field=DecimalField()
+                    )
+                ),
+                Value(decimal.Decimal(0)),
+                output_field=DecimalField()
+            )
+        )
+    print(total_restant)
+
+        # 3. Définition de vos variables de limites
+    montant_min = float(0.5)
+    montant_max = float(total_restant['reste_a_payer'])
+
+        # 4. Bloc de validation
+    if montant < montant_min:
+            return JsonResponse({"success": False, "erreur": "Le montant doit être supérieur à 0,5 €."}, status=400)
+
+    if montant > montant_max:
+            return JsonResponse({
+                "success": False,
+                "erreur": f"Le montant saisi ({montant:.2f} €) dépasse le montant total restant à régler pour cette activité ({montant_max:.2f} €). Vous ne pouvez pas payer des activités différentes en même temps."
+            }, status=400)
+
     print(f"=== INIT PAIEMENT : {plateforme} ===")
 
     # --- CAS HELLOASSO ---
