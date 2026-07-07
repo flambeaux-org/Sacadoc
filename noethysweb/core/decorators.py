@@ -17,6 +17,9 @@ logger = logging.getLogger(__name__)
 
 def Verifie_ventilation(function):
     def _function(request, *args, **kwargs):
+        # Laisse la vue gérer la redirection vers la connexion pour les utilisateurs non authentifiés
+        if not request.user.is_authenticated:
+            return function(request, *args, **kwargs)
         if not request.GET.get("correction_ventilation", None):
             activites_autorisees = Activite.objects.filter(structure__in=request.user.structures.all())
             dict_anomalies = utils_ventilation.GetAnomaliesVentilation(activites_autorisees)
