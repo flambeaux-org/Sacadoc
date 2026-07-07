@@ -63,8 +63,12 @@ def formater_piece_jointe(piece, individu, largeur, hauteur):
 
     if doc_name.endswith(('.jpg', '.jpeg', '.png', '.gif')):
         try:
-            img = PILImage.open(full_path)
-            img = ImageOps.exif_transpose(img)
+            try:
+                img = PILImage.open(full_path)
+                img = ImageOps.exif_transpose(img)
+            except Exception:
+                logger.warning("EXIF invalide pour piece")
+                img = PILImage.open(full_path)
 
             img_w, img_h = img.size
             max_w, max_h = largeur - 50, hauteur - 90
@@ -81,7 +85,7 @@ def formater_piece_jointe(piece, individu, largeur, hauteur):
             writer_piece.add_page(PdfReader(io.BytesIO(buffer_header.getvalue())).pages[0])
             print(f"      -> Image '{nom_type_piece}' convertie et ajustée.")
         except Exception as e:
-            logger.error(f"Erreur rendu image piece {piece.id}: {e}")
+            logger.error(f"Erreur rendu image piece {piece.idpiece}: {e}")
             print(f"      /!\\ Erreur rendu image : {e}")
 
     elif doc_name.endswith('.pdf'):
@@ -140,5 +144,31 @@ def formater_piece_jointe(piece, individu, largeur, hauteur):
     return PdfReader(buffer_sortie)
 
 
-def generer_page_erreur(message):
-    return PdfReader(buffer_sortie)
+def generer_page_erreur(message, largeur=None, hauteur=None):
+    from reportlab.pdfgen import canvas
+    from reportlab.lib import colors
+    from pypdf import PdfReader
+    import io
+
+    if largeur is None or hauteur is None:
+        largeur, hauteur = A4
+
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=(largeur, hauteur))
+
+    c.setFillColor(colors.red)
+    c.rect(0, hauteur - 50, largeur, 50, fill=1)
+
+    c.setFillColor(colors.white)
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(20, hauteur - 30, "ERREUR DOCUMENT")
+
+    c.setFillColor(colors.black)
+    c.setFont("Helvetica", 10)
+    c.drawString(20, hauteur - 80, str(message))
+
+    c.showPage()
+    c.save()
+
+    buffer.seek(0)
+    return PdfReader(buffer).pages[0]
