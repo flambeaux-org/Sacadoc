@@ -211,10 +211,7 @@ class Liste(Page, crud.Liste):
         filtres = [ "individu__nom", "individu__prenom","besoin_certification", "last_approbation"]
         actions = columns.TextColumn("Actions", sources=None, processor="Get_actions_speciales")
         individu = columns.CompoundColumn("Individu", sources=["individu__nom", "individu__prenom"])
-        # Source de tri via un callable : on renvoie toujours un datetime (jamais None ni "")
-        # sinon datatableview mélange datetime et empty_value (str) lors du tri manuel et lève
-        # "'<' not supported between instances of 'str' and 'datetime.datetime'".
-        last_approbation = columns.TextColumn("Date de dernière vérification", sources=[lambda instance: getattr(instance, "last_certification_date", None) or datetime.datetime.min], processor="Get_certification_date")
+        last_approbation = columns.TextColumn("Date de dernière vérification", sources=[lambda instance: instance.last_certification_date or datetime.datetime.min], processor="Get_certification_date")
         besoin_certification = columns.TextColumn("Demande de vérification en attente", sources=["besoin_certification"], processor="Format_bool")
         class Meta:
             structure_template = MyDatatable.structure_template
