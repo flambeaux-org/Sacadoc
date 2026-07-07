@@ -33,7 +33,8 @@ from core.data.data_liens import DICT_TYPES_LIENS
 from core.data import data_civilites
 from core.utils import utils_dates, utils_impression, utils_questionnaires
 from individus.utils import utils_vaccinations
-
+from pillow_heif import register_heif_opener
+register_heif_opener()
 
 # =========================================================================
 # FOUS-FONCTION COMPLÉMENTAIRE POUR LE FORMATAGE DES BANDEROLES DE PJ
@@ -62,7 +63,7 @@ def formater_piece_jointe(piece, individu, largeur, hauteur):
     can.setFont("Helvetica", 9)
     can.drawRightString(largeur - 25, hauteur - 26, f"Adhérent : {individu.Get_nom()}")
 
-    if doc_name.endswith(('.jpg', '.jpeg', '.png', '.gif')):
+    if doc_name.endswith(('.jpg', '.jpeg', '.png', '.gif', '.heic')):
         try:
             try:
                 img = PILImage.open(full_path)
