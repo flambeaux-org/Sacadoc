@@ -8,7 +8,7 @@ from collections import Counter
 from django.views.generic import TemplateView
 from django.db.models import Q, Sum
 from core.views.base import CustomView
-from core.models import ComptaVentilation, ComptaOperationBudgetaire, ComptaCategorieBudget, ComptaCategorie, Reglement
+from core.models import ComptaVentilation, ComptaOperationBudgetaire, ComptaCategorieBudget, ComptaCategorie, Reglement, Ventilation
 from comptabilite.forms.suivi_budget import Formulaire
 
 
@@ -65,17 +65,17 @@ class View(CustomView, TemplateView):
         compte = comptes.first()
         structure = compte.structure if compte else None
 
-        total_reglements_encaissement = decimal.Decimal(0)
+        total_reglements_encaissement = decimal.Decimal("0")
+
         if structure:
-            somme_data = Reglement.objects.filter(
-                mode__encaissement=True,
-                ventilation__prestation__activite__structure=structure,
-                date__gte=budget.date_debut,
-                date__lte=budget.date_fin
+            somme_data = Ventilation.objects.filter(
+                reglement__mode__encaissement=True,
+                prestation__activite__structure=structure,
+                reglement__date__gte=budget.date_debut,
+                reglement__date__lte=budget.date_fin,
             ).aggregate(total=Sum("montant"))
 
-            if somme_data["total"]:
-                total_reglements_encaissement = decimal.Decimal(str(somme_data["total"]))
+            total_reglements_encaissement = somme_data["total"] or decimal.Decimal("0")
 
         # 4. CONSTRUCTION DES LIGNES
         lignes = []

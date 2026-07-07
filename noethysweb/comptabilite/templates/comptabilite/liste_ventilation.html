@@ -1,0 +1,201 @@
+{% extends "core/page.html" %}
+{% load crispy_forms_tags %}
+{% load static %}
+{% load embed %}
+
+{% block contenu_page %}
+
+<div class="row">
+
+    <!-- ===================== PARAMÈTRES ===================== -->
+    <div class="col-md-3">
+
+        <div class="card card-default">
+            <div class="card-header with-border">
+                <h3 class="card-title">
+                    <i class="fa fa-gear margin-r-5"></i> Paramètres
+                </h3>
+                <div class="card-tools">
+                    <button type="button" class="btn btn-tool"
+                            data-card-widget="collapse"
+                            title="Réduire">
+                        <i class="fa fa-minus"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="card-body">
+                <button type="submit"
+                        form="form_parametres"
+                        class="btn btn-primary btn-block mb-3"
+                        name="type_submit"
+                        title="Actualiser les résultats">
+                    <i class="fa fa-refresh margin-r-5"></i>
+                    Actualiser les résultats
+                </button>
+
+                {% crispy form_parametres %}
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ===================== TABLE ===================== -->
+    <div class="col-md-9">
+        <div class="card card-default">
+            <div class="card-header with-border">
+                <h3 class="card-title">
+                    <strong>Total de la catégorie :</strong>
+                    {{ total_montant|default:0|floatformat:2 }} €
+                </h3>
+            </div>
+
+            <div class="card-body">
+
+                <!-- DATA -->
+                <script>
+                    var contenu_table = JSON.parse('{{ liste_lignes|escapejs }}');
+                </script>
+
+                <!-- STYLE -->
+                <style>
+                    .case_regroupement {
+                        background-color: #efefef;
+                        font-weight: bold;
+                    }
+                </style>
+
+                <!-- TABLE -->
+                <table id="table"
+                       class="table-sm"
+                       data-tree-show-field="label">
+
+                    <thead>
+                        <tr>
+                            <th data-field="date"
+                                data-halign="center"
+                                data-align="center"
+                                data-formatter="formate_case">
+                                Date
+                            </th>
+
+                            <th data-field="nom"
+                                data-halign="center"
+                                data-align="center"
+                                data-formatter="formate_case">
+                                Libellé
+                            </th>
+
+                            <th data-field="montant"
+                                data-halign="center"
+                                data-align="center"
+                                data-formatter="formate_montant"
+                                data-cell-style="style_case">
+                                Montant
+                            </th>
+
+                            <th data-field="compte"
+                                data-halign="center"
+                                data-align="center"
+                                data-formatter="formate_case">
+                                Compte
+                            </th>
+
+                            <th data-field="url_modifier"
+                                data-halign="center"
+                                data-align="center"
+                                data-formatter="formate_actions">
+                                Actions
+                            </th>
+                        </tr>
+                    </thead>
+
+                </table>
+
+                <!-- ===================== FORMATTERS ===================== -->
+                <script>
+
+                    // STYLE (ligne regroupement uniquement)
+                    function style_case(value, row, index) {
+                        if (row.regroupement === true) {
+                            return {classes: 'case_regroupement'};
+                        }
+                        return {};
+                    }
+
+                    // TEXTE SIMPLE
+                    window.formate_case = function(value) {
+                        if (value === null || value === undefined) {
+                            return "";
+                        }
+                        return String(value).trim();
+                    };
+
+                    // MONTANT FORMATÉ
+                    window.formate_montant = function(value) {
+                        if (value === null || value === undefined || value === "") {
+                            return "";
+                        }
+
+                        try {
+                            return parseFloat(value).toLocaleString("fr-FR", {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            }) + " €";
+                        } catch (e) {
+                            return "";
+                        }
+                    };
+
+                    // MONTANT AVEC SIGNE
+                    window.formate_montant_avec_signe = function(value) {
+                        if (value === null || value === undefined || value === "") {
+                            return "";
+                        }
+
+                        try {
+                            var signe = value > 0 ? "+" : "";
+                            return signe + parseFloat(value).toFixed(2);
+                        } catch (e) {
+                            return "";
+                        }
+                    };
+
+                    // POURCENTAGE
+                    window.formate_pourcentage = function(value) {
+                        if (value === null || value === undefined || value === "") {
+                            return "";
+                        }
+
+                        try {
+                            return parseFloat(value).toFixed(1) + " %";
+                        } catch (e) {
+                            return "";
+                        }
+                    };
+
+                    // BOUTON MODIFIER LE RÈGLEMENT
+                    window.formate_actions = function(value, row) {
+                        // Si aucune URL n'est fournie (ex: pas de règlement lié ou ligne de regroupement), on n'affiche rien
+                        if (!value) {
+                            return "";
+                        }
+
+                        // Retourne un bouton Bootstrap (ici bleu avec une icône de crayon)
+                        return '<a href="' + value + '" class="btn btn-xs btn-secondary" title="Modifier le règlement">' +
+                               '<i class="fa fa-pencil"></i>' +
+                               '</a>';
+                    };
+
+                </script>
+
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+{% include 'core/widgets/bootstrap-table.html' %}
+
+{% endblock contenu_page %}

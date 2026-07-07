@@ -1,8 +1,11 @@
+import multiprocessing
+
 bind = "0.0.0.0:8012"
 pidfile = "../gunicorn.pid"
 wsgi_app = "noethysweb.wsgi"
 preload_app = False  # Don't preload to allow SIGHUP to reload code
 limit_request_line = 8190
+workers = multiprocessing.cpu_count() * 2 + 1
 
 forwarded_allow_ips = "*"
 

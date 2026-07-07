@@ -56,7 +56,7 @@ urlpatterns = [
     path('individus/approbation/<str:activite>', demande_approbation.Liste.as_view(), name='demande_approbation_liste'),
 
     path('individus/suivi_administratif', suivi_administratif.Liste.as_view(), name='suivi_administratif_liste'),
-    path('individus/suivi_administratif/<str:activite>', suivi_administratif.Liste.as_view(),         name='suivi_administratif_liste'),
+    path('individus/suivi_administratif/<str:activite>', suivi_administratif.Liste.as_view(), name='suivi_administratif_liste'),
 
     path('individus/inscriptions_activite', inscriptions_activite_liste.Liste.as_view(), name='inscriptions_activite_liste'),
     path('individus/inscriptions_activite/<str:activite>', inscriptions_activite_liste.Liste.as_view(), name='inscriptions_activite_liste'),
@@ -210,6 +210,7 @@ urlpatterns = [
     path('individus/importer_photos_individus', secure_ajax(importation_photos.Importer_photos_individus), name="ajax_importer_photos_individus"),
     path('individus/edition_contacts/generer_pdf', secure_ajax(edition_contacts.Generer_pdf), name='ajax_edition_contacts_generer_pdf'),
     path('individus/edition_renseignements/generer_pdf', secure_ajax(edition_renseignements.Generer_pdf), name='ajax_edition_renseignements_generer_pdf'),
+    path('individus/edition_renseignements/generer_pdf_pieces', secure_ajax(edition_renseignements.Generer_pdf_pieces), name='ajax_edition_renseignements_generer_pdf_pieces'),
     path('individus/edition_informations/generer_pdf', secure_ajax(edition_informations.Generer_pdf), name='ajax_edition_informations_generer_pdf'),
     path('individus/inscriptions_modifier', secure_ajax(inscriptions_modifier.Appliquer), name='ajax_inscriptions_modifier'),
     path('individus/liste_titulaires_helios/generer_tiers_solidaires', secure_ajax(liste_titulaires_helios.Generer_tiers_solidaires), name='ajax_liste_titulaires_helios_generer_tiers_solidaires'),

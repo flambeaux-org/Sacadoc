@@ -8,10 +8,11 @@ from collections import Counter
 from django.views.generic import TemplateView
 from django.db.models import Q, Sum
 from core.views.base import CustomView
-from core.models import ComptaVentilation, ComptaOperationBudgetaire, ComptaCategorieBudget, ComptaCategorie, CompteBancaire, Deduction, TypeDeduction, Reglement, Activite, Prestation, Famille
+from core.models import ComptaVentilation, ComptaOperationBudgetaire, ComptaCategorieBudget, ComptaCategorie, CompteBancaire, Deduction, TypeDeduction, Reglement, Activite, Prestation, Famille, Ventilation
 from comptabilite.forms.suivi_compta import Formulaire
 from collections import defaultdict
-
+from collections import defaultdict
+import decimal
 
 
 class View(CustomView, TemplateView):
@@ -173,33 +174,49 @@ class View(CustomView, TemplateView):
                     ligne["total"] = float(regroupements_deductions[type_deduction.pk]["total"])
                     break
 
-        # --- Nouveau bloc : récupère les règlements avec encaissement=True ---
-        # --- Ajout des règlements encaissement comme catégorie spéciale ---
-        compte = comptes.first()  # récupère le premier compte du queryset
-        structure = compte.structure if compte else None  # structure associée (sécurisée)
+
+
+        # --- Nouveau bloc : récupère les ventilations avec encaissement=True ---
+        compte = comptes.first()
+        structure = compte.structure if compte else None
 
         liste_reglements_encaissement = []
-        if structure:
-            reglements_encaissement = Reglement.objects.filter(
-                mode__encaissement=True,
-                ventilation__prestation__activite__structure=structure
-            ).distinct().select_related('famille', 'mode', 'compte').order_by('date')
 
-            # On les regroupe par mode
+        if structure:
+            ventilations = (
+                Ventilation.objects.filter(
+                    reglement__mode__encaissement=True,
+                    prestation__activite__structure=structure,
+                )
+                .select_related(
+                    "reglement",
+                    "reglement__famille",
+                    "reglement__mode",
+                    "reglement__compte",
+                )
+                .order_by("reglement__date")
+            )
+
+            # On regroupe par mode de règlement
             reglements_par_mode = defaultdict(list)
-            for reglement in reglements_encaissement:
+
+            for v in ventilations:
+                reglement = v.reglement
+
                 reglements_par_mode[reglement.mode.label].append({
                     "id": reglement.idreglement,
                     "date": reglement.date.strftime("%d/%m/%Y") if reglement.date else "",
                     "compte": reglement.compte.nom if reglement.compte else "",
                     "famille": reglement.famille.nom if reglement.famille else "",
-                    "montant": float(reglement.montant or 0),
+                    "montant": float(v.montant or 0),
                 })
 
-            # Pour l'envoyer au template sous forme triée par mode
+            # Format final pour template
             for mode_label in sorted(reglements_par_mode.keys()):
                 liste_regs = reglements_par_mode[mode_label]
+
                 total = sum(r["montant"] for r in liste_regs)
+
                 liste_reglements_encaissement.append({
                     "mode": mode_label,
                     "reglements": liste_regs,
