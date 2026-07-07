@@ -85,7 +85,7 @@ def paiement_tpe(request):
                 output_field=DecimalField()
             )
         )
-    print(total_restant)
+
 
         # 3. Définition de vos variables de limites
     montant_min = float(0.5)
