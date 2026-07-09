@@ -21,12 +21,6 @@ from core.models import ComptaOperation
 from django.utils.html import strip_tags
 from django.core.files.base import ContentFile
 from PIL import Image  # Pour traiter l'image (si nécessaire)
-
-# -*- coding: utf-8 -*-
-#  Copyright (c) 2019-2021 Ivan LUCAS.
-#  Noethysweb, application de gestion multi-activités.
-#  Distribué sous licence GNU GPL.
-
 import io, time
 from django.http import JsonResponse
 from django.core.files.storage import default_storage
@@ -38,7 +32,8 @@ from pypdf import PdfReader, PdfWriter
 from PIL import Image, ImageOps  # ImageOps est crucial pour la rotation auto
 from core.models import ComptaOperation
 from core.utils import utils_dates
-
+from pillow_heif import register_heif_opener
+register_heif_opener()
 
 def Generer_pdf(request):
     # 1. Initialisation et validation
@@ -113,7 +108,7 @@ def Generer_pdf(request):
         can.drawRightString(largeur - 30, hauteur - 30, f"{op.libelle[:60]}")
 
         # Cas 1 : Le document est une IMAGE
-        if doc_name.endswith(('.jpg', '.jpeg', '.png', '.gif')):
+        if doc_name.endswith(('.jpg', '.jpeg', '.png', '.gif', '.heic')):
             try:
                 img = Image.open(full_path)
                 img = ImageOps.exif_transpose(img)  # Gère la rotation auto (smartphone)
