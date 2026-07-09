@@ -303,7 +303,7 @@ class Impression(utils_impression.Impression):
                 ]))
             else:
                 tableau = [Paragraph("Aucune vaccination obligatoire", style_defaut)]
-            self.story.append(Tableau(titre="Vaccinations obligatoires".upper(), aide="Indiquer la date du dernier rappel pour chaque vaccin", contenu=[tableau]))
+            self.story.append(Tableau(titre="Vaccinations obligatoires".upper(), aide="", contenu=[tableau]))
 
             # Autres vaccinations
             texte_vaccinations = []
@@ -312,7 +312,7 @@ class Impression(utils_impression.Impression):
                     texte_vaccinations.append("%s (%s)" % (vaccination["label"], utils_dates.ConvertDateToFR(vaccination["dernier_rappel"])))
             if not self.dict_donnees["mode_condense"]:
                 texte_vaccinations.append("<br/><br/><br/>")
-            self.story.append(Tableau(titre="Autres vaccinations".upper(), aide="Indiquer les autres vaccinations en précisant la date de rappel", contenu=[Paragraph(", ".join(texte_vaccinations), style_defaut)]))
+            self.story.append(Tableau(titre="Autres vaccinations".upper(), aide="", contenu=[Paragraph(", ".join(texte_vaccinations), style_defaut)]))
 
             questions_individu = questionnaires_individus.GetDonnees(rattachement.individu_id)
             if questions_individu:
