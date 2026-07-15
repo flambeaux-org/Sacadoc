@@ -69,7 +69,7 @@ def Get_tous_vaccins(individus_ids):
 
     # Recherche les vaccins existants
     dict_vaccins = {}
-    for vaccin in Vaccin.objects.select_related("type_vaccin", "individu").prefetch_related("type_vaccin__types_maladies").all():
+    for vaccin in Vaccin.objects.select_related("type_vaccin", "individu").prefetch_related("type_vaccin__types_maladies").filter(individu__in=liste_individus):
         dict_vaccins.setdefault(vaccin.individu, [])
         dict_vaccins[vaccin.individu].append(vaccin)
 

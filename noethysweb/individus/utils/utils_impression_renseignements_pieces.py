@@ -85,10 +85,10 @@ def formater_piece_jointe(piece, individu, largeur, hauteur):
             can.save()
 
             writer_piece.add_page(PdfReader(io.BytesIO(buffer_header.getvalue())).pages[0])
-            print(f"      -> Image '{nom_type_piece}' convertie et ajustée.")
+            logger.debug(f"      -> Image '{nom_type_piece}' convertie et ajustée.")
         except Exception as e:
             logger.error(f"Erreur rendu image piece {piece.idpiece}: {e}")
-            print(f"      /!\\ Erreur rendu image : {e}")
+            logger.debug(f"      /!\\ Erreur rendu image : {e}")
 
     elif doc_name.endswith('.pdf'):
         try:
@@ -124,17 +124,16 @@ def formater_piece_jointe(piece, individu, largeur, hauteur):
                     nouvelle_page.merge_translated_page(page, tx=tx, ty=ty)
                     nouvelle_page.merge_page(header_page)
 
-            print(f"      -> PDF '{nom_type_piece}' contraint et ajusté.")
+            logger.debug(f"      -> PDF '{nom_type_piece}' contraint et ajusté.")
         except Exception as e:
             # En cas d'erreur de lecture (startxref, stream end...), on logue mais on ne plante plus
-            logger.error(f"Erreur traitement PDF import piece {piece.idpiece}: {e}")
-            print(f"      /!\\ Erreur contrainte PDF : {e}")
+            logger.exception(f"Erreur traitement PDF import piece {piece.idpiece}: {e}")
 
     # =========================================================================
     # 🌟 CORRECTION CRITIQUE : DU TEXTE PUR SUR UNE PAGE NEUVE EN CAS D'ERREUR
     # =========================================================================
     if len(writer_piece.pages) == 0:
-        print(f"      [ZAP LOGIQUE] Fichier illisible. Écriture d'un pavé de texte alternatif.")
+        logger.debug(f"      [ZAP LOGIQUE] Fichier illisible. Écriture d'un pavé de texte alternatif.")
 
         buffer_erreur = io.BytesIO()
         can_err = canvas.Canvas(buffer_erreur, pagesize=(largeur, hauteur))
