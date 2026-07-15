@@ -14,7 +14,7 @@ from individus.views import liste_pieces_manquantes, liste_pieces_fournies, list
                             edition_contacts, edition_renseignements, edition_informations, liste_photos_manquantes, recherche_avancee, inscriptions_modifier, \
                             liste_titulaires_helios, inscriptions_activite_liste, effacer_familles, liste_transports, liste_progtransports, inscriptions_changer_groupe, \
                             abonnes_listes_diffusion, abonnes_listes_diffusion_ajouter, liste_mails, imprimer_liste_inscrits, sondages_reponses, telecharger_plusieurs, famille_attestations, \
-                            liste_questionnaires_individus_modif,demande_approbation, suivi_administratif, liste_questionnaires_individus_modif_valid, liste_allergies, liste_dispmed, inscriptions_activite_lot
+                            liste_questionnaires_individus_modif,demande_approbation, suivi_administratif, liste_questionnaires_individus_modif_valid, liste_allergies, liste_dispmed, inscriptions_activite_lot, registre_presence
 from fiche_individu.views import individu_inscriptions
 
 urlpatterns = [
@@ -33,6 +33,9 @@ urlpatterns = [
     path('individus/individus_doublons/liste', individus_doublons_liste.Liste.as_view(), name='individus_doublons_liste'),
     path('individus/recherche_avancee', recherche_avancee.View.as_view(), name='individus_recherche_avancee'),
     path('individus/effacer_familles', effacer_familles.Liste.as_view(), name='effacer_familles'),
+
+    path('individus/registre_presence', registre_presence.Liste.as_view(), name='registre_presence'),
+    path('individus/registre_presence/<int:pk>', registre_presence.Liste.as_view(), name='registre_presence_edit'),
 
     # Inscriptions
     path('individus/inscriptions', inscriptions_liste.Liste.as_view(), name='inscriptions_liste'),
@@ -53,7 +56,7 @@ urlpatterns = [
     path('individus/approbation/<str:activite>', demande_approbation.Liste.as_view(), name='demande_approbation_liste'),
 
     path('individus/suivi_administratif', suivi_administratif.Liste.as_view(), name='suivi_administratif_liste'),
-    path('individus/suivi_administratif/<str:activite>', suivi_administratif.Liste.as_view(),         name='suivi_administratif_liste'),
+    path('individus/suivi_administratif/<str:activite>', suivi_administratif.Liste.as_view(), name='suivi_administratif_liste'),
 
     path('individus/inscriptions_activite', inscriptions_activite_liste.Liste.as_view(), name='inscriptions_activite_liste'),
     path('individus/inscriptions_activite/<str:activite>', inscriptions_activite_liste.Liste.as_view(), name='inscriptions_activite_liste'),
@@ -207,6 +210,7 @@ urlpatterns = [
     path('individus/importer_photos_individus', secure_ajax(importation_photos.Importer_photos_individus), name="ajax_importer_photos_individus"),
     path('individus/edition_contacts/generer_pdf', secure_ajax(edition_contacts.Generer_pdf), name='ajax_edition_contacts_generer_pdf'),
     path('individus/edition_renseignements/generer_pdf', secure_ajax(edition_renseignements.Generer_pdf), name='ajax_edition_renseignements_generer_pdf'),
+    path('individus/edition_renseignements/generer_pdf_pieces', secure_ajax(edition_renseignements.Generer_pdf_pieces), name='ajax_edition_renseignements_generer_pdf_pieces'),
     path('individus/edition_informations/generer_pdf', secure_ajax(edition_informations.Generer_pdf), name='ajax_edition_informations_generer_pdf'),
     path('individus/inscriptions_modifier', secure_ajax(inscriptions_modifier.Appliquer), name='ajax_inscriptions_modifier'),
     path('individus/liste_titulaires_helios/generer_tiers_solidaires', secure_ajax(liste_titulaires_helios.Generer_tiers_solidaires), name='ajax_liste_titulaires_helios_generer_tiers_solidaires'),
@@ -217,5 +221,5 @@ urlpatterns = [
     path('individus/imprimer_liste_inscrits/generer_csv', secure_ajax(imprimer_liste_inscrits.Generer_csv), name='ajax_imprimer_liste_inscrits_generer_csv'),
     path('individus/famille_attestations/generer_pdf', secure_ajax(famille_attestations.Generer_pdf), name='ajax_famille_attestations_generer_pdf'),
     path('individus/questionnaires/individus/relance/', secure_ajax(liste_questionnaires_individus.traiter_relance), name='ajax_get_relance'),
-
+    path('individus/registre/sauvegarder/', secure_ajax(registre_presence.sauvegarder_pointage), name='registre_presence_sauvegarder'),
 ]

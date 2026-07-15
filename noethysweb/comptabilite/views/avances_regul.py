@@ -92,7 +92,7 @@ def Exporter(request):
                 compte_id=compte_type,
                 type=inverse_type,
                 montant=montant_total_regul,
-                libelle="Régularisation avances",
+                libelle="Opé de régularisation d'avances",
                 date=nouvelle_date,
                 mode=mode_obj,
                 regul_avance=True,

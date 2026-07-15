@@ -24,7 +24,30 @@ from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Hidden, Fieldset, Div
 from crispy_forms.bootstrap import Field, PrependedText
 from core.utils import utils_preferences
+from django.views.decorators.http import require_POST
+from django.shortcuts import get_object_or_404
 
+
+@require_POST
+def Pointer_operation_ajax(request):
+    """
+    Vue Ajax pour modifier le statut de pointage (Sauvegarde dans les préférences).
+    """
+    idoperation = request.POST.get('idoperation')
+    pointage = request.POST.get('pointage') == 'true'
+
+    if not idoperation:
+        return JsonResponse(
+            {"statut": "erreur", "message": "ID manquant"},
+            status=400
+        )
+
+    operation = get_object_or_404(ComptaOperation, idoperation=idoperation)
+
+    operation.pointage = pointage
+    operation.save(update_fields=["pointage"])
+
+    return JsonResponse({"statut": "ok"})
 
 
 def Get_form_ventilation(request):
@@ -348,7 +371,8 @@ class Liste(Page, crud.Liste):
     template_name = "core/crud/liste_avec_categorie.html"
 
     def get_queryset(self):
-        return ComptaOperation.objects.select_related("tiers", "mode").filter(Q(compte=self.Get_categorie()) & self.Get_filtres("Q"))
+        return ComptaOperation.objects.select_related("tiers", "mode").filter(
+            Q(compte=self.Get_categorie()) & self.Get_filtres("Q"))
 
     def get_context_data(self, **kwargs):
         context = super(Liste, self).get_context_data(**kwargs)
@@ -356,66 +380,58 @@ class Liste(Page, crud.Liste):
         context['impression_conclusion'] = ""
         context['afficher_menu_brothers'] = True
 
-        # Stats du compte
         from django.db.models import Sum, Case, When, F, DecimalField, Q
 
-        filtre_inclusion = Q(comptaoperation__avance__isnull=True) | Q(comptaoperation__regul_avance=True)
+        # 1. On cible les opérations du compte courant
+        operations = ComptaOperation.objects.filter(compte_id=self.Get_categorie())
 
-        # On ajoute l'exclusion des comptes orga
-        filtre_exclusion_orga = Q(comptaoperation__comptaventilation__categorie__orga=False)
+        # 2. CORRECTION STRICTE DU DOUBLE COMPTAGE (PRODUIT CARTÉSIEN)
+        ids_operations_orga = ComptaVentilation.objects.filter(
+            categorie__orga=True
+        ).values_list('operation_id', flat=True)
 
-        stats = CompteBancaire.objects.filter(pk=self.Get_categorie()).aggregate(
+        operations = operations.exclude(pk__in=ids_operations_orga)
+
+        # 3. EXCLUSION DES AVANCES
+        operations = operations.exclude(
+            avance__isnull=False,
+            regul_avance=False
+        )
+
+        # 4. Calcul de l'agrégation saine
+        stats = operations.aggregate(
             total_debit=Sum(
                 Case(
-                    When(Q(comptaoperation__type="debit") & filtre_inclusion & filtre_exclusion_orga,
-                         then=F("comptaoperation__montant")),
+                    When(type="debit", then=F("montant")),
                     output_field=DecimalField(),
                     default=0
                 )
             ),
-
             total_credit=Sum(
                 Case(
-                    When(Q(comptaoperation__type="credit") & filtre_inclusion & filtre_exclusion_orga,
-                         then=F("comptaoperation__montant")),
+                    When(type="credit", then=F("montant")),
                     output_field=DecimalField(),
                     default=0
                 )
-            ),
-            solde_final=Sum(
-                Case(
-                    When(Q(comptaoperation__type="credit") & filtre_inclusion & filtre_exclusion_orga,
-                         then=F("comptaoperation__montant")),
-                    output_field=DecimalField(),
-                    default=0
-                )
-            ) - Sum(
-                Case(
-                    When(Q(comptaoperation__type="debit") & filtre_inclusion & filtre_exclusion_orga,
-                         then=F("comptaoperation__montant")),
-                    output_field=DecimalField(),
-                    default=0
-                )
-            ),
+            )
         )
 
         total_debit = stats["total_debit"] or 0
         total_credit = stats["total_credit"] or 0
-        solde_final = stats["solde_final"] or 0
+        solde_final = total_credit - total_debit
 
         # --- Totaux par avance ---
-        from django.db.models import F, Value, Sum, Case, When, DecimalField
+        from django.db.models import F, Value
 
-        # --- Totaux par avance (une ligne par personne) ---
         avances_stats = (
             ComptaOperation.objects
             .filter(
                 compte=self.Get_categorie(),
                 avance__isnull=False,
-                regul_avance=False,  # Exclure les régularisations
+                regul_avance=False,
                 remb_avance=0
             )
-            .values('avance__idcompta_avance', 'avance__nom')  # une ligne par avance/personne
+            .values('avance__idcompta_avance', 'avance__nom')
             .annotate(
                 total_montant=Sum(
                     Case(
@@ -440,7 +456,7 @@ class Liste(Page, crud.Liste):
                 <table style="font-weight:bold;">
                     <tr><td>Solde du compte :</td><td style='padding-left:10px;'>{utils_texte.Formate_montant(solde_final)}</td></tr>
                 </table>
-                <table style="font-weight;">
+                <table style="font-weight:normal;">
                     <tr><td>Somme des débits sur le compte :</td><td style='padding-left:10px;'>{utils_texte.Formate_montant(total_debit)}</td></tr>
                     <tr><td>Somme des crédits sur le compte :</td><td style='padding-left:10px;'>{utils_texte.Formate_montant(total_credit)}</td></tr>
                 </table>
@@ -450,14 +466,17 @@ class Liste(Page, crud.Liste):
         return context
 
     class datatable_class(MyDatatable):
-        filtres = ["idoperation", "type", "date", "libelle", "mode", "releve", "num_piece", "debit", "credit", "montant"]
+        filtres = ["idoperation", "type", "date", "libelle", "mode", "releve", "num_piece", "debit", "credit",
+                   "montant", "pointage"]
+
+        pointage = columns.TextColumn("Pointage", sources=["pointage"], processor="Get_checkbox_pointage")
         debit = columns.TextColumn("Débit", sources=["montant"], processor="Get_montant_debit")
         credit = columns.TextColumn("Crédit", sources=["montant"], processor="Get_montant_credit")
         actions = columns.TextColumn("Actions", sources=None, processor='Get_actions_speciales')
 
         class Meta:
             structure_template = MyDatatable.structure_template
-            columns = ["date", "num_piece", "libelle", "mode", "debit", "credit", "actions"]
+            columns = ["pointage", "date", "num_piece", "libelle", "mode", "debit", "credit", "actions"]
             ordering = ["date"]
             processors = {
                 "date": helpers.format_date('%d/%m/%Y'),
@@ -469,19 +488,20 @@ class Liste(Page, crud.Liste):
                 "releve": "Relevé",
             }
 
-        def Get_libelle_avance(self, instance, **kwargs):
-            """
-            Retourne le libellé avec le nom de l'avance entre parenthèses si elle existe,
-            sauf si l'opération est une régularisation (regul_avance=True)
-            Exemple: "Paiement transport (Jean Dupont) le 10/12/2025"
-            """
-            avance_nom = f" - ({instance.avance.nom})" if instance.avance else ""
+        def Get_checkbox_pointage(self, instance, **kwargs):
+            checked = "checked" if instance.pointage else ""
+            return (
+                f'<center>'
+                f'<input type="checkbox" class="action-pointage" '
+                f'data-idoperation="{instance.pk}" {checked}>'
+                f'</center>'
+            )
 
-            # Si l'opération n'est pas une régularisation et a un remb_avance
+        def Get_libelle_avance(self, instance, **kwargs):
+            avance_nom = f" - (Avance de {instance.avance.nom})" if instance.avance else ""
             regul = ""
             if not instance.regul_avance and instance.remb_avance:
-                regul = " - régularisé"
-
+                regul = " - régularisée"
             return f"{instance.libelle}{avance_nom}{regul}"
 
         def Get_montant_debit(self, instance, **kwargs):
@@ -496,14 +516,12 @@ class Liste(Page, crud.Liste):
 
         def Get_actions_speciales(self, instance, *args, **kwargs):
             html = []
-
             if instance.virement:
                 html = [
                     self.Create_bouton_modifier(url=reverse("virements_modifier", args=[instance.virement_id])),
                     self.Create_bouton_supprimer(url=reverse("virements_supprimer", args=[instance.virement_id])),
                 ]
             else:
-                # Modifier URL
                 if instance.regul_avance:
                     modifier_url = reverse("regul_avances_modifier", args=[instance.pk])
                     supprimer_url = reverse("regul_avances_supprimer", args=[instance.pk])
@@ -515,25 +533,19 @@ class Liste(Page, crud.Liste):
                     self.Create_bouton_modifier(url=modifier_url),
                     self.Create_bouton_supprimer(url=supprimer_url),
                 ]
-
-                # Bouton document
                 if instance.document:
                     html.append(self.Create_bouton_ouvrir(url=instance.document.url))
-
             return self.Create_boutons_actions(html)
-
 
 class Ajouter(Page, crud.Ajouter):
     form_class = Formulaire
     type = None
     def dispatch(self, request, *args, **kwargs):
-        # récupère le type passé depuis as_view(type=...)
         self.type = kwargs.pop('type', getattr(self, 'type', 'debit'))
         return super().dispatch(request, *args, **kwargs)
 
     def get_form_kwargs(self, **kwargs):
         form_kwargs = super().get_form_kwargs(**kwargs)
-        # Passe le type au formulaire
         form_kwargs['type'] = self.type
         return form_kwargs
 class Modifier(Page, crud.Modifier):

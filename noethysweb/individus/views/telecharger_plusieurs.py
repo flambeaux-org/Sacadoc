@@ -11,6 +11,7 @@ class Telecharger_plusieurs(View):
     def post(self, request, *args, **kwargs):
         # Récupérer les IDs des fichiers sélectionnés
         file_ids = request.POST.getlist('files')
+        print(request.POST.getlist("files"))
         if not file_ids:
             return HttpResponse("Aucun fichier sélectionné", status=400)
 
@@ -26,7 +27,7 @@ class Telecharger_plusieurs(View):
                 # Récupération des informations pertinentes pour le titre du document
                 type_piece = piece.type_piece.nom if piece.type_piece else ""
                 individu = piece.individu.prenom if piece.individu else ""
-                famille = piece.individu.nom if piece.famille else ""
+                famille = piece.individu.nom if piece.individu else ""
 
                 # Construction du titre du document pour le fichier dans le zip
                 titre_document = f"{piece.idpiece} - {type_piece} - {individu} {famille}{document_path[document_path.rfind('.'):]}" # Inclure l'extension du fichier

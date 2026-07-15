@@ -6,7 +6,7 @@
 from django.urls import reverse_lazy, reverse
 from core.views.mydatatableview import MyDatatable, columns, helpers
 from core.views import crud
-from core.models import Piece, Activite, Inscription, Famille
+from core.models import Piece, Activite, Inscription, Famille, Individu
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 import zipfile
@@ -29,12 +29,18 @@ class Page(crud.Page):
 
 class Liste(Page, crud.Liste):
     template_name = "individus/liste_pieces_fournies.html"
+    search_fields = [
+        "famille__nom",
+        "individu__prenom",
+        "type_piece__nom",
+        "titre"
+    ]
 
     def get_queryset(self):
         activites_autorisees = Activite.objects.filter(structure__in=self.request.user.structures.all())
         inscriptions_accessibles = Inscription.objects.filter(activite__in=activites_autorisees)
-        individus_inscrits = Famille.objects.filter(idfamille__in=inscriptions_accessibles.values('famille'))
-        return Piece.objects.select_related("famille", "individu", "type_piece").filter(Q(famille__in=individus_inscrits) & self.Get_filtres("Q"))
+        individus_inscrits = Individu.objects.filter(idindividu__in=inscriptions_accessibles.values('individu'))
+        return Piece.objects.select_related("famille", "individu", "type_piece").filter(individu__in=individus_inscrits).filter(self.Get_filtres("Q"))
 
     def get_context_data(self, **kwargs):
         context = super(Liste, self).get_context_data(**kwargs)
@@ -46,8 +52,7 @@ class Liste(Page, crud.Liste):
         return context
 
     class datatable_class(MyDatatable):
-        filtres = ["fpresent:famille", "ipresent:individu", "idpiece",
-                   "date_debut", "date_fin", "famille__nom", "individu__prenom", "type_piece__nom"]
+        filtres = ["fpresent:famille", "ipresent:individu", "fscolarise:famille", "iscolarise:individu", "famille__nom", "individu__nom", "type_piece__nom"]
         actions = columns.TextColumn("Actions", sources=None, processor='Get_actions_speciales')
         check = columns.CheckBoxSelectColumn(label="")
 
@@ -63,7 +68,6 @@ class Liste(Page, crud.Liste):
 
         def format_type_piece(self, instance, *args, **kwargs):
             result = instance.type_piece.nom if instance.type_piece else f"Autre : {instance.titre}"
-           #print(f"Formatted type_piece for instance {instance.idpiece}: {result}")
             return result
 
         def Get_actions_speciales(self, instance, *args, **kwargs):

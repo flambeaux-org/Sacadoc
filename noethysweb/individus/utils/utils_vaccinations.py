@@ -63,9 +63,9 @@ def Get_vaccins_obligatoires_by_inscriptions(inscriptions=None):
     return resultats
 
 
-def Get_tous_vaccins():
+def Get_tous_vaccins(individus_ids):
     # Recherche les individus
-    liste_individus = Individu.objects.all()
+    liste_individus = Individu.objects.filter(pk__in=individus_ids)
 
     # Recherche les vaccins existants
     dict_vaccins = {}

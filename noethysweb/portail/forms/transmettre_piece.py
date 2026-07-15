@@ -145,21 +145,25 @@ class Formulaire(FormulaireBase, ModelForm):
 
         self.cleaned_data["type_piece"] = piece["type_piece"] if piece else None
 
-        # Individu
+        # 1. Détermination de l'individu
         if piece:
             # Si pièce prédéfinie
-            self.cleaned_data["individu"] = None if piece["type_piece"].public == "famille" else piece["individu"]
+            individu = None if piece["type_piece"].public == "famille" else piece["individu"]
         else:
             # Si pièce libre
-            self.cleaned_data["individu"] = Individu.objects.get(pk=self.cleaned_data["choix_individu"]) if self.cleaned_data["choix_individu"] else None
+            individu = Individu.objects.get(pk=self.cleaned_data["choix_individu"]) if self.cleaned_data[
+                "choix_individu"] else None
 
-        # Famille
-        if piece and piece["type_piece"].public == "individu" and piece["type_piece"].valide_rattachement:
-            self.cleaned_data["famille"] = None
+        self.cleaned_data["individu"] = individu
+
+        # 2. Détermination AUTOMATIQUE de la famille (Sécurisation)
+        # Sur le portail, la pièce est toujours rattachée à la famille connectée :
+        # on évite ainsi toute pièce orpheline (sans famille).
+        self.cleaned_data["famille"] = self.request.user.famille
 
         # Durée de validité
         self.cleaned_data["date_debut"] = datetime.date.today()
-        self.cleaned_data["date_fin"] = piece["type_piece"].Get_date_fin_validite() if piece else datetime.date(2999, 1, 1)
+        self.cleaned_data["date_fin"] = piece["type_piece"].Get_date_fin_validite() if piece else datetime.date(2999, 1,1)
 
         return self.cleaned_data
 

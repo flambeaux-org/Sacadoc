@@ -1,3 +1,74 @@
+Version 1.3.5.6.75 (09/07/2026)
+- ajout HEIC
+
+Version 1.3.5.6.74 (07/07/2026)
+- Fix export pièces pdf
+
+Version 1.3.5.6.73 (07/07/2026)
+- Fix paiement CB
+- amélioration visu
+
+Version 1.3.5.6.72 (07/07/2026)
+- fix auth check for Verifie_ventilation
+
+Version 1.3.5.6.71 (07/07/2026)
+- fix bug approbation tri date dernière vérification
+
+Version 1.3.5.6.70 (06/07/2026)
+- bug edtition pdf + pieces
+
+Version 1.3.5.6.69 (06/07/2026)
+- bug edtition pdf + pieces
+
+Version 1.3.5.6.68 (03/07/2026)
+- Ajout de workers Gunicorn 1 -> 9
+
+Version 1.3.5.6.67 (02/07/2026)
+- bug liste pièces
+
+Version 1.3.5.6.66 (01/07/2026)
+- filtre suivi admin
+- liste pièces individus et pas famille
+- édition pdf + pièce dans renseignements
+- correction export pdf dans pdf (edition justif)
+
+Version 1.3.5.6.65 (01/07/2026)
+- filtre pointage compta
+
+Version 1.3.5.6.64 (01/07/2026)
+-Manque migration
+
+Version 1.3.5.6.63 (01/07/2026)
+- Page liste ventilations par catégorie
+- Ajustement règlements
+- Amélioration tableau de bord
+
+Version 1.3.5.6.62 (01/07/2026)
+- Soucis suivi finances
+
+Version 1.3.5.6.61 (29/06/2026)
+- bug transmettre pièce
+- Procédure famille pour pièce sans famille
+- Bug dans la compta
+
+Version 1.3.5.6.60 (25/06/2026)
+- Fix FieldError when removing recipients in editeur_emails saisie_libre (encrypted adresse field)
+
+Version 1.3.5.6.59 (23/06/2026)
+- Fix structure field validation in notes form
+
+Version 1.3.5.6.58 (23/06/2026)
+- Send email to organizer on successful Stripe payment
+
+Version 1.3.5.6.57 (18/06/2026)
+- Add procédure supp pièces
+
+Version 1.3.5.6.56 (16/06/2026)
+- modif models
+
+Version 1.3.5.6.55 (08/06/2026)
+- bug dans portail_documents
+
 Version 1.3.5.6.54 (01/06/2026)
 * Validate email domains with MX lookup by @mpeterschmitt in https://github.com/flambeaux-org/Sacadoc/pull/136
 * Adds tests by @mpeterschmitt in https://github.com/flambeaux-org/Sacadoc/pull/127
