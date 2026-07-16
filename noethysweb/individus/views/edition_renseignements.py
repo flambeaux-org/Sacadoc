@@ -48,8 +48,6 @@ def Generer_pdf(request):
     return JsonResponse({"nom_fichier": nom_fichier})
 
 def Generer_pdf_pieces(request):
-    time.sleep(1)
-
     # 1. Récupération et validation des options
     valeurs_form_options = json.loads(request.POST.get("form_options"))
     form = Formulaire(valeurs_form_options, request=request)
@@ -65,7 +63,7 @@ def Generer_pdf_pieces(request):
     writer_final = PdfWriter()
     largeur, height = A4
 
-    print(f"\n--- DÉBUT DE L'ASSEMBLAGE SÉQUENTIEL ({len(rattachements_ids)} individus) ---")
+    logger.debug(f"--- DÉBUT DE L'ASSEMBLAGE SÉQUENTIEL ({len(rattachements_ids)} individus) ---")
 
     # 3. Boucle sur chaque rattachement sélectionné
     for idx, rattachement_id in enumerate(rattachements_ids, start=1):
@@ -80,7 +78,7 @@ def Generer_pdf_pieces(request):
         except Rattachement.DoesNotExist:
             continue
 
-        print(f"   [{idx}/{len(rattachements_ids)}] Traitement de : {individu.Get_nom().upper()}")
+        logger.debug(f"   [{idx}/{len(rattachements_ids)}] Traitement de : {individu.Get_nom().upper()}")
 
         # A. Génération de la fiche unitaire avec Noethys
         try:
@@ -115,7 +113,7 @@ def Generer_pdf_pieces(request):
                     f"Fiche administrative indisponible pour {individu.Get_nom().upper()}", largeur, height
                 ))
         except Exception as e:
-            print(f"Erreur génération Noethys pour {individu.Get_nom()} : {e}")
+            logger.exception(f"Erreur génération Noethys pour {individu.Get_nom()} : {e}")
             continue
 
         # B. Récupération et ajout immédiat de ses pièces jointes
@@ -157,7 +155,7 @@ def Generer_pdf_pieces(request):
     # Sauvegarde propre gérée par Django (Valide sur Local et sur Serveur de production)
     chemin_final_web = default_storage.save(nom_final_livret, ContentFile(buffer_final.getvalue()))
 
-    print(f"\n[SUCCÈS] Livret global créé avec succès : {chemin_final_web}\n")
+    logger.debug(f"[SUCCÈS] Livret global créé avec succès : {chemin_final_web}")
 
     # On renvoie le chemin relatif à Noethys qui saura l'ouvrir côté client
     return JsonResponse({"nom_fichier": "/" + chemin_final_web, "status": "success"})
