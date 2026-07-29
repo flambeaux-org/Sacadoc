@@ -3,7 +3,7 @@
 #  Noethysweb, application de gestion multi-activités.
 #  Distribué sous licence GNU GPL.
 
-import datetime, json
+import json
 from django.http import JsonResponse
 from django.template.context_processors import csrf
 from django.views.generic import TemplateView
@@ -20,8 +20,11 @@ from collaborateurs.views.appliquer_modele_planning import Form_valid_appliquer_
 
 def Get_collaborateurs(request):
     # Récupération de la période affichée
-    date_debut = datetime.datetime.strptime(request.POST["date_debut"], "%Y-%m-%d %H:%M").date()
-    date_fin = datetime.datetime.strptime(request.POST["date_fin"], "%Y-%m-%d %H:%M").date()
+    date_debut = utils_dates.ConvertDateTimeENGtoDateTime(request.POST.get("date_debut"))
+    date_fin = utils_dates.ConvertDateTimeENGtoDateTime(request.POST.get("date_fin"))
+    if not date_debut or not date_fin:
+        return JsonResponse({"erreur": "La période demandée est erronée"}, status=401)
+    date_debut, date_fin = date_debut.date(), date_fin.date()
 
     resultats = []
     conditions = Q(contratcollaborateur__date_debut__lte=date_fin) & (Q(contratcollaborateur__date_fin__isnull=True) | Q(contratcollaborateur__date_fin__gte=date_debut))
@@ -42,8 +45,11 @@ def Get_collaborateurs(request):
 
 def Get_evenements(request):
     # Récupération de la période affichée
-    date_debut = datetime.datetime.strptime(request.POST["date_debut"], "%Y-%m-%d %H:%M").date()
-    date_fin = datetime.datetime.strptime(request.POST["date_fin"], "%Y-%m-%d %H:%M").date()
+    date_debut = utils_dates.ConvertDateTimeENGtoDateTime(request.POST.get("date_debut"))
+    date_fin = utils_dates.ConvertDateTimeENGtoDateTime(request.POST.get("date_fin"))
+    if not date_debut or not date_fin:
+        return JsonResponse({"erreur": "La période demandée est erronée"}, status=401)
+    date_debut, date_fin = date_debut.date(), date_fin.date()
 
     # Importation des évènements
     conditions = (Q(collaborateur__groupes__superviseurs=request.user) | Q(collaborateur__groupes__superviseurs__isnull=True))
@@ -89,10 +95,11 @@ def Get_form_detail_evenement(request):
     data_event = json.loads(request.POST.get("data_event", "{}"))
     data_initial = {}
     if data_event:
+        # Les dates non reconnues sont ignorées : le form s'ouvre alors sans dates prérenseignées
         data_initial = {
             "collaborateur": int(data_event["collaborateur"]),
-            "date_debut": datetime.datetime.strptime(data_event["date_debut"], "%Y-%m-%d %H:%M"),
-            "date_fin": datetime.datetime.strptime(data_event["date_fin"], "%Y-%m-%d %H:%M"),
+            "date_debut": utils_dates.ConvertDateTimeENGtoDateTime(data_event.get("date_debut")),
+            "date_fin": utils_dates.ConvertDateTimeENGtoDateTime(data_event.get("date_fin")),
         }
 
     # Création du contexte
@@ -126,11 +133,15 @@ def Valid_form_detail_evenement(request):
 
 def Modifier_evenement(request):
     data_event = json.loads(request.POST.get("data_event", "{}"))
+    date_debut = utils_dates.ConvertDateTimeENGtoDateTime(data_event.get("date_debut"))
+    date_fin = utils_dates.ConvertDateTimeENGtoDateTime(data_event.get("date_fin"))
+    if not date_debut or not date_fin:
+        return JsonResponse({"erreur": "Les dates de l'évènement sont erronées"}, status=401)
     evenement = EvenementCollaborateur.objects.get(pk=int(data_event["idevenement"]))
     if data_event.get("collaborateur", None):
         evenement.collaborateur_id = int(data_event["collaborateur"])
-    evenement.date_debut = datetime.datetime.strptime(data_event["date_debut"], "%Y-%m-%d %H:%M")
-    evenement.date_fin = datetime.datetime.strptime(data_event["date_fin"], "%Y-%m-%d %H:%M")
+    evenement.date_debut = date_debut
+    evenement.date_fin = date_fin
     evenement.save()
     return JsonResponse({"succes": True})
 
