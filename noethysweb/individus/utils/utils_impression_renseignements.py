@@ -20,6 +20,7 @@ from core.utils import utils_dates, utils_impression, utils_questionnaires
 from individus.utils import utils_vaccinations
 import os
 from reportlab.platypus import Spacer
+from portail.utils import utils_approbations
 
 
 class Impression(utils_impression.Impression):
@@ -319,8 +320,14 @@ class Impression(utils_impression.Impression):
                 contenu_tableau = [Paragraph("%s : <b>%s</b>" % (question["label"], question["reponse"]), style_defaut) for question in questions_individu if question["visible_fiche_renseignement"]]
                 self.story.append(Tableau(titre="Questionnaire individuel".upper(), aide="", contenu=contenu_tableau))
 
-            # Certification
-            if rattachement.certification_date:
+            dict_inscriptions = {
+                inscription.individu_id: inscription
+                for inscription in inscriptions_accessibles
+            }
+
+            inscription = dict_inscriptions.get(rattachement.individu_id)
+
+            if inscription and inscription.besoin_certification:
                 texte_certification = "Fiche vérifiée par le responsable le %s" % utils_dates.ConvertDateToFR(rattachement.certification_date)
             else:
                 texte_certification = "Fiche non vérifiée sur le portail"
