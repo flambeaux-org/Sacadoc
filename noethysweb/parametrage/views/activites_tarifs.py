@@ -14,8 +14,8 @@ from core.models import Tarif, Activite, TarifLigne, CombiTarif, NomTarif, LISTE
 from parametrage.forms.activites_tarifs import Formulaire, FORMSET_UNITES_JOURN, FORMSET_UNITES_FORFAIT, FORMSET_UNITES_CREDIT
 from django.db.models import Q
 from copy import deepcopy
-
-
+from outils.procedures.MAJTARIF import Procedure as ProcedureMajPrestations
+from django.contrib import messages
 
 class Page(Onglet):
     model = Tarif
@@ -205,11 +205,18 @@ class ClasseCommune(Page):
 
             index_ligne += 1
 
-        # Si la liste existante et la nouvelle liste sont différentes, on supprime et sauvegarde tout
-        if liste_lignes_existantes != liste_dict_lignes:
-            TarifLigne.objects.filter(tarif=self.object).order_by("num_ligne").delete()
-            for ligne in liste_lignes:
-                ligne.save()
+            # Si la liste existante et la nouvelle liste sont différentes, on supprime et sauvegarde tout
+        lignes_ont_change = liste_lignes_existantes != liste_dict_lignes
+        if lignes_ont_change:
+                TarifLigne.objects.filter(tarif=self.object).order_by("num_ligne").delete()
+                for ligne in liste_lignes:
+                    ligne.save()
+
+            # Répercussion automatique du nouveau montant sur les prestations existantes
+        if lignes_ont_change:
+                procedure = ProcedureMajPrestations()
+                resultat = procedure.Executer(variables={'tarif': self.object.pk})
+                messages.info(self.request, resultat)
 
         # Sauvegarde des combi_tarifs
         if formsetclass:
