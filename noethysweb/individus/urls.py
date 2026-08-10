@@ -16,6 +16,8 @@ from individus.views import liste_pieces_manquantes, liste_pieces_fournies, list
                             abonnes_listes_diffusion, abonnes_listes_diffusion_ajouter, liste_mails, imprimer_liste_inscrits, sondages_reponses, telecharger_plusieurs, famille_attestations, \
                             liste_questionnaires_individus_modif,demande_approbation, suivi_administratif, liste_questionnaires_individus_modif_valid, liste_allergies, liste_dispmed, inscriptions_activite_lot, registre_presence
 from fiche_individu.views import individu_inscriptions
+from individus.views.demande_approbation import EnvoyerDemandeIndividuelle  # adaptez le chemin d'import
+
 
 urlpatterns = [
 
@@ -54,6 +56,7 @@ urlpatterns = [
 
     path('individus/approbation', demande_approbation.Liste.as_view(),  name='demande_approbation_liste'),
     path('individus/approbation/<str:activite>', demande_approbation.Liste.as_view(), name='demande_approbation_liste'),
+    path("individus/approbation/individu/<int:pk>", EnvoyerDemandeIndividuelle.as_view(),name="demande_approbation_individuelle"),
 
     path('individus/suivi_administratif', suivi_administratif.Liste.as_view(), name='suivi_administratif_liste'),
     path('individus/suivi_administratif/<str:activite>', suivi_administratif.Liste.as_view(), name='suivi_administratif_liste'),
