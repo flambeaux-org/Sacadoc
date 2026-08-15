@@ -10,7 +10,7 @@ from django.shortcuts import redirect
 from django.utils.translation import gettext as _
 from django.views.generic import TemplateView
 
-from core.models import Article, Consommation, Inscription, Lecture, PortailMessage
+from core.models import Article, Consommation, Inscription, Lecture, PortailMessage, SondageRepondant
 from cotisations.utils import utils_cotisations_manquantes
 from individus.utils import (
     utils_assurances,
@@ -114,7 +114,28 @@ class Accueil(CustomView, TemplateView):
                 selection_articles.append(article)
                 if article.texte_popup:
                     popups.append(article)
-        context['articles'] = selection_articles
+        # Séparer les articles avec formulaire (sondage) non répondu → alertes
+        sondages_des_articles = [a.sondage for a in selection_articles if a.sondage]
+        if sondages_des_articles:
+            sondages_repondus = set(
+                SondageRepondant.objects.filter(
+                    sondage__in=sondages_des_articles,
+                    famille=self.request.user.famille,
+                ).values_list('sondage_id', flat=True)
+            )
+        else:
+            sondages_repondus = set()
+
+        articles_normaux = []
+        nbre_formulaires_manquants = 0
+        for article in selection_articles:
+            if article.sondage and article.sondage.idsondage not in sondages_repondus:
+                nbre_formulaires_manquants += 1
+            else:
+                articles_normaux.append(article)
+
+        context['articles'] = articles_normaux
+        context['nbre_formulaires_manquants'] = nbre_formulaires_manquants
 
         # Popups
         context['articles_popups'] = []

@@ -79,7 +79,7 @@ def Get_activites(request):
     if not idindividu or not idfamille:
         resultat = ""
     else:
-        activites = list({inscription.activite: True for inscription in Inscription.objects.select_related("activite").filter(individu_id=idindividu, famille_id=idfamille).order_by("date_debut")}.keys())
+        activites = list({inscription.activite: True for inscription in Inscription.objects.select_related("activite").filter(individu_id=idindividu, famille_id=idfamille, activite__actif=True).order_by("date_debut")}.keys())
         html = """
         <option value="">---------</option>
         {% for activite in activites %}
@@ -129,6 +129,7 @@ class Page(Onglet):
             context['box_titre'] = "Prestations"
         context['onglet_actif'] = "prestations"
         context['boutons_liste'] = [
+            {"label": "Ajouter", "classe": "btn btn-success", "href": reverse_lazy(self.url_ajouter, kwargs={'idfamille': self.kwargs.get('idfamille', None)}), "icone": "fa fa-plus"},
         ]
         # Ajout l'idfamille à l'URL de suppression groupée
         context['url_supprimer_plusieurs'] = reverse_lazy(self.url_supprimer_plusieurs, kwargs={'idfamille': self.kwargs.get('idfamille', None), "listepk": "xxx"})
@@ -267,6 +268,11 @@ class ClasseCommune(Page):
 class Ajouter(ClasseCommune, crud.Ajouter):
     form_class = Formulaire
     template_name = "fiche_famille/famille_edit.html"
+
+    def get_form_kwargs(self, **kwargs):
+        form_kwargs = super().get_form_kwargs(**kwargs)
+        form_kwargs["mode_ajout"] = True
+        return form_kwargs
 
 
 class Modifier(ClasseCommune, crud.Modifier):

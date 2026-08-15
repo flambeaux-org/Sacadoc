@@ -154,6 +154,17 @@ class CustomView(LoginRequiredMixin, UserPassesTestMixin): #, PermissionRequired
         if context['menu_actif'] is not None:
             context['breadcrumb'] = context['menu_actif'].GetBreadcrumb()
 
+        # URL de retour : priorité à la fiche famille si idfamille présent (sauf si on y est déjà), sinon breadcrumb, sinon accueil
+        from django.urls import reverse
+        nom_vue_actuelle = self.request.resolver_match.url_name if self.request.resolver_match else None
+
+        if self.kwargs.get('idfamille') and nom_vue_actuelle != 'famille_resume':
+            context['url_retour'] = reverse('famille_resume', args=[self.kwargs.get('idfamille')])
+        elif context.get('breadcrumb') and len(context['breadcrumb']) > 0:
+            context['url_retour'] = context['breadcrumb'][-1].GetUrl()
+        else:
+            context['url_retour'] = reverse('accueil')
+
         # Date limite : 3 mois
         date_limite = timezone.now() - timedelta(days=90)
 

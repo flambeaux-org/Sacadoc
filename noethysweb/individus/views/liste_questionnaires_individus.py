@@ -63,9 +63,13 @@ class Liste(Page, liste_questionnaires_base.Liste):
 
 def traiter_relance(request):
     """ Vue qui exécute une action lorsqu'on clique sur le bouton 'Relance' """
-    categorie_l = request.POST.get('categorie')
+    categorie_l = request.POST.get('categorie') or ""
     categorie = categorie_l.split('/')[-1]
     url_redirect = reverse_lazy('questionnaires_individus_liste')  # Remplace 'some_redirect_url' par l'URL cible souhaitée
+
+    # Aucune question sélectionnée : le dernier segment de l'URL vaut "liste" (et non un idquestion)
+    if not categorie.isdigit():
+        return JsonResponse({"erreur": "Veuillez d'abord sélectionner une question dans la liste déroulante"}, status=401)
 
     #Début envoi email
     time.sleep(1)

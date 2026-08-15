@@ -35,7 +35,7 @@
             </div>
 
         {# 🔴 CAS 2 : sommes à régler #}
-        {% elif liste_prestations_solde %}
+        {% elif liste_activites_soldes %}
             {% embed 'core/box.html' with box_titre=True %}
                 {% block box_theme %}card-outline card-danger{% endblock %}
                 {% block box_titre %}{% trans "Détail des soldes des différentes prestations" %}{% endblock %}
@@ -43,45 +43,70 @@
                 {% block box_contenu %}
 
                     <table class="table-facturation table mb-0">
-                        <thead>
-                            <tr>
-                                <th>{% trans "Activité" %}</th>
-                                <th>{% trans "Intitulé" %}</th>
-                                <th>{% trans "Montant total" %}</th>
-                                <th>{% trans "Déjà réglé" %}</th>
-                                <th>{% trans "Reste à régler" %}</th>
-                                <th>Paiement CB</th>
-                            </tr>
-                        </thead>
                         <tbody>
-                            {% for prestation in liste_prestations_solde %}
-                                <tr>
-                                    <td>({{ prestation.date_valeur|date:"Y" }}) {{ prestation.activite.nom }} ({{ prestation.individu.prenom }})</td>
-                                    <td>{{ prestation.label }}</td>
-                                    <td>{{ prestation.montant_total|montant }}</td>
-                                    <td>{{ prestation.montant_regle|montant }}</td>
-                                    <td>
-                                        {% if prestation.montant_restant > 0 %}
-                                            <span class="badge-pill bg-danger">
-                                                {{ prestation.montant_restant|montant }}
+                            {# Boucle sur les activités triées #}
+                            {% for nom_activite, info in liste_activites_soldes %}
+
+                                {# 1. Ligne d'en-tête principale de l'activité #}
+                                <tr class="bg-light font-weight-bold" style="border-top: 2px solid #dee2e6;">
+                                    <td colspan="4" class="pl-3 text-left align-middle" style="text-align: left !important; font-size: 16px;">
+                                        <i class="fa fa-cubes text-lightblue margin-r-5"></i>
+                                        {{ nom_activite }}
+
+                                        {% if info.total_restant > 0 %}
+                                            <span class="float-right margin-r-40" style="font-size: 13px;">
+                                                Solde restant total : {{ info.total_restant|montant }}
                                             </span>
                                         {% else %}
-                                            <span class="text-success">
-                                                {{ prestation.montant_restant|inverse_signe|montant }}
+                                            <span class="badge badge-success float-right margin-r-10" style="font-size: 13px;">
+                                                À jour
                                             </span>
                                         {% endif %}
                                     </td>
-                                    <td>
-                                        {% if prestation.montant_restant > 0 and prestation.activite.pay_org_tpe %}
+                                    <td class="align-middle text-center">
+                                        {% if info.total_restant > 0 and info.pay_org_tpe %}
                                             <button class="btn btn-success btn-sm btn-payer"
-                                                    data-idprestation="{{ prestation.idprestation }}"
-                                                    data-montant="{{ prestation.montant_restant|floatformat:2 }}"
-                                                    title="Payer par carte bancaire">
-                                                <i class="fa fa-credit-card fa-lg"></i>
+                                                    data-idprestation="{{ info.id_premiere_prestation }}"
+                                                    data-montant="{{ info.total_restant|floatformat:2 }}"
+                                                    title="Payer le solde de cette activité">
+                                                <i class="fa fa-credit-card"></i> {% trans " Payer" %}
                                             </button>
                                         {% endif %}
                                     </td>
                                 </tr>
+
+                                {# 2. 🛑 NOUVEAU : Ligne des sous-titres insérée juste en dessous de l'activité #}
+                                <tr class="text-muted font-weight-bold" style="font-size: 12px; background-color: #fafafa;">
+                                    <th class="text-left pl-4" style="text-align: left !important; border-top: none;">{% trans "Participant" %}</th>
+                                    <th style="border-top: none;">{% trans "Tarif" %}</th>
+                                    <th style="border-top: none;">{% trans "Montant total" %}</th>
+                                    <th style="border-top: none;">{% trans "Déjà réglé" %}</th>
+                                    <th style="border-top: none;">{% trans "Reste à régler" %}</th>
+                                </tr>
+
+                                {# 3. Boucle sur les prestations de cette activité #}
+                                {% for prestation in info.prestations %}
+                                    <tr>
+                                        <td class="text-left pl-4" style="text-align: left !important;">
+                                            {{ prestation.individu.prenom }}
+                                        </td>
+                                        <td>{{ prestation.label }}</td>
+                                        <td>{{ prestation.montant_total|montant }}</td>
+                                        <td>{{ prestation.montant_regle|montant }}</td>
+                                        <td>
+                                            {% if prestation.montant_restant > 0 %}
+                                                <span class="badge-pill bg-danger">
+                                                    {{ prestation.montant_restant|montant }}
+                                                </span>
+                                            {% else %}
+                                                <span class="text-success">
+                                                    {{ prestation.montant_restant|montant }}
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+
                             {% endfor %}
                         </tbody>
                     </table>

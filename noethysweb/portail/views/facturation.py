@@ -813,21 +813,39 @@ class View(CustomView, TemplateView):
                 )
             )
 
-            # Enrichissement Python (reste + filtrage)
-            liste_prestations_solde = []
+            # 1. Calcul des restes à payer individuels
+            for prestation in prestations:
+                prestation.montant_restant = prestation.montant_total - prestation.montant_regle
+
+            # 2. Structure pour regrouper par activité : { 'Nom Activité': { 'id_premiere_prestation': X, 'total_restant': Y, 'liste_prestations': [...] } }
+            activites_regroupees = {}
             solde_global = decimal.Decimal(0)
 
             for prestation in prestations:
-                reste = prestation.montant_total - prestation.montant_regle
-                prestation.montant_restant = reste
-
-                # On garde tout (ou seulement reste != 0 si tu veux)
-                liste_prestations_solde.append(prestation)
+                nom_act = prestation.activite.nom
+                reste = prestation.montant_restant
                 solde_global += reste
 
-            liste_prestations_solde.sort(key=lambda p: p.montant_restant, reverse=True)
+                if nom_act not in activites_regroupees:
+                    activites_regroupees[nom_act] = {
+                        "id_premiere_prestation": prestation.idprestation,
+                        "pay_org_tpe": prestation.activite.pay_org_tpe,
+                        "total_restant": decimal.Decimal(0),
+                        "prestations": []
+                    }
 
-            context["liste_prestations_solde"] = liste_prestations_solde
+                activites_regroupees[nom_act]["prestations"].append(prestation)
+                activites_regroupees[nom_act]["total_restant"] += reste
+
+            # 3. Tri des prestations à l'intérieur de chaque activité par montant_restant décroissant
+            for nom_act, info in activites_regroupees.items():
+                info["prestations"].sort(key=lambda p: p.montant_restant, reverse=True)
+
+            # 4. Tri des activités par ordre alphabétique (pour le rendu final)
+            liste_activites_ordonnee = sorted(activites_regroupees.items(), key=lambda x: x[0])
+
+            # 5. Injection dans le contexte
+            context["liste_activites_soldes"] = liste_activites_ordonnee
             context["solde_famille"] = solde_global
 
-        return context
+            return context

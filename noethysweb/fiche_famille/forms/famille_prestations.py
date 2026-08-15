@@ -120,6 +120,7 @@ class Formulaire(FormulaireBase, ModelForm):
 
     def __init__(self, *args, **kwargs):
         idfamille = kwargs.pop("idfamille")
+        mode_ajout = kwargs.pop("mode_ajout", False)
         super(Formulaire, self).__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.form_id = 'famille_prestations_form'
@@ -128,6 +129,13 @@ class Formulaire(FormulaireBase, ModelForm):
         self.helper.form_class = 'form-horizontal'
         self.helper.label_class = 'col-md-2'
         self.helper.field_class = 'col-md-10'
+
+        if mode_ajout:
+            self.fields["categorie"].initial = "autre"
+            self.fields["categorie"].widget = forms.HiddenInput()
+
+        self.fields["facture"].widget = forms.HiddenInput()
+
 
         # Date
         if not self.instance.pk:
@@ -162,6 +170,7 @@ class Formulaire(FormulaireBase, ModelForm):
                 Field('categorie'),
                 Field('label'),
                 Field('individu'),
+                Field('facture'),
             ),
             Fieldset("Activité",
                 Field('activite'),
@@ -182,9 +191,7 @@ class Formulaire(FormulaireBase, ModelForm):
             #    Field('code_analytique'),
             #    Field('code_produit_local'),
             #),
-            Fieldset("Facturation",
-                Field('facture'),
-            ),
+
             #Fieldset("Consommations associées",
             #    Field('consommations'),
             #    id="fieldset_consommations",
@@ -207,6 +214,7 @@ class Formulaire(FormulaireBase, ModelForm):
 
     def clean(self):
         if not self.cleaned_data["activite"]:
+            self.add_error("activite", "Ce champ est obligatoire.")
             self.cleaned_data["categorie_tarif"] = None
         if not self.cleaned_data["categorie_tarif"]:
             self.cleaned_data["tarif"] = None
@@ -407,7 +415,7 @@ function On_change_activite() {
     if (idactivite == '') {
         $("#div_id_categorie_tarif").hide()
     } else {
-        $("#div_id_categorie_tarif").show()
+        $("#div_id_categorie_tarif").hide()
     }
     On_change_categorie_tarif();
 };

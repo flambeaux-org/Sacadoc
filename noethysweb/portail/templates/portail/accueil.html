@@ -35,7 +35,7 @@
 
 
     {# Notifications #}
-    {% if approbations_requises or nbre_messages_non_lus or nbre_pieces_manquantes or nbre_renseignements_manquants or nbre_questionnaires_manquants or nbre_vaccinations_manquantes or nbre_verifications_manquante or nbre_assurances_manquantes or cotisations_manquantes or nbre_sondages_manquants %}
+    {% if approbations_requises or nbre_messages_non_lus or nbre_pieces_manquantes or nbre_renseignements_manquants or nbre_questionnaires_manquants or nbre_vaccinations_manquantes or nbre_verifications_manquante or nbre_assurances_manquantes or cotisations_manquantes or nbre_sondages_manquants or nbre_formulaires_manquants %}
 
         <h5 class="mb-2 text-secondary">{% blocktrans %}Alertes{% endblocktrans %}</h5>
         <div class="row mb-2">
@@ -216,6 +216,22 @@
                             </p>
                         </div>
                         <div class="icon"><i class="fa fa-file-text-o"></i></div>
+                        <a href="{% url 'portail_sondages' %}" class="small-box-footer">{% trans "Consulter" %} <i class="fa fa-arrow-circle-right"></i></a>
+                    </div>
+                </div>
+            {% endif %}
+
+            {# Formulaires manquants (articles avec sondage non répondu) #}
+            {% if nbre_formulaires_manquants %}
+                <div class="col-lg-3 col-6">
+                    <div class="small-box bg-warning">
+                        <div class="inner">
+                            <h3>{{ nbre_formulaires_manquants }}</h3>
+                            <p>
+                                {% blocktranslate count counter=nbre_formulaires_manquants %}Formulaire à compléter{% plural %}Formulaires à compléter{% endblocktranslate %}
+                            </p>
+                        </div>
+                        <div class="icon"><i class="fa fa-wpforms"></i></div>
                         <a href="{% url 'portail_sondages' %}" class="small-box-footer">{% trans "Consulter" %} <i class="fa fa-arrow-circle-right"></i></a>
                     </div>
                 </div>
