@@ -1,0 +1,258 @@
+{% extends "portail/page.html" %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% load embed %}
+
+{% block styles %}
+    {{ block.super }}
+    <style>
+        .stepper {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 20px;
+        }
+        .stepper-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            background-color: #f4f4f4;
+            color: #6c6c6c;
+            font-size: 0.8rem;
+            text-decoration: none !important;
+            border: 1px solid #e4e4e4;
+        }
+        .stepper-item .stepper-numero {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: #c2c2c2;
+            color: #fff;
+            font-size: 0.7rem;
+        }
+        .stepper-item.actif {
+            background-color: #ffc107;
+            border-color: #ffc107;
+            color: #3E2F28;
+            font-weight: 700;
+        }
+        .stepper-item.actif .stepper-numero {
+            background-color: #3E2F28;
+        }
+        .stepper-item.complete .stepper-numero {
+            background-color: #28a745;
+        }
+        .stepper-item.complete .stepper-numero:before {
+            content: "\f00c";
+            font-family: FontAwesome;
+        }
+        .fiche-manquant .list-group-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+        .fiche-manquant-photo {
+            max-height: 28px;
+            max-width: 28px;
+            border-radius: 50%;
+            margin-right: 8px;
+            object-fit: cover;
+        }
+    </style>
+{% endblock styles %}
+
+{% block contenu_page %}
+    {% embed 'core/box.html' with box_titre=True box_introduction=True %}
+        {% block box_theme %}card-outline card-warning{% endblock %}
+        {% block box_titre %}<i class="fa fa-list-ol text-warning"></i> {% trans "Compléter mon dossier" %}{% endblock %}
+        {% block box_introduction %}
+            {% trans "Suivez les étapes ci-dessous pour compléter votre dossier familial, jusqu'à la vérification finale." %}
+        {% endblock %}
+        {% block box_contenu %}
+
+            {# Fil d'étapes #}
+            <div class="stepper">
+                {% for etape in etapes %}
+                    <a href="?etape={{ etape.code }}" class="stepper-item {% if etape.code == etape_active.code %}actif{% elif etape.complete %}complete{% endif %}">
+                        <span class="stepper-numero">{% if not etape.complete or etape.code == etape_active.code %}{{ forloop.counter }}{% endif %}</span>
+                        {{ etape.titre }}
+                        {% if etape.bloquee %}<i class="fa fa-lock" title="{% trans "Accessible une fois les autres étapes complétées" %}"></i>
+                        {% elif etape.nbre and etape.code != etape_active.code %}<span class="badge badge-danger">{{ etape.nbre }}</span>{% endif %}
+                    </a>
+                {% endfor %}
+            </div>
+
+            <h5 class="mb-3"><i class="fa fa-{{ etape_active.icone }} margin-r-5"></i>{% trans "Étape" %} {{ numero_etape }}/{{ nbre_etapes }} — {{ etape_active.titre }}</h5>
+
+            {# Étapes traitées directement sur cette page : renseignements, vaccinations #}
+            {% if etape_active.type == "inline" %}
+                {% if etape_active.items %}
+                    {% for item in etape_active.items %}
+                        <div class="card card-outline card-secondary mb-2 fiche-manquant">
+                            <div class="card-body py-2">
+                                <div class="list-group-item border-0 p-0">
+                                    <div>
+                                        <img src="{{ item.individu.Get_photo }}" class="fiche-manquant-photo">
+                                        <strong>{{ item.individu.Get_nom }}</strong> —
+                                        <span class="text-danger">{{ item.label }}</span>
+                                        {% if item.detail %}<br><small class="text-muted ml-4">{{ item.detail|linebreaksbr }}</small>{% endif %}
+                                    </div>
+                                    <a href="{{ item.url }}" class="btn btn-sm btn-warning text-nowrap"><i class="fa fa-pencil margin-r-5"></i>{% trans "Compléter" %}</a>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="alert alert-success"><i class="fa fa-check margin-r-5"></i>{% trans "Rien à signaler pour cette étape." %}</div>
+                {% endif %}
+            {% endif %}
+
+            {# Formulaires (sondages) : seule étape qui renvoie vers sa propre page, son parcours à plusieurs pages ne pouvant pas être aplati ici #}
+            {% if etape_active.type == "redirect" %}
+                {% if etape_active.complete %}
+                    <div class="alert alert-success"><i class="fa fa-check margin-r-5"></i>{% trans "Rien à signaler pour cette étape." %}</div>
+                {% else %}
+                    <div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap">
+                        <div><i class="fa fa-exclamation-triangle margin-r-5"></i>{{ etape_active.texte }} ({{ etape_active.nbre }})</div>
+                        <a href="{{ etape_active.url }}" class="btn btn-warning text-nowrap"><i class="fa fa-arrow-circle-right margin-r-5"></i>{% trans "Aller compléter" %}</a>
+                    </div>
+                {% endif %}
+            {% endif %}
+
+            {# Pièces à fournir : liste des manquantes + formulaire d'envoi, directement sur cette page #}
+            {% if etape_active.type == "pieces" %}
+                {% if etape_active.pieces_fournir %}
+                    <p>{% trans "Les pièces suivantes marquées d'une croix rouge sont à nous transmettre" %} :</p>
+                    <ul class="list-unstyled mb-3">
+                        {% for piece in etape_active.pieces_fournir %}
+                            <li>{% if piece.valide %}<i class='fa fa-check fa-fw text-green'></i>{% else %}<i class='fa fa-close fa-fw text-red'></i>{% endif %} {{ piece.label }}</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="alert alert-success"><i class="fa fa-check margin-r-5"></i>{% trans "Rien à signaler pour cette étape." %}</div>
+                {% endif %}
+                <h6>{% trans "Transmettre un document" %}</h6>
+                {% crispy form_piece %}
+            {% endif %}
+
+            {# Questionnaires : un formulaire par question manquante, enregistrement individuel #}
+            {% if etape_active.type == "questionnaires" %}
+                {% if etape_active.individus_forms %}
+                    {% for bloc in etape_active.individus_forms %}
+                        <div class="card card-outline card-secondary mb-3">
+                            <div class="card-header"><h3 class="card-title">{{ bloc.individu.prenom }} {{ bloc.individu.nom }}</h3></div>
+                            <div class="card-body">
+                                {% for question in bloc.questions %}
+                                    <form method="post">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="type_action" value="questionnaire">
+                                        <input type="hidden" name="individu_pk" value="{{ bloc.individu.pk }}">
+                                        <input type="hidden" name="question_pk" value="{{ question.pk }}">
+                                        <input type="hidden" name="question_ctrl" value="{{ question.controle }}">
+                                        <div class="form-group">
+                                            <label for="question_{{ question.pk }}">{{ question.label }}</label>
+                                            {% if question.controle == "ligne_texte" %}
+                                                <input type="text" class="form-control" name="valeur" value="{{ question.reponse|default_if_none:'' }}">
+                                            {% elif question.controle == "bloc_texte" %}
+                                                <textarea class="form-control" name="valeur" rows="4">{{ question.reponse|default_if_none:'' }}</textarea>
+                                            {% elif question.controle == "case_coche" %}
+                                                <input type="checkbox" name="valeur" {% if question.reponse %}checked{% endif %}>
+                                            {% elif question.controle in "entier decimal montant slider" %}
+                                                <input type="number" class="form-control" name="valeur" value="{{ question.reponse|default_if_none:'' }}">
+                                            {% elif question.controle == "date" %}
+                                                <input type="date" class="form-control" name="valeur" value="{{ question.reponse|default_if_none:'' }}">
+                                            {% elif question.is_liste %}
+                                                <select class="form-control" name="valeur">
+                                                    <option value="">---------</option>
+                                                    {% for choix in question.choix_list %}
+                                                        <option value="{{ choix }}" {% if question.reponse == choix %}selected{% endif %}>{{ choix }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            {% endif %}
+                                            {% if question.texte_aide %}<small class="form-text text-muted">{{ question.texte_aide }}</small>{% endif %}
+                                        </div>
+                                        <button type="submit" class="btn btn-sm btn-primary">{% trans "Enregistrer" %}</button>
+                                    </form>
+                                    <hr style="margin: 1rem 0; border-color: #ddd;">
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="alert alert-success"><i class="fa fa-check margin-r-5"></i>{% trans "Rien à signaler pour cette étape." %}</div>
+                {% endif %}
+            {% endif %}
+
+            {# Adhésions : informatif, gérées par l'organisateur #}
+            {% if etape_active.type == "cotisations" %}
+                {% if etape_active.cotisations_fournir %}
+                    <p>{% trans "Les adhésions suivantes marquées d'une croix rouge sont manquantes" %} :</p>
+                    <ul class="list-unstyled">
+                        {% for cotisation in etape_active.cotisations_fournir %}
+                            <li>{% if cotisation.valide %}<i class='fa fa-check fa-fw text-green'></i>{% else %}<i class='fa fa-close fa-fw text-red'></i>{% endif %} {{ cotisation.label }}</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="alert alert-success"><i class="fa fa-check margin-r-5"></i>{% trans "Rien à signaler pour cette étape." %}</div>
+                {% endif %}
+            {% endif %}
+
+            {# Étape finale : vérifications, accessible uniquement une fois toutes les autres étapes complétées #}
+            {% if etape_active.type == "verifications" %}
+                {% if etape_active.bloquee %}
+                    <div class="alert alert-info">
+                        <i class="fa fa-info-circle margin-r-5"></i>
+                        {% trans "Les vérifications ne sont accessibles qu'une fois toutes les informations précédentes complétées." %}
+                    </div>
+                {% elif etape_active.complete %}
+                    <div class="alert alert-success"><i class="fa fa-check margin-r-5"></i>{% trans "Rien à vérifier, merci !" %}</div>
+                {% else %}
+                    <ul class="nav nav-tabs" role="tablist">
+                        {% for ir in etape_active.inscriptions_rattachements %}
+                            <li class="nav-item">
+                                <a class="nav-link {% if forloop.first %}active{% endif %}" data-toggle="tab" href="#individu-{{ ir.individu.idindividu }}">{{ ir.individu.prenom }} {{ ir.individu.nom }}</a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                    <div class="tab-content mt-3">
+                        {% for ir in etape_active.inscriptions_rattachements %}
+                            <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" id="individu-{{ ir.individu.idindividu }}">
+                                <form method="post" class="mb-2">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="type_action" value="verification">
+                                    <input type="hidden" name="inscription_id" value="{{ ir.inscription.pk }}">
+                                    <button type="submit" class="btn btn-success"><i class="fa fa-check margin-r-5"></i>{% trans "J'ai vérifié et certifie exact les informations" %}</button>
+                                </form>
+                                <a href="{% url 'portail_individu_identite' ir.rattachement.pk %}" class="btn btn-secondary mb-2"><i class="fa fa-pencil margin-r-5"></i>{% trans "Modifier les informations" %}</a>
+                                {% if ir.nom_fichier %}
+                                    <iframe src="{{ ir.nom_fichier }}" width="100%" height="600" style="border:1px solid #ccc;"></iframe>
+                                {% else %}
+                                    <div class="alert alert-danger">{% trans "Impossible de générer l'aperçu du document pour le moment." %}</div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endif %}
+
+            {# Navigation #}
+            <div class="d-flex justify-content-between mt-4">
+                {% if etape_precedente %}
+                    <a href="?etape={{ etape_precedente.code }}" class="btn btn-default"><i class="fa fa-arrow-left margin-r-5"></i>{% trans "Précédent" %}</a>
+                {% else %}
+                    <span></span>
+                {% endif %}
+                {% if etape_suivante %}
+                    <a href="?etape={{ etape_suivante.code }}" class="btn btn-primary">{% trans "Suivant" %} <i class="fa fa-arrow-right margin-l-5"></i></a>
+                {% endif %}
+            </div>
+
+        {% endblock %}
+    {% endembed %}
+{% endblock %}

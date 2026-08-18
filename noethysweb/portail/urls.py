@@ -7,7 +7,7 @@ from django.urls import include, path
 from portail.views import accueil, login, inscription_famille
 from django.contrib.auth import views as auth_views
 from consommations.views import grille
-from portail.views import reset_password, change_password, reservations, planning, renseignements, individu_identite, individu_questionnaire, individu_contacts, \
+from portail.views import reset_password, change_password, reservations, planning, renseignements, completer_dossier, individu_identite, individu_questionnaire, individu_contacts, \
                             individu_regimes_alimentaires, individu_coords, individu_medecin, individu_informations, individu_assurances, individu_vaccinations, individu_allergies, individu_dispmed, \
                             famille_caisse, profil, profil_password_change, facturation, reglements, mentions, contact, messagerie, individu_maladies, album, documents, individu_traitement, \
                             transmettre_piece, activites, inscrire_activite, attente_paiement, questionnaires, verifications, cotisations, sondage, famille_questionnaire, famille_parametres, pages_speciales, famille_individu, famille_parent, paiement_tpe, paiement_retour
@@ -52,6 +52,7 @@ urlpatterns = [
 
     # Renseignements
     path('renseignements', renseignements.View.as_view(), name='portail_renseignements'),
+    path('renseignements/completer', completer_dossier.View.as_view(), name='portail_completer_dossier'),
 
     path('renseignements/famille/caisse', famille_caisse.Consulter.as_view(), name='portail_famille_caisse'),
     path('renseignements/famille/caisse/modifier', famille_caisse.Modifier.as_view(), name='portail_famille_caisse_modifier'),
