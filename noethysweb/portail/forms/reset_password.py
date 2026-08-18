@@ -11,7 +11,6 @@ logger = logging.getLogger(__name__)
 from django import forms
 from django.contrib.auth.forms import PasswordResetForm, SetPasswordForm
 from django.utils.translation import gettext as _
-from django.forms import ValidationError
 from django.core.validators import validate_email
 from django.core import mail as djangomail
 from django.core.mail import EmailMultiAlternatives
@@ -36,18 +35,8 @@ class MySetPasswordForm(SetPasswordForm):
         self.fields['new_password2'].widget.attrs['placeholder'] = _("Saisissez le nouveau mot de passe une nouvelle fois")
 
         user = kwargs['user']
-        if kwargs["user"].famille.internet_secquest:
-            self.fields["secquest"] = utils_secquest.Generation_field_secquest(famille=kwargs["user"].famille)
-        elif user.categorie == "utilisateur":
-            self.fields["secquest"].required = False
-
-    def clean_secquest(self):
-        secquest = self.cleaned_data.get("secquest")
-        user = self.user
-
-        if user.categorie == "utilisateur" and secquest != "CV":
-            raise ValidationError(_("La réponse à la question de sécurité est incorrecte."))
-        return secquest
+        if hasattr(user, 'famille') and user.famille.internet_secquest:
+            self.fields["secquest"] = utils_secquest.Generation_field_secquest(famille=user.famille)
 
 
 class MyPasswordResetForm(PasswordResetForm):

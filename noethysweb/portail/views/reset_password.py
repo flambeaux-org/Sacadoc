@@ -54,12 +54,6 @@ class MyPasswordResetConfirmView(ClassCommuneLogin, auth_views.PasswordResetConf
                 form.add_error(None, "La réponse à la question est erronée")
                 return self.render_to_response(self.get_context_data(form=form))
 
-        # Vérification de la secquest pour les utilisateurs
-        if user.categorie == "utilisateur" and "secquest" in form.cleaned_data:
-            if form.cleaned_data["secquest"] != "CV":
-                form.add_error(None, "La réponse à la question est erronée")
-                return self.render_to_response(self.get_context_data(form=form))
-
         return super().form_valid(form)
 
 
