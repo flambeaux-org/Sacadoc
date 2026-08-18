@@ -5,6 +5,7 @@
 
 import logging
 logger = logging.getLogger(__name__)
+from core.utils import utils_acces_rapides
 
 
 class Widget:
@@ -17,3 +18,11 @@ class Widget:
 
     def init_context_data(self):
         pass
+
+
+class WidgetAccesRapides(Widget):
+    """ Widget d'accès rapides : les boutons sont définis dans core/utils/utils_acces_rapides.py """
+
+    def init_context_data(self):
+        user = self.request.user if self.request else None
+        self.context[self.code] = utils_acces_rapides.Get_groupe(code=self.code, user=user)
