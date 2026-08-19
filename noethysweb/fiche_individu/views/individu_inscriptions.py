@@ -12,7 +12,7 @@ from django.db.models import Q
 from django.contrib import messages
 from core.views.mydatatableview import MyDatatable, columns, helpers
 from core.views import crud
-from core.models import Inscription, Prestation, Groupe, CategorieTarif, Consommation, Ouverture, Tarif, Facture, Deduction, Ventilation
+from core.models import Inscription, Prestation, Groupe, CategorieTarif, Consommation, Ouverture, Tarif, Facture, Deduction
 from core.utils import utils_dates
 from fiche_individu.forms.individu_inscriptions import Formulaire
 from fiche_individu.views.individu import Onglet
@@ -254,6 +254,10 @@ class Modifier(Page, crud.Modifier):
         return True
 
     def Check_protections(self, objet=None):
+        # Une prestation déjà facturée ou avec une déduction n'est jamais modifiable (impact comptable définitif).
+        # En revanche, un règlement seul (sans facture) n'empêche plus la modification : les prestations concernées
+        # sont recalculées automatiquement (voir form_valid), et le moteur de recalcul protège désormais les
+        # prestations déjà ventilées contre toute suppression (consommations/views/grille.py).
         protections = []
         prestations = Prestation.objects.filter(famille=objet.famille.pk, individu=objet.individu.pk, activite=objet.activite.pk)
         nbre_prestations_facturees = Prestation.objects.filter(famille=objet.famille, individu=objet.individu, activite=objet.activite, facture__isnull=False).count()
@@ -262,9 +266,6 @@ class Modifier(Page, crud.Modifier):
         nbre_deductions = Deduction.objects.filter(prestation__in=prestations).count()
         if nbre_deductions:
             protections.append("Vous ne pouvez pas modifier cette inscription car %s déductions sont déjà associées." % nbre_deductions)
-        nbre_reglements = Ventilation.objects.filter(famille=objet.famille, prestation__in=prestations).count()
-        if nbre_reglements:
-            protections.append("Vous ne pouvez pas modifier cette inscription car %s règlements sont déjà associées." % nbre_reglements)
         return protections
 
     def form_valid(self, form):
