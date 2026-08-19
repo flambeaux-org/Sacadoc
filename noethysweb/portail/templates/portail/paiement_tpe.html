@@ -72,20 +72,13 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                     {% if prestation.montant_restant > 0 %}
-                                                {% if prestation.activite.pay_org_tpe == "HELLOASSO" %}
-                                                    <button class="btn btn-success btn-sm btn-payer"
-                                                            data-idprestation="{{ prestation.id }}"
-                                                            data-montant="{{ prestation.montant_restant|floatformat:2 }}">
-                                                        €
-                                                    </button>
-                                                {% elif prestation.activite.pay_org_tpe == "STRIPE" %}
-                                                    <form action="{% url 'payer_prestation' prestation.id %}" method="POST" style="display:inline">
-                                                        {% csrf_token %}
-                                                        <button type="submit" class="btn btn-success btn-sm">€</button>
-                                                    </form>
-                                                {% endif %}
-                                     {% endif %}
+                                        {% if prestation.montant_restant > 0 and prestation.activite.pay_org_tpe %}
+                                            <button class="btn btn-success btn-sm btn-payer"
+                                                    data-idprestation="{{ prestation.id }}"
+                                                    data-montant="{{ prestation.montant_restant|floatformat:2 }}">
+                                                <i class="fa fa-credit-card"></i> {% trans "Payer" %}
+                                            </button>
+                                        {% endif %}
                                     </td>
                                 </tr>
                             {% endfor %}
@@ -508,27 +501,27 @@
         // Soumission du formulaire de paiement
         $("#formPaiement").on("submit", function(e){
             e.preventDefault();
-            const idprestation = $("#idPrestation").val();
+            const id_prestation = $("#idPrestation").val();
             const montant = $("#montantPaiement").val();
 
             $.ajax({
                 type: "POST",
-                url: "{% url 'portail_ajax_effectuer_paiement_en_ligne' %}",
+                url: "{% url 'portail_ajax_paiement_tpe' %}",
                 data: {
-                    idprestation: idprestation,
-                    montant_reglement: montant,
-                    liste_impayes: idprestation + "##F##" + montant,
-                    paiement_echelonne: 0,
+                    id_prestation: id_prestation,
+                    montant: montant,
                     csrfmiddlewaretoken: "{{ csrf_token }}"
                 },
                 success: function(response){
                     $("#modalPaiement").modal("hide");
-                    if(response.systeme_paiement === "helloasso"){
+                    if(!response.success){
+                        alert(response.erreur || "Erreur lors du paiement");
+                    }
+                    else if(response.systeme_paiement === "helloasso"){
                         window.open(response.url_helloasso, "_blank");
                     }
                     else if(response.systeme_paiement === "stripe"){
-                        error: function(response){
-                            alert(response.responseJSON.erreur || "Erreur lors du paiement");
+                        window.open(response.url_stripe, "_blank");
                     }
                 },
                 error: function(response){
