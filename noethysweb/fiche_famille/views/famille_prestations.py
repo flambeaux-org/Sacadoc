@@ -21,10 +21,18 @@ from django.shortcuts import redirect, render
 def ajouter_type_deduction(request):
     if request.method == 'POST':
         nom = request.POST.get('nom_type_deduction', '').strip()
-        structure_id = request.POST.get('structure')
+        structure_id = request.POST.get('structure') or None
+
+        # Seuls les utilisateurs Staff sont autorisés à créer un mouvement sans structure
+        if not structure_id and not request.user.is_staff:
+            return JsonResponse({
+                'success': False,
+                'message': 'Le nom et la structure sont requis.'
+            })
+
         remb = request.POST.get('remb') == 'true'
 
-        if not nom or not structure_id:
+        if not nom:
             return JsonResponse({
                 'success': False,
                 'message': 'Le nom et la structure sont requis.'

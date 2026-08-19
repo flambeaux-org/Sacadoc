@@ -4,6 +4,7 @@
 #  Distribué sous licence GNU GPL.
 
 import datetime
+from django.db.models import Q, F
 from django import forms
 from django.forms import ModelForm
 from django.forms.models import inlineformset_factory, BaseInlineFormSet
@@ -23,6 +24,11 @@ from crispy_forms.layout import Layout
 from crispy_forms.bootstrap import Field
 
 
+def Get_label_type_deduction(type_deduction):
+    """ Met en avant les mouvements standard (sans structure), suggérés pour toutes les structures """
+    return "★ %s (Mouvement)" % type_deduction.nom if type_deduction.structure_id is None else type_deduction.nom
+
+
 class DeductionForm(forms.ModelForm):
     class Meta:
         model = Deduction
@@ -39,8 +45,9 @@ class DeductionForm(forms.ModelForm):
         if 'label' in self.fields:  # label = ForeignKey vers TypeDeduction
             qs = TypeDeduction.objects.all()
             if self.structure:
-                qs = qs.filter(structure__in=self.structure)
-            self.fields['label'].queryset = qs
+                qs = qs.filter(Q(structure__in=self.structure) | Q(structure__isnull=True))
+            self.fields['label'].queryset = qs.order_by(F("structure_id").asc(nulls_first=True), "nom")
+            self.fields['label'].label_from_instance = Get_label_type_deduction
             self.fields['label'].label = "Type de déduction"
     def clean(self):
         return self.cleaned_data
@@ -266,7 +273,11 @@ EXTRA_HTML = """
           <div class="col-sm-8">
             <select id="structure_type_deduction_modal"
                     class="form-control form-control-sm">
-              <option value="">---------</option>
+              {% if request.user.is_staff %}
+                  <option value="">Mouvement (toutes les structures)</option>
+              {% else %}
+                  <option value="">---------</option>
+              {% endif %}
               {% for structure in request.user.structures.all %}
                   <option value="{{ structure.pk }}">{{ structure }}</option>
               {% endfor %}
@@ -320,7 +331,8 @@ EXTRA_HTML = """
 
 
 <script>
-//type déduction 
+//type déduction
+var is_staff_type_deduction = {{ request.user.is_staff|yesno:"true,false" }};
 $(document).ready(function () {
 
     $('#saveTypeDeduction').click(function () {
@@ -335,7 +347,7 @@ $(document).ready(function () {
         let messageBox = $('#typeDeductionMessage');
         messageBox.addClass('d-none').removeClass('alert-success alert-danger');
 
-        if (!data.nom_type_deduction || !data.structure) {
+        if (!data.nom_type_deduction || (!data.structure && !is_staff_type_deduction)) {
             messageBox
                 .removeClass('d-none')
                 .addClass('alert alert-danger')
