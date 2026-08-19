@@ -43,13 +43,17 @@ class Liste(Page, crud.Liste):
     class datatable_class(MyDatatable):
         filtres = ['idtype_piece', 'nom', 'public']
         actions = columns.TextColumn("Actions", sources=None, processor='Get_actions_standard')
+        structure = columns.DisplayColumn("Structure", sources="structure", processor='Get_structure')
         duree_validite = columns.DisplayColumn("Validité", sources="duree_validite", processor='Get_validite')
         nbre_pieces = columns.TextColumn("Pièces associées", sources="nbre_pieces")
 
         class Meta:
             structure_template = MyDatatable.structure_template
-            columns = ['idtype_piece', 'nom', 'public', 'duree_validite', "nbre_pieces"]
+            columns = ['idtype_piece', 'nom', 'structure', 'public', 'duree_validite', "nbre_pieces"]
             ordering = ['nom']
+
+        def Get_structure(self, instance, **kwargs):
+            return "Organisateur" if instance.structure_id is None else str(instance.structure)
 
         def Get_validite(self, instance, **kwargs):
             if instance.duree_validite == None:
