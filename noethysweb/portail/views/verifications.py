@@ -4,7 +4,7 @@ from django.views.generic import TemplateView
 from django.utils.translation import gettext as _
 from django.contrib import messages
 from django.http import Http404, HttpResponse
-from core.models import Inscription, Rattachement, Individu
+from core.models import Inscription, Rattachement, Individu, Information
 from individus.utils import utils_impression_renseignements
 import io, datetime
 from django.http import JsonResponse
@@ -44,6 +44,7 @@ class View(CustomView, TemplateView):
                     "individu": ins.individu,
                     "rattachement": rattachement,
                     "nom_fichier": nom_fichier,
+                    "aucune_information_medicale": not Information.objects.filter(individu=ins.individu).exists(),
                 })
 
         context["inscriptions_rattachements"] = inscriptions_rattachements
@@ -57,6 +58,12 @@ class View(CustomView, TemplateView):
 
         inscription = get_object_or_404(Inscription, pk=inscription_id)
         individu = get_object_or_404(Individu, pk=inscription.individu.pk)
+
+        # Double sécurité : si aucune information médicale n'est renseignée, la famille doit attester explicitement le RAS
+        if not Information.objects.filter(individu=individu).exists() and request.POST.get("confirmation_ras") != "on":
+            messages.error(request, "Veuillez cocher la case attestant l'absence d'information médicale (RAS) avant de valider.")
+            return redirect(request.path)
+
         inscription.besoin_certification = False
         inscription.save()
 

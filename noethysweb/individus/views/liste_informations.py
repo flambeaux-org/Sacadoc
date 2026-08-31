@@ -3,12 +3,94 @@
 #  Noethysweb, application de gestion multi-activités.
 #  Distribué sous licence GNU GPL.
 
+import json, logging, os, io, datetime, time
+logger = logging.getLogger(__name__)
+from django.conf import settings
 from django.urls import reverse
 from django.http import JsonResponse
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from core.views.mydatatableview import MyDatatable, columns, helpers
 from core.views import crud
-from core.models import Information, Activite, Individu, Inscription
+from core.models import Information, Activite, Individu, Inscription, Rattachement
 from fiche_individu.forms.individu_information import Formulaire
+from individus.utils import utils_impression_renseignements, utils_impression_renseignements_pieces
+
+
+def Generer_pdf_medical(request):
+    """ Génère un PDF unique combinant la fiche + les pièces médicales de chaque individu correspondant aux informations cochées """
+    from pypdf import PdfReader, PdfWriter
+    from reportlab.lib.pagesizes import A4
+
+    ids_informations = json.loads(request.POST.get("informations", "[]"))
+    if not ids_informations:
+        return JsonResponse({"erreur": "Veuillez cocher au moins une ligne dans la liste"}, status=401)
+
+    individus_ids = list(Information.objects.filter(pk__in=ids_informations).values_list("individu_id", flat=True).distinct())
+
+    largeur, hauteur = A4
+    writer_final = PdfWriter()
+
+    for idindividu in individus_ids:
+        individu = Individu.objects.get(pk=idindividu)
+        rattachement = Rattachement.objects.filter(individu=individu).first()
+        if not rattachement:
+            writer_final.add_page(utils_impression_renseignements_pieces.generer_page_erreur(
+                f"Rattachement introuvable pour {individu.Get_nom().upper()}", largeur, hauteur))
+            continue
+
+        try:
+            impression = utils_impression_renseignements.Impression(
+                titre="Fiche médicale",
+                dict_donnees={"rattachements": [rattachement.pk], "tri": "nom", "mode_condense": False},
+                request=request)
+            if impression.erreurs:
+                writer_final.add_page(utils_impression_renseignements_pieces.generer_page_erreur(
+                    impression.erreurs[0], largeur, hauteur))
+                continue
+
+            nom_fichier_virtuel = impression.Get_nom_fichier()
+            chemin_pdf = os.path.normpath(os.path.join(settings.MEDIA_ROOT, nom_fichier_virtuel.strip("/")))
+            if os.path.exists(chemin_pdf):
+                with open(chemin_pdf, 'rb') as fichier:
+                    for page in PdfReader(fichier).pages:
+                        writer_final.add_page(page)
+                try:
+                    os.remove(chemin_pdf)
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.exception(f"Erreur génération fiche médicale pour {individu.Get_nom()} : {e}")
+            writer_final.add_page(utils_impression_renseignements_pieces.generer_page_erreur(
+                f"Fiche indisponible pour {individu.Get_nom().upper()}", largeur, hauteur))
+            continue
+
+        # Ajout des pièces jointes attachées aux informations médicales de cet individu
+        informations_avec_document = Information.objects.filter(individu=individu).exclude(document="").exclude(document__isnull=True)
+        for information in informations_avec_document:
+            try:
+                chemin_information = information.document.path
+                if os.path.exists(chemin_information):
+                    reader_pj = utils_impression_renseignements_pieces.formater_information_jointe(information, individu, largeur, hauteur)
+                    for page in reader_pj.pages:
+                        writer_final.add_page(page)
+                else:
+                    writer_final.add_page(utils_impression_renseignements_pieces.generer_page_erreur(
+                        f"Document absent : {information.intitule.upper()} (Adhérent : {individu.Get_nom().upper()})", largeur, hauteur))
+            except Exception as e:
+                writer_final.add_page(utils_impression_renseignements_pieces.generer_page_erreur(
+                    f"Erreur de lecture du document : {information.intitule.upper()}", largeur, hauteur))
+
+    buffer_final = io.BytesIO()
+    writer_final.write(buffer_final)
+
+    repertoire = "fiches_completes"
+    nom_final = f"{repertoire}/Fiches_medicales_{datetime.date.today().strftime('%Y%m%d')}_{int(time.time())}.pdf"
+    if default_storage.exists(nom_final):
+        default_storage.delete(nom_final)
+    chemin_final_web = default_storage.save(nom_final, ContentFile(buffer_final.getvalue()))
+
+    return JsonResponse({"nom_fichier": "/" + chemin_final_web, "status": "success"})
 
 
 def Modifier_diffusion(request):
@@ -56,10 +138,12 @@ class Liste(Page, crud.Liste):
         context['impression_conclusion'] = ""
         context['page_titre'] = "Informations personnelles"
         context['box_titre'] = "Liste des informations personnelles"
+        context['bouton_supprimer'] = False
         return context
 
     class datatable_class(MyDatatable):
         filtres = ["fpresent:individu", "fscolarise:individu", "idinformation", "categorie__nom", "individu__nom", "individu__prenom", "intitule", "description"]
+        check = columns.TextColumn("", sources=None, processor='Get_check')
         actions = columns.TextColumn("Actions", sources=None, processor='Get_actions_speciales')
         categorie = columns.CompoundColumn("Catégorie", sources=['categorie__nom'])
         individu = columns.CompoundColumn("Individu", sources=['individu__nom', 'individu__prenom'])
@@ -68,8 +152,11 @@ class Liste(Page, crud.Liste):
 
         class Meta:
             structure_template = MyDatatable.structure_template
-            columns = ["idinformation", "individu", "categorie", "intitule", "description"]
+            columns = ["check", "idinformation", "individu", "categorie", "intitule", "description"]
             ordering = ["individu"]
+
+        def Get_check(self, instance, *args, **kwargs):
+            return "<input type='checkbox' name='files' value='%d'>" % instance.pk
 
         def Get_intitule(self, instance, *args, **kwargs):
             return instance.intitule

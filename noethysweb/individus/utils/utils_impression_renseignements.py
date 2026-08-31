@@ -13,7 +13,7 @@ from reportlab.platypus import Paragraph, Table, TableStyle, PageBreak
 from reportlab.platypus.flowables import Image
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib import colors
-from core.models import Lien, Rattachement, ContactUrgence, Information, Assurance, Organisateur, Scolarite, Activite, Inscription, Structure
+from core.models import Lien, Rattachement, ContactUrgence, Information, CategorieInformation, Assurance, Organisateur, Scolarite, Activite, Inscription, Structure
 from core.data.data_liens import DICT_TYPES_LIENS
 from core.data import data_civilites
 from core.utils import utils_dates, utils_impression, utils_questionnaires
@@ -66,6 +66,9 @@ class Impression(utils_impression.Impression):
         for information in Information.objects.filter(individu_id__in=individus_ids).order_by("intitule"):
             dict_informations.setdefault(information.individu_id, [])
             dict_informations[information.individu_id].append(information)
+
+        # Importation des catégories d'informations médicales (PAI, automédication...)
+        categories_informations = list(CategorieInformation.objects.all().order_by("nom"))
 
         # Importation des vaccinations
         dict_vaccinations = utils_vaccinations.Get_tous_vaccins(individus_ids)
@@ -272,16 +275,28 @@ class Impression(utils_impression.Impression):
                 texte_maladies += "<br/><br/>"
             self.story.append(Tableau(titre="Maladies déjà contractées".upper(), aide="", contenu=[Paragraph(texte_maladies, style_defaut)]))
 
-            # Informations
-            contenu_tableau = []
+            # Informations médicales, par catégorie (PAI, automédication...)
+            dict_informations_par_categorie = {}
             for information in dict_informations.get(rattachement.individu_id, []):
-                texte = "<b>%s</b>" % information.intitule
-                if information.description:
-                    texte += " : %s" % information.description
-                contenu_tableau.append(Paragraph(texte, style_defaut))
-            if not self.dict_donnees["mode_condense"]:
-                contenu_tableau.append(Paragraph("<br/><br/><br/>", style_defaut))
-            self.story.append(Tableau(titre="Informations et recommandations".upper(), aide="", contenu=contenu_tableau))
+                dict_informations_par_categorie.setdefault(information.categorie_id, [])
+                dict_informations_par_categorie[information.categorie_id].append(information)
+
+            for categorie in categories_informations:
+                contenu_tableau = []
+                informations_categorie = dict_informations_par_categorie.get(categorie.idcategorie, [])
+                if not informations_categorie:
+                    contenu_tableau.append(Paragraph("RAS", style_defaut))
+                else:
+                    for information in informations_categorie:
+                        texte = "<b>%s</b>" % information.intitule
+                        if information.description:
+                            texte += " : %s" % information.description
+                        if information.document:
+                            texte += " <font color='red'><b>ATTENTION pièce jointe à consulter</b></font>"
+                        contenu_tableau.append(Paragraph(texte, style_defaut))
+                if not self.dict_donnees["mode_condense"]:
+                    contenu_tableau.append(Paragraph("<br/><br/>", style_defaut))
+                self.story.append(Tableau(titre=categorie.nom.upper(), aide="", contenu=contenu_tableau))
 
             # Vaccinations obligatoires
             liste_vaccinations_obligatoires = [vaccination for vaccination in dict_vaccinations.get(rattachement.individu, []) if vaccination["obligatoire"]]

@@ -30,8 +30,30 @@
                     {% for bouton in boutons_liste_informations %}
                         <a class="{{ bouton.classe }}" href="{{ bouton.href }}"><i class="{{ bouton.icone }}"></i> {{ bouton.label }}</a>
                     {% endfor %}
+                    <a class="btn btn-primary" href="{{ url_telecharger_pdf_medical }}"><i class="fa fa-file-pdf-o"></i> Télécharger la fiche médicale complète (PDF)</a>
                 </div>
                 {{ informations_datatable }}
+            {% endblock box_contenu %}
+        {% endembed %}
+
+        {# Pièces médicales #}
+        {% embed 'core/box.html' %}
+            {% block box_theme %}card-outline card-lightblue{% endblock %}
+            {% block box_titre %}Pièces médicales{% endblock %}
+            {% block box_introduction %}{% endblock %}
+            {% block box_contenu %}
+                {% if pieces_medicales %}
+                    <ul class="list-unstyled">
+                        {% for information in pieces_medicales %}
+                            <li>
+                                <i class="fa fa-paperclip"></i>
+                                <a href="{{ information.document.url }}" target="_blank">{{ information.intitule }} ({{ information.categorie.nom }})</a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted">Aucune pièce médicale jointe.</p>
+                {% endif %}
             {% endblock box_contenu %}
         {% endembed %}
 

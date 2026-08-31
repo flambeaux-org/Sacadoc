@@ -1,3 +1,6 @@
+Version 1.3.5.6.79 (31/08/2026)
+- Passage des modfis
+
 Version 1.3.5.6.78 (10/08/2026)
 - Ajout bouton individuel approbation
 - modif texte certif dans PDF
@@ -8,7 +11,9 @@ Version 1.3.5.6.78 (10/08/2026)
 - bouton accueil
 - correctif réinit mot de passe directeurs (bug)
 - Pipeline vérif dossier complet (béta)
-- 
+- Assistant création activité
+- Vérif pipe helloAsso
+- Déductions labélisées Mouvement
 
 Version 1.3.5.6.77 (29/07/2026)
 - Corrige les plantages liés aux dates non reconnues (heure désormais facultative)

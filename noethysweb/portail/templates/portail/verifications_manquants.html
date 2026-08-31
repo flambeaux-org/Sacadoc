@@ -22,10 +22,18 @@
                  id="individu-{{ ir.individu.idindividu }}">
 
                  <!-- Bouton de validation -->
-                 <form method="post" style="margin-top:1em;">
+                 <form method="post" style="margin-top:1em;" class="form-verification-medicale">
                      {% csrf_token %}
                      <input type="hidden" name="inscription_id" value="{{ ir.inscription.pk }}">
-                     <button type="submit" class="btn btn-success">
+                     {% if ir.aucune_information_medicale %}
+                         <div class="form-check mb-2">
+                             <input type="checkbox" class="form-check-input" name="confirmation_ras" id="confirmation_ras_{{ ir.individu.idindividu }}">
+                             <label class="form-check-label text-red" for="confirmation_ras_{{ ir.individu.idindividu }}">
+                                 J'atteste qu'il n'y a aucune information médicale à signaler pour {{ ir.individu.prenom }} (RAS)
+                             </label>
+                         </div>
+                     {% endif %}
+                     <button type="submit" class="btn btn-success" {% if ir.aucune_information_medicale %}disabled{% endif %}>
                          ✔ J'ai vérifié et certifie exact les informations
                      </button>
                  </form>
@@ -48,5 +56,18 @@
 {% else %}
     <p>{% trans "Aucune vérification en attente pour votre famille." %}</p>
 {% endif %}
+
+<script>
+    // Active le bouton de validation seulement lorsque la case RAS est cochée
+    document.querySelectorAll('.form-verification-medicale').forEach(function(form) {
+        var checkbox = form.querySelector('input[name="confirmation_ras"]');
+        var bouton = form.querySelector('button[type="submit"]');
+        if (checkbox && bouton) {
+            checkbox.addEventListener('change', function() {
+                bouton.disabled = !checkbox.checked;
+            });
+        }
+    });
+</script>
 
 {% endblock %}
