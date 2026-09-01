@@ -139,11 +139,12 @@ class Liste(Page, crud.Liste):
         context['page_titre'] = "Informations personnelles"
         context['box_titre'] = "Liste des informations personnelles"
         context['bouton_supprimer'] = False
+        context['active_checkbox'] = True
         return context
 
     class datatable_class(MyDatatable):
         filtres = ["fpresent:individu", "fscolarise:individu", "idinformation", "categorie__nom", "individu__nom", "individu__prenom", "intitule", "description"]
-        check = columns.TextColumn("", sources=None, processor='Get_check')
+        check = columns.CheckBoxSelectColumn(label="")
         actions = columns.TextColumn("Actions", sources=None, processor='Get_actions_speciales')
         categorie = columns.CompoundColumn("Catégorie", sources=['categorie__nom'])
         individu = columns.CompoundColumn("Individu", sources=['individu__nom', 'individu__prenom'])
@@ -154,9 +155,6 @@ class Liste(Page, crud.Liste):
             structure_template = MyDatatable.structure_template
             columns = ["check", "idinformation", "individu", "categorie", "intitule", "description"]
             ordering = ["individu"]
-
-        def Get_check(self, instance, *args, **kwargs):
-            return "<input type='checkbox' name='files' value='%d'>" % instance.pk
 
         def Get_intitule(self, instance, *args, **kwargs):
             return instance.intitule
