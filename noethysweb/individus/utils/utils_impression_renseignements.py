@@ -342,7 +342,7 @@ class Impression(utils_impression.Impression):
 
             inscription = dict_inscriptions.get(rattachement.individu_id)
 
-            if inscription and inscription.besoin_certification:
+            if inscription and not inscription.besoin_certification and rattachement.certification_date:
                 texte_certification = "Fiche vérifiée par le responsable le %s" % utils_dates.ConvertDateToFR(rattachement.certification_date)
             else:
                 texte_certification = "Fiche non vérifiée sur le portail"
