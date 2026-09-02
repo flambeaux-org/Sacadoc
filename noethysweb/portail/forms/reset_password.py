@@ -76,7 +76,7 @@ class MyPasswordResetForm(PasswordResetForm):
         if utilisateur.categorie == "famille":
             # Vérifie que le mail correspond à un des parents de la famille
             for rattachement in utilisateur.famille.rattachement_set.exclude(individu__statut=Individu.STATUT_JEUNE).select_related("individu") :
-                if rattachement.individu.mail.lower() == email.lower():
+                if rattachement.individu.mail and rattachement.individu.mail.lower() == email.lower():
                     break
             else:
                 logger.debug("Erreur : Adresse email non valide pour la famille.")
