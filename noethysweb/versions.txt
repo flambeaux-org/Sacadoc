@@ -1,3 +1,8 @@
+Version 1.3.5.6.80 (31/08/2026)
+- Bug check pdf infos médicale
+- bug import fichier
+- bug reset password
+
 Version 1.3.5.6.79 (31/08/2026)
 - Passage des modfis
 
