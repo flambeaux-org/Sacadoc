@@ -1,0 +1,315 @@
+{
+  "start": {
+    "type": "message",
+    "content": "Bonjour ! Je suis là pour vous aider à trouver les ressources dont vous avez besoin. Que souhaitez-vous faire ?",
+    "options": [
+      {
+        "label": "Gérer la facturation",
+        "next": "facturation"
+      },
+      {
+        "label": "Gérer les activités et formulaires",
+        "next": "activites"
+      },
+      {
+        "label": "Gérer les documents et pièces",
+        "next": "documents"
+      },
+      {
+        "label": "Communication (mails, relances)",
+        "next": "communication"
+      },
+      {
+        "label": "Gérer les comptes familles",
+        "next": "familles"
+      },
+      {
+        "label": "Créer des articles",
+        "next": "video_articles"
+      }
+    ]
+  },
+  "facturation": {
+    "type": "message",
+    "content": "Que souhaitez-vous faire concernant la facturation ?",
+    "options": [
+      {
+        "label": "Générer une facture",
+        "next": "video_facture"
+      },
+      {
+        "label": "Créer un règlement",
+        "next": "video_reglement"
+      },
+      {
+        "label": "Ajouter une déduction",
+        "next": "video_deduction"
+      },
+      {
+        "label": "Relancer pour les soldes",
+        "next": "video_relance_soldes"
+      }
+    ]
+  },
+  "activites": {
+    "type": "message",
+    "content": "Que souhaitez-vous faire avec les activités ?",
+    "options": [
+      {
+        "label": "Créer une activité",
+        "next": "video_activite"
+      },
+      {
+        "label": "Créer un formulaire",
+        "next": "video_formulaire"
+      }
+    ]
+  },
+  "documents": {
+    "type": "message",
+    "content": "Que souhaitez-vous faire avec les documents et pièces ?",
+    "options": [
+      {
+        "label": "Modifier une pièce",
+        "next": "video_modification_piece"
+      },
+      {
+        "label": "Paramétrer une pièce à envoyer",
+        "next": "video_parametrage_piece"
+      },
+      {
+        "label": "Relancer pour les documents",
+        "next": "video_relance_documents"
+      }
+    ]
+  },
+  "communication": {
+    "type": "message",
+    "content": "Que souhaitez-vous faire concernant la communication ?",
+    "options": [
+      {
+        "label": "Rédiger un mail personnalisé",
+        "next": "video_mail_personnalise"
+      },
+      {
+        "label": "Relancer pour les questionnaires",
+        "next": "video_relance_questionnaires"
+      }
+    ]
+  },
+  "familles": {
+    "type": "message",
+    "content": "Que souhaitez-vous faire avec les comptes familles ?",
+    "options": [
+      {
+        "label": "Réinitialiser un mot de passe",
+        "next": "video_reset_mdp"
+      }
+    ]
+  },
+  "video_facture": {
+    "type": "video",
+    "content": "Voici comment générer une facture :",
+    "video_index": 1,
+    "options": [
+      {
+        "label": "Voir une autre vidéo",
+        "next": "start"
+      },
+      {
+        "label": "J'ai trouvé ce que je cherchais",
+        "next": "end"
+      }
+    ]
+  },
+  "video_reglement": {
+    "type": "video",
+    "content": "Voici comment créer un règlement :",
+    "video_index": 8,
+    "options": [
+      {
+        "label": "Voir une autre vidéo",
+        "next": "start"
+      },
+      {
+        "label": "J'ai trouvé ce que je cherchais",
+        "next": "end"
+      }
+    ]
+  },
+  "video_deduction": {
+    "type": "video",
+    "content": "Voici comment ajouter une déduction :",
+    "video_index": 7,
+    "options": [
+      {
+        "label": "Voir une autre vidéo",
+        "next": "start"
+      },
+      {
+        "label": "J'ai trouvé ce que je cherchais",
+        "next": "end"
+      }
+    ]
+  },
+  "video_relance_soldes": {
+    "type": "video",
+    "content": "Voici comment relancer pour les soldes :",
+    "video_index": 5,
+    "options": [
+      {
+        "label": "Voir une autre vidéo",
+        "next": "start"
+      },
+      {
+        "label": "J'ai trouvé ce que je cherchais",
+        "next": "end"
+      }
+    ]
+  },
+  "video_activite": {
+    "type": "video",
+    "content": "Voici comment créer une activité :",
+    "video_index": 9,
+    "options": [
+      {
+        "label": "Voir une autre vidéo",
+        "next": "start"
+      },
+      {
+        "label": "J'ai trouvé ce que je cherchais",
+        "next": "end"
+      }
+    ]
+  },
+  "video_formulaire": {
+    "type": "video",
+    "content": "Voici comment créer un formulaire :",
+    "video_index": 11,
+    "options": [
+      {
+        "label": "Voir une autre vidéo",
+        "next": "start"
+      },
+      {
+        "label": "J'ai trouvé ce que je cherchais",
+        "next": "end"
+      }
+    ]
+  },
+  "video_modification_piece": {
+    "type": "video",
+    "content": "Voici comment modifier une pièce :",
+    "video_index": 4,
+    "options": [
+      {
+        "label": "Voir une autre vidéo",
+        "next": "start"
+      },
+      {
+        "label": "J'ai trouvé ce que je cherchais",
+        "next": "end"
+      }
+    ]
+  },
+  "video_parametrage_piece": {
+    "type": "video",
+    "content": "Voici comment paramétrer une pièce à envoyer par les parents :",
+    "video_index": 10,
+    "options": [
+      {
+        "label": "Voir une autre vidéo",
+        "next": "start"
+      },
+      {
+        "label": "J'ai trouvé ce que je cherchais",
+        "next": "end"
+      }
+    ]
+  },
+  "video_relance_documents": {
+    "type": "video",
+    "content": "Voici comment relancer pour les documents :",
+    "video_index": 6,
+    "options": [
+      {
+        "label": "Voir une autre vidéo",
+        "next": "start"
+      },
+      {
+        "label": "J'ai trouvé ce que je cherchais",
+        "next": "end"
+      }
+    ]
+  },
+  "video_mail_personnalise": {
+    "type": "video",
+    "content": "Voici comment rédiger un mail personnalisé :",
+    "video_index": 3,
+    "options": [
+      {
+        "label": "Voir une autre vidéo",
+        "next": "start"
+      },
+      {
+        "label": "J'ai trouvé ce que je cherchais",
+        "next": "end"
+      }
+    ]
+  },
+  "video_relance_questionnaires": {
+    "type": "video",
+    "content": "Voici comment relancer pour les questionnaires :",
+    "video_index": 0,
+    "options": [
+      {
+        "label": "Voir une autre vidéo",
+        "next": "start"
+      },
+      {
+        "label": "J'ai trouvé ce que je cherchais",
+        "next": "end"
+      }
+    ]
+  },
+  "video_reset_mdp": {
+    "type": "video",
+    "content": "Voici comment réinitialiser le mot de passe d'un compte famille :",
+    "video_index": 2,
+    "options": [
+      {
+        "label": "Voir une autre vidéo",
+        "next": "start"
+      },
+      {
+        "label": "J'ai trouvé ce que je cherchais",
+        "next": "end"
+      }
+    ]
+  },
+  "video_articles": {
+    "type": "video",
+    "content": "Voici comment créer un article :",
+    "video_index": 12,
+    "options": [
+      {
+        "label": "Voir une autre vidéo",
+        "next": "start"
+      },
+      {
+        "label": "J'ai trouvé ce que je cherchais",
+        "next": "end"
+      }
+    ]
+  },
+  "end": {
+    "type": "message",
+    "content": "Parfait ! N'hésitez pas à me contacter si vous avez besoin d'aide à nouveau. Bonne utilisation de Sacadoc !",
+    "options": [
+      {
+        "label": "Recommencer",
+        "next": "start"
+      }
+    ]
+  }
+}
