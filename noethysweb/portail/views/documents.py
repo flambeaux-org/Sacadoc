@@ -7,6 +7,7 @@ import logging
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib import messages
+from django.urls import reverse
 from django.utils.translation import gettext as _
 from django.views.generic import TemplateView
 
@@ -46,7 +47,8 @@ class View(CustomView, TemplateView):
                 "texte": document.texte,
                 "fichier": document.document,
                 "couleur_fond": document.couleur_fond,
-                "extension": document.Get_extension()
+                "extension": document.Get_extension(),
+                "url": reverse('serve_portail_document', args=[document.iddocument]),
             })
         for unite_consentement in utils_approbations.Get_approbations_requises(
                 famille=self.request.user.famille,
@@ -57,7 +59,8 @@ class View(CustomView, TemplateView):
                 "texte": "Version du %s" % utils_dates.ConvertDateToFR(unite_consentement.date_debut),
                 "fichier": unite_consentement.document,
                 "couleur_fond": "primary",
-                "extension": unite_consentement.Get_extension()
+                "extension": unite_consentement.Get_extension(),
+                "url": unite_consentement.document.url,
             })
         context['liste_documents'] = liste_documents
 
