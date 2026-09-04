@@ -20,6 +20,7 @@
         <link rel="stylesheet" type="text/css" href="{% static 'lib/bootstrap4/css/bootstrap.min.css' %}">
         <link rel="stylesheet" type="text/css" href="{% static 'lib/font-awesome/css/font-awesome.min.css' %}">
         <link rel="stylesheet" type="text/css" href="{% static 'lib/bootstrap4/css/custom.css' %}">
+        <link rel="stylesheet" type="text/css" href="{% static 'lib/toastr/toastr.min.css' %}">
 
         <style>
 
@@ -151,6 +152,14 @@
     {% block scripts %}
         <script src="{% static 'lib/jquery/jquery.min.js' %}"></script>
         <script src="{% static 'lib/bootstrap4/js/bootstrap.min.js' %}"></script>
+        <script src="{% static 'lib/toastr/toastr.min.js' %}"></script>
+        
+        <script>
+        // Ajuste les options de toastr
+        toastr.options = {
+            "preventDuplicates": true,
+        };
+        </script>
     {% endblock %}
 
     {% block extra_head %}
@@ -193,6 +202,8 @@
             </div>
         </div>
     </main>
+
+    {% include 'core/messages.html' %}
 
     {% if parametres_portail.multilingue %}
         <div class="selecteur_langues">

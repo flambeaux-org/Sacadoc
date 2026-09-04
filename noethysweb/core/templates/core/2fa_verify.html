@@ -1,0 +1,98 @@
+{% extends "core/base_login.html" %}
+{% load static %}
+
+{% block titre_contenu %}
+    Vérification 2FA
+{% endblock titre_contenu %}
+
+{% block contenu_page %}
+
+    <div class="alert alert-info" style="margin-bottom: 25px;">
+        <i class="fa fa-shield"></i> Entrez le code d'authentification pour continuer
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="token" style="font-weight: 500; color: #000;">Code à 6 chiffres</label>
+            <input type="text" 
+                   class="form-control text-center" 
+                   id="token" 
+                   name="token" 
+                   maxlength="6" 
+                   pattern="[0-9]{6}" 
+                   placeholder="123456" 
+                   autofocus 
+                   required 
+                   style="font-size: 24px; letter-spacing: 8px; font-weight: bold;">
+            <small class="form-text text-muted">Ouvrez votre application d'authentification</small>
+        </div>
+        
+        <button type="submit" class="btn btn-primary btn-block login-btn">
+            <i class="fa fa-check"></i> Vérifier
+        </button>
+    </form>
+    
+    <hr style="margin: 20px 0;">
+    
+    <div class="text-center">
+        <p style="font-size: 13px; color: #666; margin-bottom: 10px;">Vous n'avez plus accès à votre application ?</p>
+        <button type="button" class="btn btn-link" data-toggle="collapse" data-target="#backupCodeForm" style="padding: 5px; font-size: 13px;">
+            <i class="fa fa-key"></i> Utiliser un code de secours
+        </button>
+    </div>
+    
+    <div class="collapse" id="backupCodeForm" style="margin-top: 15px;">
+        <div class="alert alert-warning" style="font-size: 12px;">
+            <i class="fa fa-exclamation-triangle"></i> Les codes de secours ne peuvent être utilisés qu'une seule fois
+        </div>
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="backup_token" style="font-weight: 500; color: #000;">Code de secours</label>
+                <input type="text" 
+                       class="form-control text-center" 
+                       id="backup_token" 
+                       name="token" 
+                       maxlength="8" 
+                       placeholder="XXXXXXXX" 
+                       style="font-family: monospace; letter-spacing: 2px;">
+            </div>
+            <button type="submit" class="btn btn-warning btn-block">
+                <i class="fa fa-unlock"></i> Valider le code de secours
+            </button>
+        </form>
+    </div>
+    
+    <hr style="margin: 25px 0;">
+    
+    <div class="alert alert-danger" style="font-size: 12px; margin-bottom: 15px;">
+        <i class="fa fa-mobile"></i> <strong>Vous avez perdu votre appareil et vos codes de secours ?</strong>
+        <p style="margin: 10px 0 0 0;">Vous pouvez reconfigurer la 2FA avec votre mot de passe.</p>
+    </div>
+    
+    <a href="{% url '2fa_setup' %}?reset=true" class="btn btn-warning btn-block" style="margin-bottom: 15px;">
+        <i class="fa fa-refresh"></i> Reconfigurer mon appareil
+    </a>
+    
+    <div class="text-center">
+        <a href="{% url 'deconnexion' %}" class="btn btn-link btn-sm">
+            <i class="fa fa-sign-out"></i> Se déconnecter
+        </a>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            $('#token').focus();
+            
+            $('#token').on('input', function() {
+                this.value = this.value.replace(/[^0-9]/g, '');
+            });
+            
+            $('#backup_token').on('input', function() {
+                this.value = this.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+            });
+        });
+    </script>
+
+{% endblock contenu_page %}
