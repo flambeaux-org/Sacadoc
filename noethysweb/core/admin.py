@@ -49,6 +49,7 @@ class UserEditForm(UserChangeForm):
 
 # --------------------------- Utilisateurs ----------------------------
 
+@admin.register(Utilisateur_Utilisateur)
 class UtilisateurAdmin(UserAdmin):
     form = UserEditForm
 
@@ -85,11 +86,11 @@ class Utilisateur_Utilisateur(Utilisateur):
         proxy = True
         verbose_name = "Utilisateur"
 
-admin.site.register(Utilisateur_Utilisateur, UtilisateurAdmin)
 
 
 # --------------------------- Familles ----------------------------
 
+@admin.register(Utilisateur_Famille)
 class FamilleAdmin(UserAdmin):
     form = UserEditForm
 
@@ -126,4 +127,3 @@ class Utilisateur_Famille(Utilisateur):
         verbose_name = "Famille"
 
 
-admin.site.register(Utilisateur_Famille, FamilleAdmin)
