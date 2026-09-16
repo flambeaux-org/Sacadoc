@@ -259,6 +259,9 @@ class Modifier(Page, crud.Modifier):
         # sont recalculées automatiquement (voir form_valid), et le moteur de recalcul protège désormais les
         # prestations déjà ventilées contre toute suppression (consommations/views/grille.py).
         protections = []
+        if not objet.activite.actif:
+            protections.append("l'activité associée est archivée")
+            return protections
         prestations = Prestation.objects.filter(famille=objet.famille.pk, individu=objet.individu.pk, activite=objet.activite.pk)
         nbre_prestations_facturees = Prestation.objects.filter(famille=objet.famille, individu=objet.individu, activite=objet.activite, facture__isnull=False).count()
         if nbre_prestations_facturees:
