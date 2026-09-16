@@ -100,12 +100,41 @@ class Impression(utils_impression.Impression):
         def Img(fichier=""):
             return "<img src='%s/images/%s' width='6' height='6' valign='middle'/> " % (settings.STATIC_ROOT, fichier)
 
+        def Decouper_contenu(contenu=[]):
+            """ Découpe les flowables trop hauts pour tenir sur une page (ReportLab ne sait pas
+            couper une ligne de tableau en cours de route : sans ça, un contenu trop long lève un LayoutError) """
+            largeur_dispo = largeur_contenu - 12
+            hauteur_dispo = hauteur_cadre - 28
+            resultat = []
+            for flowable in contenu:
+                if not hasattr(flowable, "split") or not hasattr(flowable, "wrap"):
+                    resultat.append(flowable)
+                    continue
+                try:
+                    reste = flowable
+                    while reste is not None:
+                        if reste.wrap(largeur_dispo, hauteur_dispo)[1] <= hauteur_dispo:
+                            resultat.append(reste)
+                            break
+                        morceaux = reste.split(largeur_dispo, hauteur_dispo)
+                        if len(morceaux) < 2:
+                            resultat.append(reste)
+                            break
+                        resultat.extend(morceaux[:-1])
+                        reste = morceaux[-1]
+                except Exception:
+                    logger.warning("Découpage impossible d'un flowable de la fiche de renseignements")
+                    resultat.append(flowable)
+            return resultat
+
         def Tableau(titre="", aide="", contenu=[], bord_bas=False):
+            # Une ligne de tableau par flowable : ReportLab ne peut couper un tableau qu'entre deux lignes
+            contenu = Decouper_contenu(contenu) or [""]
             dataTableau = [[titre, aide]]
-            dataTableau.append([contenu, ""])
+            dataTableau.extend([[flowable, ""] for flowable in contenu])
+            derniere_ligne = len(dataTableau) - 1
             tableau = Table(dataTableau, [largeur_contenu/2, largeur_contenu/2])
             style = [
-                ('SPAN', (0, 1), (-1, 1)),
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                 ('FONT', (0, 0), (-1, -1), "Helvetica", 7),
                 ('LINEBEFORE', (0, 0), (0, -1), 0.25, colors.black),
@@ -116,7 +145,13 @@ class Impression(utils_impression.Impression):
                 ('TEXTCOLOR', (0, 0), (-1, 0), (1, 1, 1)),
                 ('BACKGROUND', (0, 0), (-1, 0), (0.5, 0.5, 0.5)),
                 ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
+                # Paddings calibrés pour conserver exactement la hauteur du rendu d'origine
+                ('TOPPADDING', (0, 1), (-1, -1), 0),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 0),
+                ('TOPPADDING', (0, 1), (-1, 1), 3),
+                ('BOTTOMPADDING', (0, derniere_ligne), (-1, derniere_ligne), 3),
             ]
+            style.extend([('SPAN', (0, ligne), (-1, ligne)) for ligne in range(1, len(dataTableau))])
             if bord_bas:
                 style.append(('LINEBELOW', (0, -1), (-1, -1), 0.25, colors.black))
             tableau.setStyle(TableStyle(style))
@@ -124,6 +159,10 @@ class Impression(utils_impression.Impression):
 
         # Préparation du tableau
         largeur_contenu = self.taille_page[0] - 75
+
+        # Hauteur utile d'une page : cadre du modèle de document si défini, sinon marges du SimpleDocTemplate
+        taille_cadre = getattr(self, "taille_cadre", None)
+        hauteur_cadre = taille_cadre[3] if taille_cadre else self.taille_page[1] - 72
 
         # Importation de l'organisateur (une seule fois avant la boucle)
         organisateur = cache.get('organisateur', None)
