@@ -75,7 +75,7 @@ def Envoyer_model_mail(idmail=None, request=None):
     except Exception:
         if request:
             messages.add_message(request, messages.ERROR, "Connexion impossible au serveur de messagerie")
-        logger.exception("Connexion impossible au serveur de messagerie")
+        logger.exception(f"Connexion impossible au serveur de messagerie {mail.adresse_exp}")
         return
 
     # Chargement de la signature de l'utilisateur

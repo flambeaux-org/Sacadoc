@@ -1,3 +1,6 @@
+Version 1.3.5.6.85 (30/09/2026)
+- Ajout d'information de debug lors de l'echec d'envoi de mail
+
 Version 1.3.5.6.84 (26/09/2026)
 - Crash à l'inscription si l'email n'est pas correct
 
