@@ -140,7 +140,7 @@ def Envoyer_model_mail(idmail=None, request=None):
             valeurs = {}
         valeurs.update(valeurs_defaut)
         for motcle, valeur in valeurs.items():
-            if isinstance(valeur, float):
+            if not isinstance(valeur, str):
                 valeur = str(valeur)
             html = html.replace(motcle, valeur or "")
             objet = objet.replace(motcle, valeur or "")
