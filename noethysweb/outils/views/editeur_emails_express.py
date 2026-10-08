@@ -8,6 +8,7 @@ from core.models import ModeleEmail, Mail, PieceJointe, Destinataire, Famille, I
 from outils.utils import utils_email
 from outils.forms.editeur_emails_express import Formulaire
 from django.shortcuts import render
+from django.contrib import messages
 import json, re
 from email.utils import parseaddr
 
@@ -68,7 +69,9 @@ def Envoyer_email(request):
     if len(liste_reussis) == len(liste_adresses):
         return JsonResponse({"message": "Le mail a été envoyé avec succès à %d destinataire(s)" % len(liste_adresses)})
     if len(liste_reussis) == 0:
-        return JsonResponse({"message": "L'email n'a pas pu être envoyé"}, status=401)
+        # Remonte les erreurs ajoutées par Envoyer_model_mail (sinon invisibles en ajax)
+        erreurs = [str(message) for message in messages.get_messages(request) if message.level == messages.ERROR]
+        return JsonResponse({"message": "L'email n'a pas pu être envoyé" + (" : %s" % " ".join(erreurs) if erreurs else "")}, status=401)
     return JsonResponse({"message": "Le mail a été envoyé avec succès à %s mais n'a pas pu être envoyé à %s" % (", ".join(liste_reussis), ", ".join(liste_echecs))}, status=401)
 
 
