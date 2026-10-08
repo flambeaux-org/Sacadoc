@@ -10,7 +10,8 @@ from core.widgets import DatePickerWidget
 from core.forms.select2 import Select2MultipleWidget
 from core.models import TypeGroupeActivite, Unite, UniteRemplissage, Ouverture, Remplissage, NomTarif, Tarif, Structure
 from parametrage.views.activites_assistant import Assistant_base, Page_responsable, Page_responsable, Page_renseignements, Page_categories, \
-                                                    Page_categories_nombre, Page_tarifs, Page_conclusion, Page_groupes_nombre, Page_groupes_noms
+                                                    Page_categories_nombre, Page_tarifs, Page_conclusion, Page_groupes_nombre, Page_groupes_noms, \
+                                                    Page_formulaires, Page_questionnaires, Page_documents
 
 
 class Page_introduction(forms.Form):
@@ -40,6 +41,9 @@ class Assistant(Assistant_base):
         ("generalites", Page_generalites),
         ("responsable", Page_responsable),
         ("renseignements", Page_renseignements),
+        ("formulaires", Page_formulaires),
+        ("questionnaires", Page_questionnaires),
+        ("documents", Page_documents),
         ("groupes", Page_groupes),
         ("nbre_groupes", Page_groupes_nombre),
         ("noms_groupes", Page_groupes_noms),

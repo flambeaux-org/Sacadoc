@@ -12,9 +12,14 @@ from crispy_forms.bootstrap import Field
 from core.utils.utils_commandes import Commandes
 from core.models import Activite, TypePiece, TypeCotisation, TypeConsentement
 from core.forms.select2 import Select2MultipleWidget
-from django.db.models import Q
+from django.db.models import Q, F
 from django.urls import reverse
 from crispy_forms.layout import HTML
+
+
+def Get_label_piece(piece):
+    """ Met en avant les pièces standard définies par l'organisateur (sans structure), suggérées pour toutes les activités """
+    return "★ %s (Organisateur)" % piece.nom if piece.structure_id is None else piece.nom
 
 
 class Formulaire(FormulaireBase, ModelForm):
@@ -37,7 +42,10 @@ class Formulaire(FormulaireBase, ModelForm):
         self.helper.label_class = 'col-md-2'
         self.helper.field_class = 'col-md-10'
 
-        self.fields['pieces'].queryset = TypePiece.objects.filter(Q(structure__in=self.request.user.structures.all()) | Q(structure__isnull=True))
+        self.fields['pieces'].queryset = TypePiece.objects.filter(
+            Q(structure__in=self.request.user.structures.all()) | Q(structure__isnull=True)
+        ).order_by(F("structure_id").asc(nulls_first=True), "nom")
+        self.fields['pieces'].label_from_instance = Get_label_piece
 
         # Création des boutons de commande
         if self.mode == "CONSULTATION":

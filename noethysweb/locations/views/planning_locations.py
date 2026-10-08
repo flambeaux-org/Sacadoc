@@ -3,13 +3,14 @@
 #  Noethysweb, application de gestion multi-activités.
 #  Distribué sous licence GNU GPL.
 
-import datetime, json
+import json
 from django.http import JsonResponse
 from django.template.context_processors import csrf
 from django.views.generic import TemplateView
 from crispy_forms.utils import render_crispy_form
 from core.models import Produit, CategorieProduit, Location
 from core.views.base import CustomView
+from core.utils import utils_dates
 from fiche_famille.forms.famille_locations import Formulaire, FORMSET_PRESTATIONS
 from fiche_famille.views.famille_locations import Form_valid_ajouter, Form_valid_modifier
 
@@ -29,8 +30,11 @@ def Get_produits(request):
 
 def Get_locations(request):
     # Récupération de la période affichée
-    date_debut = datetime.datetime.strptime(request.POST["date_debut"], "%Y-%m-%d %H:%M").date()
-    date_fin = datetime.datetime.strptime(request.POST["date_fin"], "%Y-%m-%d %H:%M").date()
+    date_debut = utils_dates.ConvertDateTimeENGtoDateTime(request.POST.get("date_debut"))
+    date_fin = utils_dates.ConvertDateTimeENGtoDateTime(request.POST.get("date_fin"))
+    if not date_debut or not date_fin:
+        return JsonResponse({"erreur": "La période demandée est erronée"}, status=401)
+    date_debut, date_fin = date_debut.date(), date_fin.date()
 
     # Importation des locations
     locations = Location.objects.select_related("famille", "produit").filter(date_debut__lte=date_fin, date_fin__gte=date_debut)
@@ -58,10 +62,11 @@ def Get_form_detail_location(request):
     data_event = json.loads(request.POST.get("data_event", "{}"))
     data_initial = {}
     if data_event:
+        # Les dates non reconnues sont ignorées : le form s'ouvre alors sans dates prérenseignées
         data_initial = {
             "produit": int(data_event["produit"]),
-            "date_debut": datetime.datetime.strptime(data_event["date_debut"], "%Y-%m-%d %H:%M"),
-            "date_fin": datetime.datetime.strptime(data_event["date_fin"], "%Y-%m-%d %H:%M"),
+            "date_debut": utils_dates.ConvertDateTimeENGtoDateTime(data_event.get("date_debut")),
+            "date_fin": utils_dates.ConvertDateTimeENGtoDateTime(data_event.get("date_fin")),
         }
 
     # Création du contexte
@@ -98,11 +103,15 @@ def Valid_form_detail_location(request):
 
 def Modifier_location(request):
     data_event = json.loads(request.POST.get("data_event", "{}"))
+    date_debut = utils_dates.ConvertDateTimeENGtoDateTime(data_event.get("date_debut"))
+    date_fin = utils_dates.ConvertDateTimeENGtoDateTime(data_event.get("date_fin"))
+    if not date_debut or not date_fin:
+        return JsonResponse({"erreur": "Les dates de la location sont erronées"}, status=401)
     location = Location.objects.get(pk=int(data_event["idlocation"]))
     if data_event.get("produit", None):
         location.produit_id = int(data_event["produit"])
-    location.date_debut = datetime.datetime.strptime(data_event["date_debut"], "%Y-%m-%d %H:%M")
-    location.date_fin = datetime.datetime.strptime(data_event["date_fin"], "%Y-%m-%d %H:%M")
+    location.date_debut = date_debut
+    location.date_fin = date_fin
     location.save()
     return JsonResponse({"succes": True})
 

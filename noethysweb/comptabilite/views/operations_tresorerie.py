@@ -420,6 +420,27 @@ class Liste(Page, crud.Liste):
         total_credit = stats["total_credit"] or 0
         solde_final = total_credit - total_debit
 
+        # --- Solde pointé (opérations pointées uniquement) ---
+        stats_pointe = operations.filter(pointage=True).aggregate(
+            total_debit=Sum(
+                Case(
+                    When(type="debit", then=F("montant")),
+                    output_field=DecimalField(),
+                    default=0
+                )
+            ),
+            total_credit=Sum(
+                Case(
+                    When(type="credit", then=F("montant")),
+                    output_field=DecimalField(),
+                    default=0
+                )
+            )
+        )
+        total_debit_pointe = stats_pointe["total_debit"] or 0
+        total_credit_pointe = stats_pointe["total_credit"] or 0
+        solde_pointe = total_credit_pointe - total_debit_pointe
+
         # --- Totaux par avance ---
         from django.db.models import F, Value
 
@@ -455,6 +476,7 @@ class Liste(Page, crud.Liste):
             <center>
                 <table style="font-weight:bold;">
                     <tr><td>Solde du compte :</td><td style='padding-left:10px;'>{utils_texte.Formate_montant(solde_final)}</td></tr>
+                    <tr><td>Solde pointé du compte :</td><td style='padding-left:10px;'>{utils_texte.Formate_montant(solde_pointe)}</td></tr>
                 </table>
                 <table style="font-weight:normal;">
                     <tr><td>Somme des débits sur le compte :</td><td style='padding-left:10px;'>{utils_texte.Formate_montant(total_debit)}</td></tr>

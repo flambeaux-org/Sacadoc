@@ -5,46 +5,142 @@
 
 {% block page_titre %}{{ page_titre }}{% endblock page_titre %}
 
-
 {% block styles %}
     {{ block.super }}
-    <link rel="stylesheet" type="text/css" href="{% static 'lib/chartjs/Chart.min.css' %}">
     <style>
-    .info-box-text {
-        font-weight: bold;
-    }
-    .info-box-number {
-        font-size: 12px;
-        font-weight: 400 !important;
-    }
-    .info-box .info-box-icon {
-        width: 80px;
-    }
+        /* --- Accès rapides (widgets "acces_rapides_*" du tableau de bord) --- */
+        /* Chaque bouton porte sa couleur via la variable --ar-couleur (cf. utils_acces_rapides.py) */
+
+        .acces-rapides-card {
+            border-top: 3px solid var(--ar-couleur-groupe, #3c8dbc);
+        }
+
+        .acces-rapides-grille {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 10px;
+        }
+
+        .acces-rapide {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-height: 52px;
+            padding: 10px 32px 10px 12px;
+            overflow: hidden;
+
+            background-color: #ffffff;
+            border: 1px solid #e4e6ea;
+            border-left: 3px solid var(--ar-couleur, #3c8dbc);
+            border-radius: 6px;
+
+            color: #3f474e !important;
+            font-size: 0.875rem;
+            font-weight: 600;
+            line-height: 1.25;
+            text-decoration: none !important;
+
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+            transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease, background-color .15s ease;
+        }
+
+        /* Voile coloré révélé au survol */
+        .acces-rapide::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            background-color: var(--ar-couleur, #3c8dbc);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .15s ease;
+        }
+
+        .acces-rapide-icone {
+            position: relative;
+            flex: 0 0 32px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background-color: var(--ar-couleur, #3c8dbc);
+            color: #ffffff;
+            font-size: 0.875rem;
+        }
+
+        .acces-rapide-titre {
+            position: relative;
+            flex: 1 1 auto;
+        }
+
+        .acces-rapide-fleche {
+            position: absolute;
+            right: 12px;
+            color: var(--ar-couleur, #3c8dbc);
+            font-size: 0.75rem;
+            opacity: 0;
+            transform: translateX(-4px);
+            transition: opacity .15s ease, transform .15s ease;
+        }
+
+        .acces-rapide:hover {
+            border-color: var(--ar-couleur, #3c8dbc);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .acces-rapide:hover::before {
+            opacity: 0.07;
+        }
+
+        .acces-rapide:hover .acces-rapide-fleche {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .acces-rapide:focus-visible {
+            outline: 2px solid var(--ar-couleur, #3c8dbc);
+            outline-offset: 2px;
+        }
+
+        /* Mode sombre */
+        .dark-mode .acces-rapide {
+            background-color: #454d55;
+            border-color: #5a6268;
+            border-left-color: var(--ar-couleur, #3c8dbc);
+            color: #e9ecef !important;
+            box-shadow: none;
+        }
+
+        .dark-mode .acces-rapide:hover {
+            background-color: #4b545c;
+            border-color: var(--ar-couleur, #3c8dbc);
+        }
+
+        .dark-mode .acces-rapide:hover::before {
+            opacity: 0.15;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .acces-rapide,
+            .acces-rapide::before,
+            .acces-rapide-fleche {
+                transition: none;
+            }
+            .acces-rapide:hover {
+                transform: none;
+            }
+        }
     </style>
 {% endblock styles %}
 
 {% block page %}
-
     <div class="content-wrapper">
-
-        <div class="content-header">
-            <div class="container-fluid">
-                <div class="row mb-2">
-                    <div class="col-sm-6">
-                        <h1 class="m-0 text-dark">
-                            Tableau de bord
-                        </h1>
-                    </div>
-                    <div class="col-sm-6">
-                        <ol class="breadcrumb float-sm-right">
-                            <li class="breadcrumb-item"><a href="{% url 'accueil' %}"><i class="fa fa-home"></i> Accueil</a></li>
-                        </ol>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <section class="content">
+        <section class="content pt-3">
             <div class="container-fluid">
 
                 {% block messages %}
@@ -53,27 +149,31 @@
 
                 {% block contenu_page %}
 
-                    {# Nouvelle version disponible #}
+                    {# Alertes système #}
                     {% if super_utilisateur and nouvelle_version %}
-                        <div class="alert alert-warning">
-                            <button type="button" class="close" data-dismiss="alert" aria-hidden="true"></button>
+                        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                            <button type="button" class="close" data-dismiss="alert" aria-label="Fermer">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
                             <h5><i class="icon fa fa-download"></i> Mise à jour</h5>
-                            Une nouvelle version de Noethysweb est disponible. <a href='{% url 'update' %}'>Cliquez ici pour l'installer maintenant.</a>
+                            Une nouvelle version de Noethysweb est disponible.
+                            <a href="{% url 'update' %}" class="alert-link">Cliquez ici pour l'installer maintenant.</a>
                         </div>
                     {% endif %}
 
-                    {# Si aucune structure associée à cet utilisateur #}
                     {% if not request.user.structures.all %}
-                        <div class="alert alert-warning">
-                            <button type="button" class="close" data-dismiss="alert" aria-hidden="true"></button>
+                        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                            <button type="button" class="close" data-dismiss="alert" aria-label="Fermer">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
                             <h5><i class="icon fa fa-exclamation-triangle"></i> Droits de l'utilisateur</h5>
-                            Aucune structure n'est associée à votre profil. Demandez à l'administrateur de modifier votre compte utilisateur. A défaut, il vous sera impossible d'accéder aux activités.
+                            Aucune structure n'est associée à votre profil. Demandez à l'administrateur de modifier votre compte utilisateur. À défaut, il vous sera impossible d'accéder aux activités.
                         </div>
                     {% endif %}
 
                     {# Mode démo #}
                     {% if mode_demo %}
-                        <div class="card card-outline card-warning">
+                        <div class="card card-outline card-warning mb-4">
                             <div class="ribbon-wrapper ribbon-lg">
                                 <div class="ribbon bg-warning">Démo</div>
                             </div>
@@ -81,54 +181,54 @@
                                 <h3 class="card-title">Version démo de Noethysweb</h3>
                             </div>
                             <div class="card-body">
-                                Vous utilisez actuellement une version de démonstration de Noethysweb destinée à découvrir les fonctionnalités de l'application et à débusquer les bugs restants. Remarques :
-                                <ul>
-                                    <li>Seules les fonctionnalités de base sont actuellement disponibles ; de nouvelles fonctionnalités seront développées une fois la base stabilisée.</li>
-                                    <li>Toutes les données de ce fichier sont fictives. Ne saisissez aucune donnée personnelle, elle serait visible par les autres testeurs.</li>
-                                    <li>Merci de signaler les bugs rencontrés et suggestions sur le portail <a href="https://assisthys.noethysweb.com/" target="_blank">Assisthys</a>.</li>
+                                <p class="mb-2">Vous utilisez actuellement une version de démonstration de Noethysweb destinée à découvrir les fonctionnalités de l'application. Remarques :</p>
+                                <ul class="mb-0">
+                                    <li>Seules les fonctionnalités de base sont actuellement disponibles.</li>
+                                    <li>Toutes les données de ce fichier sont fictives. Ne saisissez aucune donnée personnelle.</li>
+                                    <li>Merci de signaler les bugs ou suggestions sur le portail <a href="https://assisthys.noethysweb.com/" target="_blank" rel="noopener">Assisthys</a>.</li>
                                 </ul>
                             </div>
                         </div>
                     {% endif %}
 
-                    {# Intégration des widgets #}
+                    {# Widgets du tableau de bord (dont les groupes d'accès rapides) #}
                     {% for ligne in configuration_accueil %}
                         <div class="row">
                             {% for colonne in ligne %}
                                 <div class="col-md-{{ colonne.0 }}">
-                                {% for item in colonne|slice:"1:" %}
-                                    {% with nom_template="core/accueil/widgets/"|add:item|add:".html" %}
-                                        {% if nom_template|template_exists %}
-                                            {% include nom_template %}
-                                        {% endif %}
-                                    {% endwith %}
-                                {% endfor %}
+                                    {% for item in colonne|slice:"1:" %}
+                                        {% with nom_template="core/accueil/widgets/"|add:item|add:".html" %}
+                                            {% if nom_template|template_exists %}
+                                                {% include nom_template %}
+                                            {% endif %}
+                                        {% endwith %}
+                                    {% endfor %}
                                 </div>
                             {% endfor %}
                         </div>
                     {% endfor %}
 
-                    <div class="text-left pb-2"><a href="{% url 'accueil_configuration' %}"><i class="fa fa-gear margin-r-5"></i>Configurer le tableau de bord</a></div>
+                    <div class="text-left pb-3 pt-2">
+                        <a href="{% url 'accueil_configuration' %}" class="btn btn-sm btn-default">
+                            <i class="fa fa-gear mr-1"></i> Configurer le tableau de bord
+                        </a>
+                    </div>
 
                 {% endblock contenu_page %}
+
             </div>
         </section>
-
     </div>
 {% endblock page %}
 
-
 {% block scripts %}
     {{ block.super }}
-    <script type="text/javascript" src="{% static 'lib/jquery-slimscroll/jquery.slimscroll.min.js' %}"></script>
-
+    <script src="{% static 'lib/jquery-slimscroll/jquery.slimscroll.min.js' %}"></script>
     <script>
         $(document).ready(function() {
-            // Active la slimscroll sur les petits cadres
             $('.info-box-number').slimScroll({
                 height: '55px'
             });
         });
     </script>
-
 {% endblock scripts %}

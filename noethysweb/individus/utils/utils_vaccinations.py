@@ -29,7 +29,12 @@ def Get_vaccins_obligatoires_individu(individu=None, nonvalides_only=False):
 
 
 def Get_vaccins_obligatoires_by_inscriptions(inscriptions=None):
-    # Recherche les individus pour qui les vaccinations sont obligatoires
+    # Une activité désactivée n'impose plus aucune obligation (évite de réclamer des vaccins sur d'anciennes inscriptions archivées)
+    inscriptions = [inscription for inscription in inscriptions if inscription.activite.actif]
+
+    # Recherche les individus pour qui les vaccinations sont obligatoires : un adulte avec une inscription fait
+    # partie de l'équipe d'encadrement (le champ "public" de l'activité n'étant pas fiable), il est donc lui aussi
+    # soumis à l'obligation vaccinale, au même titre que les enfants inscrits.
     liste_individus = []
     for inscription in inscriptions:
         if inscription.activite.vaccins_obligatoires and inscription.individu not in liste_individus:
@@ -69,7 +74,7 @@ def Get_tous_vaccins(individus_ids):
 
     # Recherche les vaccins existants
     dict_vaccins = {}
-    for vaccin in Vaccin.objects.select_related("type_vaccin", "individu").prefetch_related("type_vaccin__types_maladies").all():
+    for vaccin in Vaccin.objects.select_related("type_vaccin", "individu").prefetch_related("type_vaccin__types_maladies").filter(individu__in=liste_individus):
         dict_vaccins.setdefault(vaccin.individu, [])
         dict_vaccins[vaccin.individu].append(vaccin)
 

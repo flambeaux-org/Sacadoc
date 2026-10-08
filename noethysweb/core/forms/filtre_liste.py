@@ -3,7 +3,7 @@
 #  Noethysweb, application de gestion multi-activités.
 #  Distribué sous licence GNU GPL.
 
-import json, datetime
+import json
 import dateutil.parser
 from operator import itemgetter
 from django import forms
@@ -282,9 +282,9 @@ class Formulaire(FormulaireBase, forms.Form):
             # Saisit les critères
             ctrl_criteres = self.dict_types[type_champ]["criteres"][dict_filtre["condition"]]
             for index, nom_ctrl in enumerate(ctrl_criteres):
-                # Si datetime
+                # Si datetime (une valeur non reconnue est laissée telle quelle : ce n'est pas un datetime)
                 if "-" in dict_filtre["criteres"][index] and ":" in dict_filtre["criteres"][index]:
-                    dict_filtre["criteres"][index] = datetime.datetime.strptime(dict_filtre["criteres"][index], "%Y-%m-%d %H:%M:%S")
+                    dict_filtre["criteres"][index] = utils_dates.ConvertDateTimeENGtoDateTime(dict_filtre["criteres"][index]) or dict_filtre["criteres"][index]
                 # Importation de la valeur par défaut
                 try:
                     self.fields[nom_ctrl].initial = dict_filtre["criteres"][index]

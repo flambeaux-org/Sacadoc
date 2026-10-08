@@ -91,6 +91,37 @@ def ConvertDateENGtoFR(date=None):
     date = ConvertDateENGtoDate(date)
     return ConvertDateToFR(date)
 
+
+# Formats acceptés pour les datetimes saisis ou transmis par le client. L'heure est toujours facultative.
+FORMATS_DATETIME_FR = ("%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M", "%d/%m/%Y %H", "%d/%m/%Y")
+FORMATS_DATETIME_ENG = ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d %H", "%Y-%m-%d")
+
+def ConvertStrToDateTime(valeur=None, formats=FORMATS_DATETIME_FR):
+    """ Convertit une chaîne en datetime en essayant successivement plusieurs formats. Renvoie None si aucun ne correspond """
+    if not valeur:
+        return None
+    if isinstance(valeur, datetime.datetime):
+        return valeur
+    if isinstance(valeur, datetime.date):
+        return datetime.datetime(valeur.year, valeur.month, valeur.day)
+    if not isinstance(valeur, str):
+        return None
+    valeur = valeur.strip()
+    for format_datetime in formats:
+        try:
+            return datetime.datetime.strptime(valeur, format_datetime)
+        except ValueError:
+            continue
+    return None
+
+def ConvertDateTimeFRtoDateTime(valeur=None):
+    """ Convertit une chaîne 'JJ/MM/AAAA HH:MM' en datetime. L'heure est facultative (minuit par défaut) """
+    return ConvertStrToDateTime(valeur, FORMATS_DATETIME_FR)
+
+def ConvertDateTimeENGtoDateTime(valeur=None):
+    """ Convertit une chaîne 'AAAA-MM-JJ HH:MM' en datetime. L'heure est facultative (minuit par défaut) """
+    return ConvertStrToDateTime(valeur, FORMATS_DATETIME_ENG)
+
 def ConvertDureeStrToDuree(duree="j0-m22-a0"):
     if duree == None:
         return None

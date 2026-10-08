@@ -32,7 +32,7 @@ class Liste(Page, crud.Liste):
 
     def get_queryset(self):
         return TypeDeduction.objects.filter(
-            self.Get_filtres("Q")
+            self.Get_filtres("Q"), self.Get_condition_structure()
         ).annotate(
             nbre_individus=Count('deduction')
         )
@@ -46,14 +46,18 @@ class Liste(Page, crud.Liste):
     class datatable_class(MyDatatable):
         filtres = ["idtype_deduction", "nom"]
         actions = columns.TextColumn("Actions", sources=None, processor='Get_actions_standard')
+        structure = columns.DisplayColumn("Structure", sources="structure", processor='Get_structure')
         nbre_individus = columns.TextColumn("Individus associés", sources="nbre_individus")
 
         class Meta:
             structure_template = MyDatatable.structure_template
-            columns = ["idtype_deduction", "nom", "nbre_individus"]
+            columns = ["idtype_deduction", "nom", "structure", "nbre_individus"]
             ordering = ["nom"]
             processors = {
             }
+
+        def Get_structure(self, instance, **kwargs):
+            return "Mouvement" if instance.structure_id is None else str(instance.structure)
 
 
 class Ajouter(Page, crud.Ajouter):

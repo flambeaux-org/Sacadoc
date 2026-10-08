@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 from django.http import JsonResponse
 from core.views.mydatatableview import MyDatatable, columns
 from core.views import crud
-from core.models import Rattachement, Activite, Piece
+from core.models import Rattachement, Activite, Piece, Information
 from individus.forms.edition_renseignements import Formulaire
 from individus.utils import utils_impression_renseignements, utils_impression_renseignements_pieces
 
@@ -48,8 +48,6 @@ def Generer_pdf(request):
     return JsonResponse({"nom_fichier": nom_fichier})
 
 def Generer_pdf_pieces(request):
-    time.sleep(1)
-
     # 1. Récupération et validation des options
     valeurs_form_options = json.loads(request.POST.get("form_options"))
     form = Formulaire(valeurs_form_options, request=request)
@@ -65,7 +63,7 @@ def Generer_pdf_pieces(request):
     writer_final = PdfWriter()
     largeur, height = A4
 
-    print(f"\n--- DÉBUT DE L'ASSEMBLAGE SÉQUENTIEL ({len(rattachements_ids)} individus) ---")
+    logger.debug(f"--- DÉBUT DE L'ASSEMBLAGE SÉQUENTIEL ({len(rattachements_ids)} individus) ---")
 
     # 3. Boucle sur chaque rattachement sélectionné
     for idx, rattachement_id in enumerate(rattachements_ids, start=1):
@@ -80,7 +78,7 @@ def Generer_pdf_pieces(request):
         except Rattachement.DoesNotExist:
             continue
 
-        print(f"   [{idx}/{len(rattachements_ids)}] Traitement de : {individu.Get_nom().upper()}")
+        logger.debug(f"   [{idx}/{len(rattachements_ids)}] Traitement de : {individu.Get_nom().upper()}")
 
         # A. Génération de la fiche unitaire avec Noethys
         try:
@@ -115,7 +113,7 @@ def Generer_pdf_pieces(request):
                     f"Fiche administrative indisponible pour {individu.Get_nom().upper()}", largeur, height
                 ))
         except Exception as e:
-            print(f"Erreur génération Noethys pour {individu.Get_nom()} : {e}")
+            logger.exception(f"Erreur génération Noethys pour {individu.Get_nom()} : {e}")
             continue
 
         # B. Récupération et ajout immédiat de ses pièces jointes
@@ -144,6 +142,28 @@ def Generer_pdf_pieces(request):
                     f"Erreur de lecture du document : {nom_piece.upper()}", largeur, height
                 ))
 
+        # B bis. Ajout des pièces jointes attachées aux informations médicales (PAI, automédication...)
+        informations_avec_document = Information.objects.filter(individu=individu).exclude(document="").exclude(document__isnull=True)
+        for information in informations_avec_document:
+            try:
+                chemin_information = information.document.path if hasattr(information.document, 'path') else os.path.join(
+                    settings.MEDIA_ROOT, information.document.name)
+                chemin_information = os.path.normpath(chemin_information)
+
+                if os.path.exists(chemin_information):
+                    reader_pj = utils_impression_renseignements_pieces.formater_information_jointe(information, individu, largeur, height)
+                    for page in reader_pj.pages:
+                        writer_final.add_page(page)
+                else:
+                    writer_final.add_page(utils_impression_renseignements_pieces.generer_page_erreur(
+                        f"Document absent : {information.intitule.upper()} (Adhérent : {individu.Get_nom().upper()})", largeur,
+                        height
+                    ))
+            except Exception as e:
+                writer_final.add_page(utils_impression_renseignements_pieces.generer_page_erreur(
+                    f"Erreur de lecture du document : {information.intitule.upper()}", largeur, height
+                ))
+
     # 4. Sauvegarde du livret final unique via default_storage dans un répertoire propre
     buffer_final = io.BytesIO()
     writer_final.write(buffer_final)
@@ -157,7 +177,7 @@ def Generer_pdf_pieces(request):
     # Sauvegarde propre gérée par Django (Valide sur Local et sur Serveur de production)
     chemin_final_web = default_storage.save(nom_final_livret, ContentFile(buffer_final.getvalue()))
 
-    print(f"\n[SUCCÈS] Livret global créé avec succès : {chemin_final_web}\n")
+    logger.debug(f"[SUCCÈS] Livret global créé avec succès : {chemin_final_web}")
 
     # On renvoie le chemin relatif à Noethys qui saura l'ouvrir côté client
     return JsonResponse({"nom_fichier": "/" + chemin_final_web, "status": "success"})

@@ -72,8 +72,10 @@ def Envoyer_model_mail(idmail=None, request=None):
     connection = djangomail.get_connection(backend=backend, fail_silently=False, **backend_kwargs)
     try:
         connection.open()
-    except Exception as err:
-        messages.add_message(request, messages.ERROR, "Connexion impossible au serveur de messagerie : %s" % err)
+    except Exception:
+        if request:
+            messages.add_message(request, messages.ERROR, "Connexion impossible au serveur de messagerie")
+        logger.exception(f"Connexion impossible au serveur de messagerie {mail.adresse_exp}")
         return
 
     # Chargement de la signature de l'utilisateur
@@ -138,7 +140,7 @@ def Envoyer_model_mail(idmail=None, request=None):
             valeurs = {}
         valeurs.update(valeurs_defaut)
         for motcle, valeur in valeurs.items():
-            if isinstance(valeur, float):
+            if not isinstance(valeur, str):
                 valeur = str(valeur)
             html = html.replace(motcle, valeur or "")
             objet = objet.replace(motcle, valeur or "")

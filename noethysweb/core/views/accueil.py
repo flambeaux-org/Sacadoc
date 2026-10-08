@@ -1,12 +1,18 @@
 # -*- coding: utf-8 -*-
-#  Copyright (c) 2019-2021 Ivan LUCAS.
-#  Noethysweb, application de gestion multi-activités.
-#  Distribué sous licence GNU GPL.
 
-import logging, json, importlib
+# Copyright (c) 2019-2021 Ivan LUCAS.
+# Noethysweb, application de gestion multi-activités.
+# Distribué sous licence GNU GPL.
+
+import logging
+import json
+import importlib
+
 logger = logging.getLogger(__name__)
+
 from django.views.generic import TemplateView
 from django.conf import settings
+
 from core.views.base import CustomView
 from outils.utils import utils_update
 
@@ -17,18 +23,25 @@ class Accueil(CustomView, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super(Accueil, self).get_context_data(**kwargs)
-        context['page_titre'] = "Accueil"
+        context["page_titre"] = "Accueil"
 
         # Technique
-        context['mode_demo'] = settings.MODE_DEMO
+        context["mode_demo"] = settings.MODE_DEMO
+
         if self.request.user.is_superuser:
-            context['nouvelle_version'] = utils_update.Get_update_for_accueil(request=self.request)
-        context['super_utilisateur'] = self.request.user.is_superuser
+            context["nouvelle_version"] = utils_update.Get_update_for_accueil(
+                request=self.request
+            )
+
+        context["super_utilisateur"] = self.request.user.is_superuser
 
         # Configuration accueil
-        context['configuration_accueil'] = json.loads(context["options_interface"]["configuration_accueil"])
+        context["configuration_accueil"] = json.loads(
+            context["options_interface"]["configuration_accueil"]
+        )
+
         liste_widgets = []
-        for ligne in context['configuration_accueil']:
+        for ligne in context["configuration_accueil"]:
             for colonne in ligne:
                 for item in colonne[1:]:
                     liste_widgets.append(item)
@@ -36,10 +49,15 @@ class Accueil(CustomView, TemplateView):
         # Importation des widgets
         for nom_widget in liste_widgets:
             try:
-                module = importlib.import_module("core.views.accueil_widgets.%s" % nom_widget)
-                widget = module.Widget(request=self.request, context=context)
+                module = importlib.import_module(
+                    "core.views.accueil_widgets.%s" % nom_widget
+                )
+                widget = module.Widget(
+                    request=self.request,
+                    context=context
+                )
                 widget.init_context_data()
             except:
-                pass
+                logger.exception("Echec du chargement du widget d'accueil '%s'." % nom_widget)
 
         return context

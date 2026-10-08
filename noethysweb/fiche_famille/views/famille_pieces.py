@@ -71,7 +71,9 @@ class Liste(Page, crud.Liste):
         individus_inscrits = Individu.objects.filter(
             Q(idindividu__in=inscriptions_accessibles.values('individu')) |
             Q(idindividu__in=Rattachement.objects.filter(categorie=1, famille_id=self.Get_idfamille()).values('individu'))).distinct()
-        liste = Piece.objects.select_related('individu', 'type_piece').filter(individu__in=individus_inscrits)
+        liste = Piece.objects.select_related('individu', 'type_piece').filter(
+            Q(individu__in=individus_inscrits) | Q(individu__isnull=True, famille_id=self.Get_idfamille())
+        )
         return liste
 
     def get_context_data(self, **kwargs):

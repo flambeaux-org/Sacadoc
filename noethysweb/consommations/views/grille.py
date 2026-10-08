@@ -432,6 +432,13 @@ def Save_grille(request=None, donnees={}):
     #     messages.add_message(request, messages.SUCCESS, "Consommations enregistrées : %s" % utils_texte.Convert_liste_to_texte_virgules(texte_notification))
 
     # Suppression des prestations obsolètes (après la suppression des consommations associées)
+    # Sécurité : une prestation avec un règlement déjà ventilé ne doit jamais être supprimée, même si elle est
+    # arrivée jusqu'ici par erreur (le lien règlement <-> prestation serait perdu).
+    idprestations_ventilees = set(Ventilation.objects.filter(prestation_id__in=donnees["suppressions"]["prestations"]).values_list("prestation_id", flat=True))
+    if idprestations_ventilees:
+        logger.warning("Prestations protégées car déjà ventilées, suppression annulée pour : %s" % idprestations_ventilees)
+        donnees["suppressions"]["prestations"] = [idprestation for idprestation in donnees["suppressions"]["prestations"] if idprestation not in idprestations_ventilees]
+
     logger.debug("Prestations à supprimer : " + str(donnees["suppressions"]["prestations"]))
     liste_prestations_suppr = []
     if donnees["suppressions"]["prestations"]:
@@ -572,6 +579,12 @@ class Facturation():
         self.dict_combi_tarif = {}
         self.dict_aides = {}
         self.tarif_fratries_exists = False
+
+        # Prestations protégées : un règlement a déjà été ventilé dessus, on ne doit jamais les supprimer/recréer
+        # même en l'absence de facture, sous peine de perdre le lien entre le règlement et la prestation.
+        self.set_prestations_ventilees = set(Ventilation.objects.filter(
+            prestation_id__in=[int(idprestation) for idprestation in self.donnees.get("prestations", {}).keys()]
+        ).values_list("prestation_id", flat=True))
 
     def Facturer(self):
         messages = []
@@ -900,6 +913,9 @@ class Facturation():
                 for idprestation, dict_prestation in self.donnees["prestations"].items():
                     if dict_prestation["date"] == case_tableau["date"] and dict_prestation["famille"] == case_tableau["famille"] and dict_prestation["individu"] == case_tableau["individu"] and dict_prestation["activite"] == case_tableau["activite"]:
                         if idprestation not in dictUnitesPrestations.values() and idprestation not in self.liste_anciennes_prestations and not dict_prestation["forfait_date_debut"] and not dict_prestation["forfait"]:
+                            if int(idprestation) in self.set_prestations_ventilees:
+                                logger.debug("La prestation suivante ne semble plus utilisée mais est protégée (règlement déjà ventilé), on la conserve : " + str(idprestation))
+                                continue
                             logger.debug("La prestation suivante ne semble plus utilisée, on la supprime : " + str(idprestation))
                             self.liste_anciennes_prestations.append(idprestation)
 

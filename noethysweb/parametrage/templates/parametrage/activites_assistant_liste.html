@@ -14,15 +14,27 @@
                     <ul class="products-list product-list-in-box">
                         {% for assistant in liste_assistants %}
                             <li class="item">
-                                <a href="{% url assistant.url %}" class="product-title">
-                                    <div class="product-img">
-                                        <i class="fa {{ assistant.icone }} fa-3x fa-fw"></i>
+                                {% if assistant.disponible %}
+                                    <a href="{% url assistant.url %}" class="product-title">
+                                        <div class="product-img">
+                                            <i class="fa {{ assistant.icone }} fa-3x fa-fw"></i>
+                                        </div>
+                                        <div class="product-info">
+                                            {{ assistant.label }}
+                                            <span class="product-description">{{ assistant.description }}</span>
+                                        </div>
+                                    </a>
+                                {% else %}
+                                    <div class="product-title" style="opacity: 0.5; cursor: not-allowed;" title="Bientôt disponible">
+                                        <div class="product-img">
+                                            <i class="fa {{ assistant.icone }} fa-3x fa-fw"></i>
+                                        </div>
+                                        <div class="product-info">
+                                            {{ assistant.label }}
+                                            <span class="product-description">{{ assistant.description }} <strong>(Bientôt disponible)</strong></span>
+                                        </div>
                                     </div>
-                                    <div class="product-info">
-                                        {{ assistant.label }}
-                                        <span class="product-description">{{ assistant.description }}</span>
-                                    </div>
-                                </a>
+                                {% endif %}
                             </li>
                         {% endfor %}
                     </ul>

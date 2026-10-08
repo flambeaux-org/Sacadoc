@@ -1,0 +1,30 @@
+{% comment %}
+    Rendu d'un groupe d'accès rapides. Attend une variable "groupe" fournie par
+    core.utils.utils_acces_rapides.Get_groupe(). Les styles sont dans core/accueil/accueil.html.
+{% endcomment %}
+
+{% if groupe.boutons %}
+    <div class="card acces-rapides-card" style="--ar-couleur-groupe: {{ groupe.couleur }};">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fa fa-{{ groupe.icone }} mr-2" style="color: {{ groupe.couleur }};"></i>{{ groupe.titre }}
+            </h3>
+            <div class="card-tools">
+                <button type="button" class="btn btn-tool" data-card-widget="collapse" title="Réduire">
+                    <i class="fa fa-minus"></i>
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="acces-rapides-grille">
+                {% for bouton in groupe.boutons %}
+                    <a href="{{ bouton.url }}" class="acces-rapide" style="--ar-couleur: {{ bouton.couleur }};">
+                        <span class="acces-rapide-icone"><i class="fa fa-{{ bouton.icone }}"></i></span>
+                        <span class="acces-rapide-titre">{{ bouton.titre }}</span>
+                        <i class="fa fa-chevron-right acces-rapide-fleche"></i>
+                    </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+{% endif %}

@@ -226,7 +226,10 @@ class Liste(Page, crud.Liste):
 
         def Format_bool(self, instance, *args, **kwargs):
             # instance = Inscription
-            return "Oui" if instance.besoin_certification else "Non"
+            if instance.besoin_certification:
+                return "<span style='color: red; font-weight: bold;'>Oui</span>"
+            else:
+                return "<span style='color: green; font-weight: bold;'>Non</span>"
 
         def Get_certification_date(self, instance, *args, **kwargs):
             # instance = Inscription
@@ -243,10 +246,71 @@ class Liste(Page, crud.Liste):
             view = kwargs["view"]
             html = [
                 self.Create_bouton(url=reverse("famille_resume", args=[instance.famille_id]), title="Ouvrir la fiche famille", icone="fa-users"),
+                self.Create_bouton(
+                    url=reverse("demande_approbation_individuelle", args=[instance.pk]),
+                    title="Envoyer une demande de vérification",
+                    icone="fa-paper-plane",
+                ),
             ]
+
             return self.Create_boutons_actions(html)
 
 
+class EnvoyerDemandeIndividuelle(View):
+    def get(self, request, pk):
+        ins = get_object_or_404(Inscription, pk=pk)
 
+        # Vérification des droits (structure de l'utilisateur)
+        if ins.activite.structure not in request.user.structures.all():
+            messages.error(request, "Vous n'avez pas les droits sur cette activité.")
+            return redirect(reverse("demande_approbation_liste", kwargs={"activite": "A%s" % ins.activite_id}))
+
+        ins.besoin_certification = True
+        ins.save()
+
+        act = ins.activite.nom
+        jeune = ins.individu.prenom
+        objet = f"[SACADOC] Demande de vérification des informations personnelles de {jeune}"
+        html = (
+            "<p>Bonjour,&nbsp;</p>"
+            f"<p>Le directeur de l'activité : {act} a effectué une demande de vérification des informations de {jeune}.</p>"
+            "<p>Merci de vous rendre sur Sacadoc ou de suivre ce lien pour effectuer la démarche : "
+            "<a href='https://sacadoc.flambeaux.org/'>Sacadoc</a>.</p>"
+            "<p>Bonne journée,&nbsp;</p>"
+            "<p>L'équipe Sacadoc</p>"
+        )
+
+        adresse_exp = request.user.adresse_exp
+        rattachement = Rattachement.objects.filter(individu=ins.individu).first()
+
+        if not rattachement or not rattachement.famille or not rattachement.famille.mail:
+            messages.error(request, f"Impossible d'envoyer la demande pour {jeune} ({ins.individu.nom}) : informations manquantes.")
+            return redirect(reverse("demande_approbation_liste", kwargs={"activite": "A%s" % ins.activite_id}))
+
+        famille = rattachement.famille
+
+        mail = Mail.objects.create(
+            categorie="saisie_libre",
+            objet=objet,
+            html=html,
+            adresse_exp=adresse_exp,
+            selection="NON_ENVOYE",
+            utilisateur=request.user,
+        )
+        destinataire = Destinataire.objects.create(
+            categorie="famille",
+            famille=famille,
+            adresse=famille.mail,
+        )
+        mail.destinataires.add(destinataire)
+
+        succes = utils_email.Envoyer_model_mail(idmail=mail.pk, request=request)
+
+        if succes:
+            messages.success(request, f"Demande envoyée par email à la famille {famille} pour {jeune}.")
+        else:
+            messages.error(request, f"La demande n'a pas pu être envoyée à la famille {famille}.")
+
+        return redirect(reverse("demande_approbation_liste", kwargs={"activite": "A%s" % ins.activite_id}))
 
 

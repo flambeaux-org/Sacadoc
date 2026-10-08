@@ -12,7 +12,7 @@ from crispy_forms.layout import Layout, Hidden, Div, HTML, Fieldset
 from crispy_forms.bootstrap import Field
 from core.forms.base import FormulaireBase
 from core.utils.utils_commandes import Commandes
-from core.models import Inscription, PortailRenseignement, Individu, Activite, Consommation, QuestionnaireQuestion, QuestionnaireReponse, Tarif, CategorieTarif, Prestation, TarifLigne, AdresseMail, Utilisateur
+from core.models import Inscription, PortailRenseignement, Individu, Activite, Consommation, QuestionnaireQuestion, QuestionnaireReponse, Tarif, CategorieTarif, Prestation, TarifLigne, AdresseMail, Utilisateur, Ventilation
 from core.widgets import DatePickerWidget
 from core.forms.select2 import Select2Widget
 from core.widgets import Select_many_avec_plus
@@ -197,12 +197,19 @@ class Formulaire(FormulaireBase, ModelForm):
         instance = super(Formulaire, self).save()
 
         # Si l'activité a changé, supprimer les prestations associées à l'ancienne activité
+        # Sécurité : ne jamais supprimer une prestation déjà ventilée (règlement associé).
         if ancienne_activite and ancienne_activite != instance.activite:
-            Prestation.objects.filter(
+            prestations_ancienne_activite = Prestation.objects.filter(
                 individu=instance.individu,
                 famille=instance.famille,
                 activite=ancienne_activite,
-            ).delete()
+            )
+            idprestations_ventilees = set(Ventilation.objects.filter(
+                prestation__in=prestations_ancienne_activite
+            ).values_list("prestation_id", flat=True))
+            if idprestations_ventilees:
+                logger.warning("Prestations protégées car déjà ventilées, suppression annulée pour : %s" % idprestations_ventilees)
+            prestations_ancienne_activite.exclude(pk__in=idprestations_ventilees).delete()
 
         # Enregistrement des réponses du questionnaire
         for key, valeur in self.cleaned_data.items():
@@ -258,11 +265,19 @@ class Formulaire(FormulaireBase, ModelForm):
         ids_tarifs_selectionnes = [tarif.idtarif for tarif in tarifs_selectionnes]
 
         #suppression prestas en trop
-        Prestation.objects.filter(
+        # Sécurité : une prestation déjà réglée (ventilation présente) ne doit jamais être supprimée,
+        # même si son tarif ne fait plus partie de la sélection, sous peine de perdre le lien règlement <-> prestation.
+        prestations_a_supprimer = Prestation.objects.filter(
             individu=instance.individu,
             famille=instance.famille,
             activite=instance.activite
-        ).exclude(tarif__in=ids_tarifs_selectionnes).delete()
+        ).exclude(tarif__in=ids_tarifs_selectionnes)
+        idprestations_ventilees = set(Ventilation.objects.filter(
+            prestation__in=prestations_a_supprimer
+        ).values_list("prestation_id", flat=True))
+        if idprestations_ventilees:
+            logger.warning("Prestations protégées car déjà ventilées, suppression annulée pour : %s" % idprestations_ventilees)
+        prestations_a_supprimer.exclude(pk__in=idprestations_ventilees).delete()
 
         #Validation de la demande portail
         if self.iddemande:

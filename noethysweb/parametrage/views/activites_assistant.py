@@ -4,6 +4,9 @@
 #  Distribué sous licence GNU GPL.
 
 from django.urls import reverse_lazy, reverse
+from django.db.models import F
+from django.conf import settings
+from django.core.files.storage import FileSystemStorage
 from core.views.base import CustomView
 from django.views.generic import TemplateView
 from django.http import HttpResponseRedirect
@@ -11,11 +14,13 @@ from formtools.wizard.views import SessionWizardView
 from django import forms
 from core.forms.select2 import Select2MultipleWidget
 from core.models import TypeGroupeActivite, TypePiece, TypeCotisation, TypeQuotient, LISTE_METHODES_TARIFS, DICT_COLONNES_TARIFS, \
-                        Activite, Agrement, ResponsableActivite, Groupe, CategorieTarif, TarifLigne, CombiTarif, QuestionnaireQuestion
+                        Activite, Agrement, ResponsableActivite, Groupe, CategorieTarif, TarifLigne, CombiTarif, QuestionnaireQuestion, \
+                        Sondage, PortailDocument
 from parametrage.widgets import ParametresTarifs
 from parametrage.forms import activites_tarifs
+from parametrage.forms.activites_renseignements import Get_label_piece
 from django.contrib import messages
-import datetime, json
+import os, datetime, json
 
 
 def CreationAbrege(nom=""):
@@ -40,6 +45,61 @@ class Page_responsable(forms.Form):
 class Page_renseignements(forms.Form):
     pieces = forms.ModelMultipleChoiceField(label="Pièces à fournir", widget=Select2MultipleWidget(), queryset=TypePiece.objects.all(), required=False)
     cotisations = forms.ModelMultipleChoiceField(label="Adhésions à jour", widget=Select2MultipleWidget(), queryset=TypeCotisation.objects.all(), required=False)
+
+    def __init__(self, *args, **kwargs):
+        super(Page_renseignements, self).__init__(*args, **kwargs)
+        # Met en avant les pièces standard définies par l'organisateur (sans structure), suggérées pour toutes les activités
+        self.fields['pieces'].queryset = self.fields['pieces'].queryset.order_by(F("structure_id").asc(nulls_first=True), "nom")
+        self.fields['pieces'].label_from_instance = Get_label_piece
+
+class Page_formulaires(forms.Form):
+    """ Étape informative : un formulaire (Sondage) est rattaché à la structure entière, pas à une activité en particulier.
+    Ceux déjà configurés pour la structure choisie s'appliqueront donc automatiquement à cette nouvelle activité. """
+    def __init__(self, *args, **kwargs):
+        structure = kwargs.pop("structure", None)
+        super(Page_formulaires, self).__init__(*args, **kwargs)
+        liste_sondages = Sondage.objects.filter(structure=structure).order_by("titre") if structure else Sondage.objects.none()
+        if liste_sondages:
+            texte_liste = "<ul>%s</ul>" % "".join("<li>%s</li>" % sondage.titre for sondage in liste_sondages)
+        else:
+            texte_liste = "<p>Aucun formulaire n'est actuellement configuré pour cette structure.</p>"
+        self.intro = (
+            "Les formulaires (autorisations, consentements...) ne se configurent pas par activité : ceux définis pour la "
+            "structure choisie s'appliquent automatiquement à toutes ses activités, dont celle-ci." + texte_liste +
+            "<a class='btn btn-warning' href='%s' target='_blank'><i class='fa fa-plus margin-r-5'></i>Créer un nouveau formulaire</a>" % reverse("sondages_ajouter")
+        )
+
+class Page_questionnaires(forms.Form):
+    """ Étape informative : les questions déjà valables pour toute la structure s'appliqueront automatiquement à cette
+    activité. Une question spécifique à cette activité pourra être créée une fois celle-ci enregistrée. """
+    def __init__(self, *args, **kwargs):
+        structure = kwargs.pop("structure", None)
+        super(Page_questionnaires, self).__init__(*args, **kwargs)
+        liste_questions = QuestionnaireQuestion.objects.filter(structure=structure, activite__isnull=True).order_by("ordre") if structure else QuestionnaireQuestion.objects.none()
+        if liste_questions:
+            texte_liste = "<ul>%s</ul>" % "".join("<li>%s</li>" % question.label for question in liste_questions)
+        else:
+            texte_liste = "<p>Aucune question n'est actuellement configurée pour toute la structure.</p>"
+        self.intro = (
+            "Les questions suivantes, déjà posées à toute la structure choisie, s'appliqueront automatiquement à cette "
+            "activité :" + texte_liste +
+            "<a class='btn btn-warning' href='%s' target='_blank'><i class='fa fa-list margin-r-5'></i>Gérer les questionnaires</a>"
+            "<br><br><i class='fa fa-info-circle margin-r-5'></i>Une question spécifique à cette activité pourra être ajoutée une fois celle-ci créée." % reverse("questions_liste")
+        )
+
+class Page_documents(forms.Form):
+    documents = forms.ModelMultipleChoiceField(label="Documents à mettre à disposition des familles sur le portail", widget=Select2MultipleWidget(), queryset=PortailDocument.objects.none(), required=False,
+                                               help_text="Sélectionnez les documents déjà existants (règlement intérieur, plaquette...) à mettre à disposition pour cette activité.")
+
+    def __init__(self, *args, **kwargs):
+        structure = kwargs.pop("structure", None)
+        super(Page_documents, self).__init__(*args, **kwargs)
+        self.fields['documents'].queryset = PortailDocument.objects.filter(structure=structure).order_by("titre") if structure else PortailDocument.objects.none()
+        if not self.fields['documents'].queryset:
+            self.intro = (
+                "<p>Aucun document n'est actuellement disponible pour cette structure.</p>"
+                "<a class='btn btn-warning' href='%s' target='_blank'><i class='fa fa-plus margin-r-5'></i>Créer un nouveau document</a>" % reverse("portail_documents_ajouter")
+            )
 
 class Page_groupes(forms.Form):
     has_groupes = forms.ChoiceField(label="L'activité est-elle constituée de groupes distincts ?", choices=[("oui", "Oui"), ("non", "Non")], widget=forms.RadioSelect, initial="non", help_text="Exemple : Les maternels et les primaires. Si vous n'êtes pas sûr, laissez non.")
@@ -119,6 +179,7 @@ def Afficher_page_nbre_categories(wizard):
 class Assistant_base(CustomView, SessionWizardView):
     menu_code = "activites_liste"
     template_name = "parametrage/activites_assistant.html"
+    file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, "temp_wizard"))
     condition_dict = {
         "nbre_groupes": Afficher_page_nbre_groupes,
         "noms_groupes": Afficher_page_noms_groupes,
@@ -143,6 +204,8 @@ class Assistant_base(CustomView, SessionWizardView):
             has_categories = self.get_cleaned_data_for_step("categories")["has_categories"]
             data = self.get_cleaned_data_for_step("nbre_categories") if has_categories == "oui" else None
             kwargs['nbre_categories'] = data["nbre_categories"] if data else 0
+        if step in ("formulaires", "questionnaires", "documents"):
+            kwargs['structure'] = (self.get_cleaned_data_for_step("generalites") or {}).get("structure")
         return kwargs
 
     def done(self, form_list, **kwargs):
@@ -157,12 +220,30 @@ class Assistant_base(CustomView, SessionWizardView):
         date_fin = donnees["date_fin"] if donnees.get("date_fin", None) else datetime.date(2999, 1, 1)
         nbre_inscrits_max = donnees["nbre_inscrits_max"] if donnees.get("nbre_inscrits_max", None) else None
 
-        # Enregistrement de l'activité
-        activite = Activite.objects.create(nom=nom, abrege=abrege, date_debut=date_debut, date_fin=date_fin, nbre_inscrits_max=nbre_inscrits_max, structure=donnees.get("structure"))
+        # Date de visibilité des traitements médicaux (DateField dans l'assistant, DateTimeField sur le modèle)
+        date_traitements_visibles = donnees.get("date_traitements_visibles")
+        if date_traitements_visibles and not isinstance(date_traitements_visibles, datetime.datetime):
+            date_traitements_visibles = datetime.datetime.combine(date_traitements_visibles, datetime.time(0, 0))
+
+        # Enregistrement de l'activité (les valeurs par défaut reprennent celles du modèle Activite)
+        activite = Activite.objects.create(
+            nom=nom, abrege=abrege, date_debut=date_debut, date_fin=date_fin, nbre_inscrits_max=nbre_inscrits_max, structure=donnees.get("structure"),
+            public=donnees.get("public", 5), num_decla=donnees.get("num_decla") or None, image=donnees.get("image") or None,
+            inscriptions_multiples=donnees.get("inscriptions_multiples", False), date_traitements_visibles=date_traitements_visibles,
+            vaccins_obligatoires=donnees.get("vaccins_obligatoires", True),
+            portail_inscriptions_affichage=donnees.get("portail_inscriptions_affichage", "TOUJOURS"),
+            portail_inscriptions_date_debut=donnees.get("portail_inscriptions_date_debut"),
+            portail_inscriptions_date_fin=donnees.get("portail_inscriptions_date_fin"),
+            portail_inscriptions_bloquer_si_complet=donnees.get("portail_inscriptions_bloquer_si_complet", False),
+            portail_inscriptions_imposer_pieces=donnees.get("portail_inscriptions_imposer_pieces", False),
+            visible=donnees.get("visible", True), actif=donnees.get("actif", True),
+            interne=donnees.get("interne", False), maitrise=donnees.get("maitrise", True),
+            pay_org_tpe=donnees.get("pay_org_tpe") or None, pay=donnees.get("pay") or None, pay_org=donnees.get("pay_org", False),
+        )
         donnees["activite"] = activite
 
         # Enregistrement des groupes d'activités
-        for groupe_activites in donnees["groupes_activites"]:
+        for groupe_activites in donnees.get("groupes_activites", []):
             activite.groupes_activites.add(groupe_activites)
 
         # Enregistrement de l'agrément
@@ -196,6 +277,10 @@ class Assistant_base(CustomView, SessionWizardView):
         # Enregistrement des pièces associées
         for piece in donnees.get("pieces", []):
             activite.pieces.add(piece)
+
+        # Association des documents portail déjà existants (formulaires et questionnaires s'appliquent automatiquement via la structure)
+        for document in donnees.get("documents", []):
+            document.activites.add(activite)
 
         # Enregistrement des cotisations associées
         for cotisation in donnees.get("cotisations", []):
@@ -240,6 +325,7 @@ class Assistant_base(CustomView, SessionWizardView):
 
 
 class Liste(CustomView, TemplateView):
+    menu_code = "activites_liste"
     template_name = "parametrage/activites_assistant_liste.html"
 
     def get_context_data(self, **kwargs):
@@ -247,12 +333,11 @@ class Liste(CustomView, TemplateView):
         context['page_titre'] = "Activités"
         context['box_titre'] = "Assistant de paramétrage"
         context['box_introduction'] = "Cliquez sur un assistant de paramétrage dans la liste ci-dessous."
-        context['menu_actif'] = "activites"
         context['liste_assistants'] = [
-            {"label": "Une activité culturelle ou sportive annuelle", "url": "activites_assistant_annuelle", "icone": "fa-soccer-ball-o", "description": "Assistant pour créer une activité annuelle: club de gym, danse, couture, etc..."},
-            {"label": "Un séjour", "url": "activites_assistant_sejour", "icone": "fa-hotel", "description": "Assistant pour créer un séjour, un camp, une colo..."},
-            {"label": "Un stage", "url": "activites_assistant_stage", "icone": "fa-music", "description": "Assistant pour créer un stage de théâtre, de danse, de guitare, etc..."},
-            {"label": "Une cantine", "url": "activites_assistant_cantine", "icone": "fa-cutlery", "description": "Assistant pour créer une cantine avec un ou plusieurs services."},
-            {"label": "Des sorties familiales", "url": "activites_assistant_sorties", "icone": "fa-bus", "description": "Assistant pour créer une activité de gestion de sorties familiales"},
+            {"label": "Un séjour", "url": "activites_assistant_sejour", "icone": "fa-hotel", "description": "Assistant pour créer un séjour, un camp, une colo...", "disponible": True},
+            {"label": "Une activité culturelle ou sportive annuelle", "url": "activites_assistant_annuelle", "icone": "fa-soccer-ball-o", "description": "Assistant pour créer une activité annuelle: club de gym, danse, couture, etc...", "disponible": False},
+            {"label": "Un stage", "url": "activites_assistant_stage", "icone": "fa-music", "description": "Assistant pour créer un stage de théâtre, de danse, de guitare, etc...", "disponible": False},
+            {"label": "Une cantine", "url": "activites_assistant_cantine", "icone": "fa-cutlery", "description": "Assistant pour créer une cantine avec un ou plusieurs services.", "disponible": False},
+            {"label": "Des sorties familiales", "url": "activites_assistant_sorties", "icone": "fa-bus", "description": "Assistant pour créer une activité de gestion de sorties familiales", "disponible": False},
         ]
         return context

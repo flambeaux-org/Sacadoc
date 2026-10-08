@@ -3,7 +3,6 @@
 #  Noethysweb, application de gestion multi-activités.
 #  Distribué sous licence GNU GPL.
 
-import datetime
 from django import forms
 from django.conf import settings
 from django.forms import ModelForm
@@ -11,6 +10,7 @@ from django.urls import reverse_lazy
 from core.forms.base import FormulaireBase
 from core.utils.utils_commandes import Commandes
 from core.models import Album, Photo
+from core.utils import utils_dates
 from core.widgets import DateTimePickerWidget
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, HTML, Fieldset
@@ -99,8 +99,10 @@ class Formulaire_importation(UploadForm):
                 date_creation = Image.open(settings.BASE_DIR + photo.fichier.url)._getexif()[36867]
             except:
                 date_creation = None
+            # Les EXIF peuvent contenir une date inexploitable ("0000:00:00 00:00:00" par exemple) : on l'ignore alors
+            date_creation = utils_dates.ConvertStrToDateTime(date_creation, formats=("%Y:%m:%d %H:%M:%S", "%Y:%m:%d"))
             if date_creation:
-                photo.date_creation = datetime.datetime.strptime(date_creation, "%Y:%m:%d %H:%M:%S")
+                photo.date_creation = date_creation
                 photo.save()
         return self.get_success_url(request)
 
