@@ -173,7 +173,6 @@ AUTH_PASSWORD_VALIDATORS = [
 LANGUAGE_CODE = 'fr'
 TIME_ZONE = 'Europe/Paris'
 USE_I18N = True
-USE_L10N = True
 USE_TZ = False
 DATE_FORMAT = "d/m/Y"
 TELEPHONE_FORMAT_FR = True
@@ -188,7 +187,12 @@ LOCALE_PATHS = (
 # URL publique pour accéder aux fichiers statiques
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 STATIC_URL = '/static/'
-STATICFILES_STORAGE = 'noethysweb.storage.ForgivingManifestStaticFilesStorage'
+STORAGES = {
+    **STORAGES,
+    "staticfiles": {
+        "BACKEND": 'noethysweb.storage.ForgivingManifestStaticFilesStorage',
+    },
+}
 
 # Media (uploads)
 MEDIA_URL = '/media/'

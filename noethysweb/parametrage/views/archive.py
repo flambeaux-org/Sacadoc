@@ -27,7 +27,7 @@ class ToggleArchiveView(View):
                 redirect_url = "structures_liste"
             else:
                 messages.error(request, "Type d'objet non défini.")
-                return redirect(request.META.get("HTTP_REFERER", "/"))
+                return redirect(request.headers.get("referer", "/"))
 
             # Exécute la procédure
             proc = self.procedure_class()
