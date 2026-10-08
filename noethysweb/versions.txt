@@ -1,3 +1,6 @@
+Version 1.3.5.6.88 (08/10/2026)
+- Crash à l'ouverture de la page Debug (Outils > Maintenance), désormais réservée aux utilisateurs ayant la permission
+
 Version 1.3.5.6.87 (08/10/2026)
 - Crash à l'envoi d'email express quand l'envoi échoue (signature manquante, serveur injoignable)
 
