@@ -22,10 +22,12 @@
 
     {% block styles %}
         {% include 'core/styles.html' %}
+        <link rel="stylesheet" href="{% static 'css/chatbot.css' %}">
     {% endblock %}
 
     {% block scripts %}
         {% include 'core/scripts.html' %}
+        <script src="{% static 'js/chatbot.js' %}"></script>
     {% endblock %}
 
     {% block extra_head %}
@@ -66,6 +68,9 @@
             {% include 'core/control-sidebar.html' %}
         {% endblock %}
 
+    
+    {% include 'core/chatbot.html' %}
+    
     </div>
 {% endblock body %}
 

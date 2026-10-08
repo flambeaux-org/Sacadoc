@@ -1,0 +1,39 @@
+{% load static %}
+
+<!-- Chatbot d'aide -->
+<div id="chatbot-container">
+    <!-- Bouton flottant -->
+    <button id="chatbot-toggle" aria-label="Ouvrir l'aide">
+        <span class="toggle-icon">
+            🤖
+        </span>
+        <span class="toggle-icon hidden">
+            ✕
+        </span>
+    </button>
+    
+    <!-- Fenêtre du chatbot -->
+    <div id="chatbot-window">
+        <!-- En-tête -->
+        <div id="chatbot-header">
+            <h3>
+                🤖 Assistant Sacadoc
+            </h3>
+            <button id="chatbot-minimize" aria-label="Réduire">
+                ─
+            </button>
+        </div>
+        
+        <!-- Corps avec messages et options -->
+        <div id="chatbot-body">
+            <!-- Les messages seront ajoutés dynamiquement par JavaScript -->
+        </div>
+        
+        <!-- Pied avec bouton reset -->
+        <div id="chatbot-footer">
+            <button id="chatbot-reset">
+                ↻ Recommencer
+            </button>
+        </div>
+    </div>
+</div>
