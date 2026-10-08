@@ -18,7 +18,7 @@ from django.urls import reverse, reverse_lazy
 
 from core.forms.login import FormLoginUtilisateur
 from core.models import Organisateur, Utilisateur
-from noethysweb.version import GetVersion
+from noethysweb.version import VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +30,7 @@ class ClassCommuneLogin:
         context["public"] = "utilisateur"
 
         # Version application
-        context["version_application"] = cache.get_or_set(
-            "version_application", GetVersion()
-        )
+        context["version_application"] = VERSION
 
         # Organisateur
         organisateur = cache.get("organisateur")

@@ -12,7 +12,7 @@ f.close()
 
 setup(
     name='noethysweb',
-    version=version.GetVersion(),
+    version=version.VERSION,
     packages=find_packages(
 		exclude=["*/settings_production.py",]
 		),
