@@ -1,7 +1,6 @@
-import re
 
 import pytest
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Page
 
 from core.models import Utilisateur, AdresseMail, Organisateur
 
