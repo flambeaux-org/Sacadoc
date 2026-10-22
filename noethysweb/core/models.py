@@ -18,6 +18,8 @@ from django.utils.translation import gettext_lazy as _
 from django_cryptography.fields import encrypt
 from django_resized import ResizedImageField
 from multiselectfield import MultiSelectField
+from django_otp.plugins.otp_totp.models import TOTPDevice
+
 
 from core.data import data_civilites
 from core.data.data_modeles_emails import CATEGORIES as CATEGORIES_MODELES_EMAILS
@@ -440,6 +442,20 @@ class Utilisateur(AbstractUser):
             if structure.configuration_sms and structure.configuration_sms_id not in liste_configurations_possibles:
                 liste_configurations_possibles.append(structure.configuration_sms_id)
         return liste_configurations_possibles
+
+    def requires_2fa(self):
+        """Vérifie si l'utilisateur doit utiliser la 2FA (super-admin ou directeur)"""
+        if self.categorie != "utilisateur":
+            return False
+        return self.is_superuser or self.structures_admin.exists()
+
+    def has_2fa_enabled(self):
+        """Vérifie si l'utilisateur a configuré la 2FA"""
+        return TOTPDevice.objects.filter(user=self, confirmed=True).exists()
+
+    def get_totp_device(self):
+        """Récupère le device TOTP de l'utilisateur"""
+        return TOTPDevice.objects.filter(user=self, confirmed=True).first()
 
 
 class Assureur(models.Model):

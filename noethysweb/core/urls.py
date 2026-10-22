@@ -4,7 +4,7 @@
 
 from django.urls import include, path
 from django.contrib.auth import views as auth_views
-from core.views import login, accueil, accueil_configuration, recherche, base, profil_configuration, profil_utilisateur, change_password_utilisateur, select_avec_commandes_advanced
+from core.views import login, accueil, accueil_configuration, recherche, base, profil_configuration, profil_utilisateur, change_password_utilisateur, select_avec_commandes_advanced, two_factor_auth
 from core.forms import filtre_liste
 from core.decorators import secure_ajax
 from core.utils import utils_graphique_individus
@@ -23,6 +23,12 @@ urlpatterns = [
     # Profil utilisateur
     path('core/profil', profil_utilisateur.View.as_view(), name='profil_utilisateur'),
     path('core/change_password_utilisateur', change_password_utilisateur.View.as_view(), name='change_password_utilisateur'),
+
+    # Two-Factor Authentication
+    path('core/2fa/setup', two_factor_auth.Setup2FAView.as_view(), name='2fa_setup'),
+    path('core/2fa/verify', two_factor_auth.Verify2FAView.as_view(), name='2fa_verify'),
+    path('core/2fa/backup-codes', two_factor_auth.BackupCodesView.as_view(), name='2fa_backup_codes'),
+    path('core/2fa/disable', two_factor_auth.Disable2FAView.as_view(), name='2fa_disable'),
 
     # AJAX
     path('core/filtre_liste', secure_ajax(filtre_liste.Get_form_filtres), name='ajax_get_form_filtre_liste'),
