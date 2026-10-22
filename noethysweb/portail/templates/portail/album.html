@@ -28,8 +28,8 @@
             <div class="d-flex flex-wrap">
                 {% for photo in photos %}
                     <div class="p-1">
-                        <a href="{{ photo.fichier.url }}" data-toggle="lightbox" data-title="{{ photo.titre|default:'Sans titre' }}" data-gallery="gallery">
-                            <img class="img-fluid img-thumbnail" style="max-height: 150px;" src="{{ photo.fichier.url }}">
+                        <a href="{% url 'serve_photo_document' photo.pk %}" data-toggle="lightbox" data-title="{{ photo.titre|default:'Sans titre' }}" data-gallery="gallery">
+                            <img class="img-fluid img-thumbnail" style="max-height: 150px;" src="{% url 'serve_photo_document' photo.pk %}">
                         </a>
                     </div>
                 {% empty %}
