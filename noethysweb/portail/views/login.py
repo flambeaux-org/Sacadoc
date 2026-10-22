@@ -10,7 +10,7 @@ from django.urls import reverse_lazy
 from django.core.cache import cache
 from django.templatetags.static import static
 from django.contrib.auth.models import update_last_login
-from noethysweb.version import GetVersion
+from noethysweb.version import VERSION
 from portail.forms.login import FormLoginFamille
 from core.models import Organisateur, ImageFond
 from core.utils import utils_portail, utils_historique
@@ -24,7 +24,7 @@ class ClassCommuneLogin:
         context['public'] = "famille"
 
         # Version application
-        context['version_application'] = cache.get_or_set('version_application', GetVersion())
+        context['version_application'] = VERSION
 
         # Organisateur
         organisateur = cache.get('organisateur')

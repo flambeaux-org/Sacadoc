@@ -7,7 +7,7 @@ import os, calendar, datetime, uuid
 from django.conf import settings
 from core.models import PesLot, PesPiece, Prestation, Organisateur, LISTE_MOIS
 from core.utils import utils_dates, utils_parametres, utils_texte
-from noethysweb.version import GetVersion
+from noethysweb.version import VERSION
 from xml.dom.minidom import Document
 
 
@@ -116,7 +116,7 @@ class Exporter():
         Emetteur.appendChild(Sigle)
 
         Adresse = doc.createElement("Adresse")
-        Adresse.setAttribute("V", "Noethysweb %s" % GetVersion())
+        Adresse.setAttribute("V", "Noethysweb %s" % VERSION)
         Emetteur.appendChild(Adresse)
 
         # EnTetePES
