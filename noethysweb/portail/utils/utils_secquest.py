@@ -44,6 +44,7 @@ def Check_secquest(famille=None, reponse=None):
     if famille.internet_secquest:
         champ, idrattachement = famille.internet_secquest.split("_")
         rattachement = Rattachement.objects.select_related("individu").get(pk=int(idrattachement))
-        if not rattachement.individu.date_naiss.strftime("%d/%m/%Y") == reponse:
+        date_naiss = rattachement.individu.date_naiss
+        if not date_naiss or date_naiss.strftime("%d/%m/%Y") != reponse:
             return False
     return True
