@@ -3,6 +3,7 @@
 #  Noethysweb, application de gestion multi-activités.
 #  Distribué sous licence GNU GPL.
 
+from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy, reverse
 from core.views import crud
 from core.models import Activite
@@ -24,7 +25,7 @@ class Consulter(Onglet, crud.Modifier):
         return context
 
     def get_object(self):
-        return Activite.objects.get(pk=self.kwargs['idactivite'])
+        return get_object_or_404(Activite, pk=self.kwargs['idactivite'])
 
 
 class Modifier(Consulter):

@@ -4,6 +4,7 @@
 #  Distribué sous licence GNU GPL.
 
 from copy import deepcopy
+from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy, reverse
 from django.contrib import messages
 from django.db.models import Q, Count
@@ -207,7 +208,7 @@ class Supprimer(Page, crud.Supprimer):
     manytomany_associes = [("article(s)", "article_activites")]
 
     def get_object(self):
-        return Activite.objects.get(pk=self.kwargs['idactivite'])
+        return get_object_or_404(Activite, pk=self.kwargs['idactivite'])
 
 
 class Onglet(CustomView):
@@ -239,7 +240,7 @@ class Onglet(CustomView):
         context = super(Onglet, self).get_context_data(**kwargs)
         context['page_titre'] = "Gestion des activités"
         context['liste_onglets'] = self.liste_onglets
-        context['activite'] = Activite.objects.get(pk=self.kwargs['idactivite'])
+        context['activite'] = get_object_or_404(Activite, pk=self.kwargs['idactivite'])
         return context
 
     def Get_idactivite(self):
@@ -261,7 +262,7 @@ class Resume(Onglet, DetailView):
         return context
 
     def get_object(self):
-        return Activite.objects.get(pk=self.kwargs['idactivite'])
+        return get_object_or_404(Activite, pk=self.kwargs['idactivite'])
 
 
 class Dupliquer(Page, crud.Dupliquer):
