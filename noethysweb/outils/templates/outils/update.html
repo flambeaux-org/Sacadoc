@@ -29,10 +29,9 @@
                         </div>
                     </form>
                 </p>
-                <p>
-                    <textarea id="id_changelog" name="changelog" rows="20" class="textarea form-control" readonly>{{ changelog }}</textarea>
-                </p>
             {% endif %}
+            <pre style="height: 400px; overflow: auto;" class="border bg-light mt-3"><code>{{ changelog }}
+...</code></pre>
 
         {% endblock %}
 
@@ -50,5 +49,3 @@
     </script>
 
 {% endblock %}
-
-

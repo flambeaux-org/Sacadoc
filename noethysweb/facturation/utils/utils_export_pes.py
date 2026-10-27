@@ -11,7 +11,7 @@ from io import BytesIO
 from django.conf import settings
 from core.models import PesLot, PesPiece, Organisateur
 from core.utils import utils_texte, utils_fichiers
-from noethysweb.version import GetVersion
+from noethysweb.version import VERSION
 
 
 def ConvertToTexte(valeur, majuscules=False):
@@ -118,7 +118,7 @@ class Exporter():
         Emetteur.appendChild(Sigle)
 
         Adresse = doc.createElement("Adresse")
-        Adresse.setAttribute("V", "Noethysweb %s" % GetVersion())
+        Adresse.setAttribute("V", "Noethysweb %s" % VERSION)
         Emetteur.appendChild(Adresse)
 
         # EnTetePES
