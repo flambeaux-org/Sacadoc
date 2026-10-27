@@ -1,0 +1,54 @@
+{% extends "core/base_login.html" %}
+{% load static %}
+
+{% block titre_contenu %}
+    Désactiver la 2FA
+{% endblock titre_contenu %}
+
+{% block contenu_page %}
+
+    <div class="alert alert-danger" style="margin-bottom: 20px;">
+        <i class="fa fa-exclamation-triangle"></i> <strong>Attention !</strong> Vous allez désactiver la double authentification.
+    </div>
+
+    <p style="font-size: 13px; color: #555;">La désactivation de la 2FA réduira la sécurité de votre compte.</p>
+    
+    <div style="margin: 20px 0; padding: 15px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+        <p style="font-weight: 500; color: #000; margin-bottom: 10px;">Conséquences :</p>
+        <ul style="font-size: 13px; color: #555; margin-bottom: 0; padding-left: 20px;">
+            <li>Votre appareil d'authentification sera désassocié</li>
+            <li>Tous vos codes de secours seront supprimés</li>
+            <li>Vous devrez reconfigurer la 2FA pour la réactiver</li>
+        </ul>
+    </div>
+
+    <form method="post" style="margin-top: 25px;">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="password" style="font-weight: 500; color: #000;">Confirmez avec votre mot de passe</label>
+            <input type="password" 
+                   class="form-control" 
+                   id="password" 
+                   name="password" 
+                   required 
+                   autofocus 
+                   placeholder="Entrez votre mot de passe">
+            <small class="form-text text-muted">Requis pour valider cette action</small>
+        </div>
+        
+        <button type="submit" class="btn btn-danger btn-block login-btn">
+            <i class="fa fa-power-off"></i> Désactiver la 2FA
+        </button>
+        
+        <a href="{% url 'accueil' %}" class="btn btn-default btn-block" style="margin-top: 10px;">
+            <i class="fa fa-times"></i> Annuler
+        </a>
+    </form>
+
+    <script>
+        $(document).ready(function() {
+            $('#password').focus();
+        });
+    </script>
+
+{% endblock contenu_page %}
