@@ -68,9 +68,12 @@ class Liste(Page_destinataires, TemplateView):
             ThroughModel.objects.bulk_create([ThroughModel(mail_id=mail.pk, destinataire_id=destinataire.pk) for destinataire in destinataires])
 
         # Suppression des destinataires
-        for adresse in liste_adresses_existantes:
-            if adresse not in liste_adresses:
-                destinataires = Destinataire.objects.filter(categorie="saisie_libre", adresse=adresse, mail=mail)
-                destinataires.delete()
+        # Le champ "adresse" est chiffré : impossible de le filtrer en base (lookup "exact" non supporté).
+        # On filtre donc en Python sur les destinataires du mail.
+        adresses_a_supprimer = set(liste_adresses_existantes) - set(liste_adresses)
+        if adresses_a_supprimer:
+            for destinataire in Destinataire.objects.filter(categorie="saisie_libre", mail=mail):
+                if destinataire.adresse in adresses_a_supprimer:
+                    destinataire.delete()
 
         return HttpResponseRedirect(reverse_lazy("editeur_emails", kwargs={'pk': mail.pk}))

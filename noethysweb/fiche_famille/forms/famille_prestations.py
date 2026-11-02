@@ -4,6 +4,7 @@
 #  Distribué sous licence GNU GPL.
 
 import datetime
+from django.db.models import Q, F
 from django import forms
 from django.forms import ModelForm
 from django.forms.models import inlineformset_factory, BaseInlineFormSet
@@ -23,6 +24,11 @@ from crispy_forms.layout import Layout
 from crispy_forms.bootstrap import Field
 
 
+def Get_label_type_deduction(type_deduction):
+    """ Met en avant les mouvements standard (sans structure), suggérés pour toutes les structures """
+    return "★ %s (Mouvement)" % type_deduction.nom if type_deduction.structure_id is None else type_deduction.nom
+
+
 class DeductionForm(forms.ModelForm):
     class Meta:
         model = Deduction
@@ -39,8 +45,9 @@ class DeductionForm(forms.ModelForm):
         if 'label' in self.fields:  # label = ForeignKey vers TypeDeduction
             qs = TypeDeduction.objects.all()
             if self.structure:
-                qs = qs.filter(structure__in=self.structure)
-            self.fields['label'].queryset = qs
+                qs = qs.filter(Q(structure__in=self.structure) | Q(structure__isnull=True))
+            self.fields['label'].queryset = qs.order_by(F("structure_id").asc(nulls_first=True), "nom")
+            self.fields['label'].label_from_instance = Get_label_type_deduction
             self.fields['label'].label = "Type de déduction"
     def clean(self):
         return self.cleaned_data
@@ -120,6 +127,7 @@ class Formulaire(FormulaireBase, ModelForm):
 
     def __init__(self, *args, **kwargs):
         idfamille = kwargs.pop("idfamille")
+        mode_ajout = kwargs.pop("mode_ajout", False)
         super(Formulaire, self).__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.form_id = 'famille_prestations_form'
@@ -128,6 +136,13 @@ class Formulaire(FormulaireBase, ModelForm):
         self.helper.form_class = 'form-horizontal'
         self.helper.label_class = 'col-md-2'
         self.helper.field_class = 'col-md-10'
+
+        if mode_ajout:
+            self.fields["categorie"].initial = "autre"
+            self.fields["categorie"].widget = forms.HiddenInput()
+
+        self.fields["facture"].widget = forms.HiddenInput()
+
 
         # Date
         if not self.instance.pk:
@@ -162,6 +177,7 @@ class Formulaire(FormulaireBase, ModelForm):
                 Field('categorie'),
                 Field('label'),
                 Field('individu'),
+                Field('facture'),
             ),
             Fieldset("Activité",
                 Field('activite'),
@@ -182,9 +198,7 @@ class Formulaire(FormulaireBase, ModelForm):
             #    Field('code_analytique'),
             #    Field('code_produit_local'),
             #),
-            Fieldset("Facturation",
-                Field('facture'),
-            ),
+
             #Fieldset("Consommations associées",
             #    Field('consommations'),
             #    id="fieldset_consommations",
@@ -207,6 +221,7 @@ class Formulaire(FormulaireBase, ModelForm):
 
     def clean(self):
         if not self.cleaned_data["activite"]:
+            self.add_error("activite", "Ce champ est obligatoire.")
             self.cleaned_data["categorie_tarif"] = None
         if not self.cleaned_data["categorie_tarif"]:
             self.cleaned_data["tarif"] = None
@@ -258,7 +273,11 @@ EXTRA_HTML = """
           <div class="col-sm-8">
             <select id="structure_type_deduction_modal"
                     class="form-control form-control-sm">
-              <option value="">---------</option>
+              {% if request.user.is_staff %}
+                  <option value="">Mouvement (toutes les structures)</option>
+              {% else %}
+                  <option value="">---------</option>
+              {% endif %}
               {% for structure in request.user.structures.all %}
                   <option value="{{ structure.pk }}">{{ structure }}</option>
               {% endfor %}
@@ -312,7 +331,8 @@ EXTRA_HTML = """
 
 
 <script>
-//type déduction 
+//type déduction
+var is_staff_type_deduction = {{ request.user.is_staff|yesno:"true,false" }};
 $(document).ready(function () {
 
     $('#saveTypeDeduction').click(function () {
@@ -327,7 +347,7 @@ $(document).ready(function () {
         let messageBox = $('#typeDeductionMessage');
         messageBox.addClass('d-none').removeClass('alert-success alert-danger');
 
-        if (!data.nom_type_deduction || !data.structure) {
+        if (!data.nom_type_deduction || (!data.structure && !is_staff_type_deduction)) {
             messageBox
                 .removeClass('d-none')
                 .addClass('alert alert-danger')
@@ -407,7 +427,7 @@ function On_change_activite() {
     if (idactivite == '') {
         $("#div_id_categorie_tarif").hide()
     } else {
-        $("#div_id_categorie_tarif").show()
+        $("#div_id_categorie_tarif").hide()
     }
     On_change_categorie_tarif();
 };

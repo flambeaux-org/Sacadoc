@@ -41,10 +41,12 @@ jobs:
 
       - name: Test with pytest
         working-directory: ./noethysweb
+        shell: bash
         run: |
           HEADLESS=1 pytest --junitxml=pytest.xml --cov-report=term-missing --cov=. | tee pytest-coverage.txt
 
       - name: Post Pytest Coverage Comment
+        if: github.event_name == 'pull_request'
         uses: MishaKav/pytest-coverage-comment@v1.7.2
         with:
           pytest-coverage-path: ./noethysweb/pytest-coverage.txt

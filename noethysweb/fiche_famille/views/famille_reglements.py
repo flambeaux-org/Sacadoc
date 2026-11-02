@@ -16,7 +16,15 @@ from core.utils import utils_dates, utils_texte
 from facturation.utils import utils_factures
 from fiche_famille.forms.famille_reglements import Formulaire
 from fiche_famille.views.famille import Onglet
+import datetime
+from django.utils import timezone
+from django.shortcuts import redirect
+from django.contrib import messages
 
+def Reglement_est_modifiable(reglement):
+    """ Retourne False si le règlement est lié à au moins une prestation d'une activité archivée (inactive) """
+    ids_prestations = Ventilation.objects.filter(reglement=reglement).values_list("prestation_id", flat=True)
+    return not Prestation.objects.filter(pk__in=ids_prestations, activite__actif=False).exists()
 
 def Get_ventilation(request):
     """ Renvoie une liste d'activités """
@@ -145,7 +153,8 @@ class Liste(Page, crud.Liste):
     template_name = "fiche_famille/famille_reglements.html"
 
     def get_queryset(self):
-        return Reglement.objects.select_related('mode', 'emetteur', 'payeur', 'depot').annotate(ventile=Sum("ventilation__montant")).filter(Q(famille__pk=self.Get_idfamille()) & self.Get_filtres("Q"))
+        limite_date = timezone.now().date() - datetime.timedelta(days=365)
+        return Reglement.objects.select_related('mode', 'emetteur', 'payeur', 'depot').annotate(ventile=Sum("ventilation__montant")).filter(Q(famille__pk=self.Get_idfamille()) & Q(date__gte=limite_date) & self.Get_filtres("Q"))
 
     def get_context_data(self, **kwargs):
         context = super(Liste, self).get_context_data(**kwargs)
@@ -199,11 +208,22 @@ class Liste(Page, crud.Liste):
 
             # Ajoute l'id de la ligne
             kwargs["pk"] = instance.pk
-            html = [
-                self.Create_bouton_modifier(url=reverse(view.url_modifier, kwargs=kwargs)),
-                self.Create_bouton_supprimer(url=reverse(view.url_supprimer, kwargs=kwargs)),
-                self.Create_bouton_imprimer(url=reverse("famille_recus_ajouter", kwargs={"idfamille": kwargs["idfamille"], "idreglement": instance.pk}), title="Editer un reçu"),
-            ]
+
+            html = []
+            if Reglement_est_modifiable(instance):
+                html.append(self.Create_bouton_modifier(url=reverse(view.url_modifier, kwargs=kwargs)))
+            else:
+                html.append(self.Create_bouton(
+                    url="#",
+                    title="Modification impossible : ce règlement est lié à une activité archivée",
+                    icone="fa-pencil",
+                    args="style=\"pointer-events:none; opacity:0.4;\" onclick=\"return false;\""
+                ))
+            html.append(self.Create_bouton_supprimer(url=reverse(view.url_supprimer, kwargs=kwargs)))
+            html.append(self.Create_bouton_imprimer(url=reverse("famille_recus_ajouter",
+                                                                kwargs={"idfamille": kwargs["idfamille"],
+                                                                        "idreglement": instance.pk}),
+                                                    title="Editer un reçu"))
             return self.Create_boutons_actions(html)
 
 
@@ -314,6 +334,13 @@ class Ajouter(ClasseCommune, crud.Ajouter):
 class Modifier(ClasseCommune, crud.Modifier):
     form_class = Formulaire
     template_name = "fiche_famille/famille_edit.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        reglement = Reglement.objects.get(pk=kwargs.get("pk"))
+        if not Reglement_est_modifiable(reglement):
+            messages.error(request, "Ce règlement est lié à une activité archivée et ne peut pas être modifié.")
+            return redirect(reverse(self.url_liste, kwargs={"idfamille": kwargs.get("idfamille")}))
+        return super().dispatch(request, *args, **kwargs)
 
 
 class Supprimer(Page, crud.Supprimer):

@@ -7,14 +7,83 @@ from django.shortcuts import redirect
 from django.contrib import messages
 from django.utils import timezone
 from django.views.generic import View as DjangoBaseView
-from portail.views.base import CustomView
+from django.core import mail as djangomail
+from django.core.mail import EmailMultiAlternatives
 from core.models import (
-    TokenHA, Prestation, HelloAssoConfig, ModeReglement,
-    CompteBancaire, Reglement, Ventilation, ComptaOperation,
-    ComptaVentilation, StripeCompte, Paiement
+    TokenHA, Prestation, HelloAssoConfig, CompteBancaire, Reglement, Ventilation, ComptaOperation,
+    ComptaVentilation, StripeCompte, Paiement, Organisateur, AdresseMail
 )
+from core.utils import utils_portail
+from noethysweb import settings
 
 logger = logging.getLogger(__name__)
+
+
+def envoyer_email_paiement_stripe(prestation, montant, session_id):
+    idadresse_exp = utils_portail.Get_parametre(code="connexion_adresse_exp")
+    adresse_exp = AdresseMail.objects.filter(pk=idadresse_exp, actif=True).first()
+    if not adresse_exp:
+        logger.warning("Email paiement Stripe : pas d'adresse d'expédition paramétrée.")
+        return
+
+    organisateur = Organisateur.objects.first()
+    if not organisateur or not organisateur.mail:
+        logger.warning("Email paiement Stripe : pas d'email organisateur configuré.")
+        return
+
+    backend = "django.core.mail.backends.console.EmailBackend"
+    backend_kwargs = {}
+
+    if not settings.DEBUG:
+        if adresse_exp.moteur == "smtp":
+            backend = "django.core.mail.backends.smtp.EmailBackend"
+            backend_kwargs = {
+                "host": adresse_exp.hote,
+                "port": adresse_exp.port,
+                "username": adresse_exp.utilisateur,
+                "password": adresse_exp.motdepasse,
+                "use_tls": adresse_exp.use_tls,
+            }
+        elif adresse_exp.moteur == "mailjet":
+            backend = "anymail.backends.mailjet.EmailBackend"
+            backend_kwargs = {
+                "api_key": adresse_exp.Get_parametre("api_key"),
+                "secret_key": adresse_exp.Get_parametre("api_secret"),
+            }
+        elif adresse_exp.moteur == "brevo":
+            backend = "anymail.backends.sendinblue.EmailBackend"
+            backend_kwargs = {"api_key": adresse_exp.Get_parametre("api_key")}
+
+    connection = djangomail.get_connection(backend=backend, fail_silently=False, **backend_kwargs)
+    try:
+        connection.open()
+    except Exception as err:
+        logger.error(f"Email paiement Stripe : connexion impossible au serveur de messagerie : {err}")
+        return
+
+    body = (
+        f"Un paiement Stripe a été reçu.\n\n"
+        f"Famille : {prestation.famille.nom}\n"
+        f"Prestation : {prestation.label}\n"
+        f"Montant : {montant} €\n"
+        f"Session Stripe : {session_id}\n"
+        f"Date : {timezone.now().strftime('%d/%m/%Y %H:%M')}\n"
+    )
+
+    message = EmailMultiAlternatives(
+        subject="Paiement Stripe reçu",
+        body=body,
+        from_email=adresse_exp.adresse,
+        to=[organisateur.mail],
+        connection=connection,
+    )
+
+    try:
+        message.send()
+    except Exception as err:
+        logger.error(f"Email paiement Stripe : erreur d'envoi : {err}")
+    finally:
+        connection.close()
 
 
 class View(DjangoBaseView):
@@ -130,6 +199,7 @@ class View(DjangoBaseView):
                     systeme = "STRIPE"
                     self.valider_paiement_final(prestation, montant, tag, session.id, compte, systeme)
                     messages.success(request, "Paiement Stripe validé !")
+                    envoyer_email_paiement_stripe(prestation, montant, session.id)
                 return redirect('portail_facturation')
         except Exception as e:
             logger.error(f"Erreur Stripe : {e}")

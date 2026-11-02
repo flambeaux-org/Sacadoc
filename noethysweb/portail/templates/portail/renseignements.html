@@ -153,20 +153,20 @@
                                 {% if rattachement.categorie == 3 %}{% blocktrans %}Fiche contact{% endblocktrans %}{% endif %}
                             </td>
                             <td class="project-state">
-                                {% if rattachement.categorie != 1 %}
                                 <small>
                                     <ul class="list-unstyled">
-                                        {% if rattachement.certification_date %}
-                                            <li class="text-success"><i class="fa fa-check margin-r-5"></i>{% blocktrans %}Fiche certifiée exacte le{% endblocktrans %} {{ rattachement.certification_date|date:'d/m/Y' }}</li>
-                                        {% else %}
-                                            <li class="text-danger"><i class="fa fa-remove margin-r-5"></i>{% blocktrans %}Fiche en attente de certification{% endblocktrans %}</li>
+                                        {% if rattachement.categorie != 1 %}
+                                            {% if rattachement.certification_date %}
+                                                <li class="text-success"><i class="fa fa-check margin-r-5"></i>{% blocktrans %}Fiche certifiée exacte le{% endblocktrans %} {{ rattachement.certification_date|date:'d/m/Y' }}</li>
+                                            {% else %}
+                                                <li class="text-danger"><i class="fa fa-remove margin-r-5"></i>{% blocktrans %}Fiche en attente de certification{% endblocktrans %}</li>
+                                            {% endif %}
                                         {% endif %}
                                         {% for renseignement in renseignements_manquants|get_item:rattachement.individu %}
                                             <li class="text-red"><i class="fa fa-remove margin-r-5"></i>{{ renseignement }}</li>
                                         {% endfor %}
                                     </ul>
                                 </small>
-                                {% endif %}
                             </td>
                             <td class="text-right">
                                 <a href="{% url 'portail_individu_identite' idrattachement=rattachement.pk %}" class="btn btn-sm btn-primary" title="{% trans "Ouvrir la fiche" %}">

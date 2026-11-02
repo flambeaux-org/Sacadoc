@@ -61,6 +61,33 @@
                 })
             };
 
+            // Générer le PDF + pièces
+            function generer_pdf_pieces() {
+                var box = bootbox.dialog({
+                        message: "<p class='text-center mb-0'><i class='fa fa-spin fa-cog'></i> <b>Génération du PDF en cours</b><br><br>Veuillez patienter...</p>",
+                        closeButton: false
+                    });
+                $.ajax({
+                    type: "POST",
+                    url: "{% url 'ajax_edition_renseignements_generer_pdf_pieces' %}",
+                    data: {
+                        form_options: JSON.stringify($("#form_parametres").serializeObject()),
+                        rattachements: JSON.stringify(get_coches()),
+                        csrfmiddlewaretoken: '{{ csrf_token }}',
+                    },
+                    datatype: "json",
+                    success: function(data){
+                        bootbox.hideAll();
+                        charge_pdf(data);
+                    },
+                    error: function(data) {
+                        bootbox.hideAll();
+                        toastr.error(data.responseJSON.erreur);
+                    }
+                })
+            };
+
+
         </script>
 
     </div>

@@ -74,7 +74,7 @@ class Ajouter(Page, crud.Ajouter):
     def Apres_form_valid(self, form=None, instance=None):
         # Mémorisation du renseignement
         if (instance.document.path.endswith('.pdf')):
-            add_watermark(instance.document, "Sacadoc | Movement des flambeaux")
+            add_watermark(instance.document, "Sacadoc | Mouvement des flambeaux")
         PortailRenseignement.objects.create(famille=self.request.user.famille, individu=instance.individu,
                                             categorie="famille_pieces", code="Nouvelle pièce", validation_auto=True,
                                             nouvelle_valeur=json.dumps(instance.Get_nom(), cls=DjangoJSONEncoder), idobjet=instance.pk)

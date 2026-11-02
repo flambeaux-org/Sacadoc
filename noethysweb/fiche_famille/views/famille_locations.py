@@ -20,11 +20,14 @@ def Get_tarif_location(request):
     idproduit = request.POST.get("idproduit")
     if not idproduit:
         return JsonResponse({"erreur": "Vous devez sélectionner un produit"}, status=401)
-    quantite = int(request.POST.get("quantite"))
     try:
-        date_debut = datetime.datetime.strptime(request.POST.get("date_debut"), "%d/%m/%Y %H:%M").date()
-    except:
+        quantite = int(request.POST.get("quantite"))
+    except (TypeError, ValueError):
+        return JsonResponse({"erreur": "La quantité semble erronée"}, status=401)
+    date_debut = utils_dates.ConvertDateTimeFRtoDateTime(request.POST.get("date_debut"))
+    if not date_debut:
         return JsonResponse({"erreur": "La date de début semble erronée"}, status=401)
+    date_debut = date_debut.date()
 
     # Importation du produit
     produit = Produit.objects.get(pk=int(idproduit))

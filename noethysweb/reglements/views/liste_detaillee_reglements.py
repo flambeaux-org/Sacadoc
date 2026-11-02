@@ -18,7 +18,7 @@ class View(CustomView, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super(View, self).get_context_data(**kwargs)
-        context['page_titre'] = "Liste détaillée des prestations"
+        context['page_titre'] = "Liste détaillée des règlements"
         context['form_parametres'] = Formulaire(request=self.request)
         return context
 

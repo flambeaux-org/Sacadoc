@@ -32,8 +32,9 @@ class Formulaire(FormulaireBase, forms.Form):
 
         self.helper.layout = Layout(
             Commandes(annuler_url="{% url 'individus_toc' %}", enregistrer=False, ajouter=False,
-                      commandes_principales=[HTML(
-                          """<a type='button' class="btn btn-primary margin-r-5" onclick="generer_pdf()" title="Génération du PDF"><i class='fa fa-file-pdf-o margin-r-5'></i>Générer le PDF</a>"""),
+                      commandes_principales=[
+                          HTML("""<a type='button' class="btn btn-primary margin-r-5" onclick="generer_pdf()" title="Génération du PDF"><i class='fa fa-file-pdf-o margin-r-5'></i>Générer le PDF<br>(uniquement la fiche)</a>"""),
+                          HTML("""<a type='button' class="btn btn-primary margin-r-5" onclick="generer_pdf_pieces()" title="Génération du PDF"><i class='fa fa-file-pdf-o margin-r-5'></i>Générer le PDF<br>(fiche + pièces)</a>"""),
                       ]),
             Fieldset("Options",
                 Field("afficher_signature"),

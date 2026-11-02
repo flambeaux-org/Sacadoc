@@ -296,7 +296,7 @@ class Liste(Page, crud.Liste):
     def get_context_data(self, **kwargs):
         context = super(Liste, self).get_context_data(**kwargs)
         context['page_titre'] = "Historique du portail"
-        context['box_titre'] = "Liste des modifications effectuées sur le portail"
+        context['box_titre'] = "Liste des inscriptions en attentes"
         context['afficher_menu_brothers'] = True
         context['afficher_renseignements_attente'] = self.afficher_renseignements_attente
         context['active_checkbox'] = True

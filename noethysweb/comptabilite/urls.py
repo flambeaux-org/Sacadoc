@@ -7,7 +7,7 @@ from django.urls import include, path
 from core.views import toc
 from core.decorators import secure_ajax
 from comptabilite.views import operations_tresorerie, operations_budgetaires, liste_comptes, liste_virements, suivi_budget, suivi_tresorerie, \
-                                rapprochements, rapprochements_selection, suivi_compta, edition_justifs, avances_regul, correction_compte
+                                rapprochements, rapprochements_selection, suivi_compta, edition_justifs, avances_regul, correction_compte, liste_ventilation
 
 
 urlpatterns = [
@@ -50,6 +50,7 @@ urlpatterns = [
 
     # Analyse
     path('comptabilite/suivi_budget', suivi_budget.View.as_view(), name='suivi_budget'),
+    path('comptabilite/liste_ventilation', liste_ventilation.View.as_view(), name='liste_ventilation'),
     path('comptabilite/suivi_compta', suivi_compta.View.as_view(), name='suivi_compta'),
     path('comptabilite/suivi_tresorerie', suivi_tresorerie.View.as_view(), name='suivi_tresorerie'),
     path('comptabilite/export_justifs', edition_justifs.View.as_view(), name='edition_justifs'),
@@ -72,5 +73,6 @@ urlpatterns = [
     path('comptabilite/operations_tresorerie/get_form_ventilation', secure_ajax(operations_tresorerie.Get_form_ventilation), name='ajax_operations_tresorerie_form_ventilation'),
     path('comptabilite/operations_tresorerie/generer_pdf', secure_ajax(edition_justifs.Generer_pdf), name='ajax_comptabilite_generer_pdf'),
     path('comptabilite/avances/regul/modification', secure_ajax(avances_regul.Exporter), name='exporter_avances'),
+    path('comptabilite/operations_budgetaires/pointage', secure_ajax(operations_tresorerie.Pointer_operation_ajax), name='Pointer_operation_ajax')
 
 ]

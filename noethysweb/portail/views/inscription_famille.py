@@ -76,6 +76,7 @@ class InscriptionFamilleView(ClassCommuneLogin, ContextMixin, View):
         individu.nom = self.form.cleaned_data["nom"]
         individu.prenom = self.form.cleaned_data["prenom"]
         individu.mail = self.form.cleaned_data["mail"]
+        individu.civilite = self.form.cleaned_data["civilite"]
         individu.save()
 
         utils_questionnaires.Creation_reponses(

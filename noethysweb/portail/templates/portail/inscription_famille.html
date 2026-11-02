@@ -8,7 +8,8 @@
 
 {% block contenu_page %}
     {% if inscription_ok %}
-        {% blocktrans %}Votre comtpe a bien été créé, vous allez recevoir un mail contenant votre identifiant.{% endblocktrans %}
+        {% blocktrans %}Votre compte a bien été créé, vous allez recevoir un mail contenant votre identifiant.{% endblocktrans %}<br>
+        <a href="{% url 'portail_connexion' %}" class="btn btn-primary mt-3">{% blocktrans %}Se connecter{% endblocktrans %}</a>
     {% elif mail_exists %}
         <p>{% blocktrans %}Un compte existe déjà avec cette adresse email.<br>
             Vous pouvez vous{% endblocktrans %}

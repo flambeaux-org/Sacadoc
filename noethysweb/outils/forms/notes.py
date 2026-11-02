@@ -18,7 +18,7 @@ import datetime
 class Formulaire(FormulaireBase, ModelForm):
     date_parution = forms.DateField(label="Date de parution", required=True, widget=DatePickerWidget())
     acces = forms.ChoiceField(label="Utilisateurs associés", initial="automatique", required=True, help_text="Sélectionnez les utilisateurs qui auront accès à cette note.", choices=[
-        (None, "-------"), ("moi", "Uniquement moi"),
+        ("", "-------"), ("moi", "Uniquement moi"),
         ("structure", "Les utilisateurs de la structure suivante"),
         ("tous", "Tous les utilisateurs"),
     ])
@@ -69,6 +69,7 @@ class Formulaire(FormulaireBase, ModelForm):
             options += [Field("afficher_accueil"),]
 
         # Accès publication
+        self.fields["structure"].required = False
         self.fields["structure"].empty_label = "-------"
         if self.instance.pk:
             if self.instance.utilisateur:
@@ -114,10 +115,9 @@ class Formulaire(FormulaireBase, ModelForm):
 EXTRA_HTML = """
 <script>
     function On_change_acces() {
-        $('#div_id_structure').hide();
-        if ($("#id_acces").val() == 'structure') {
-            $('#div_id_structure').show();
-        };
+        var show = $("#id_acces").val() == 'structure';
+        $('#div_id_structure').toggle(show);
+        $('#id_structure').prop('required', show);
     }
     $(document).ready(function() {
         $('#id_acces').on('change', On_change_acces);

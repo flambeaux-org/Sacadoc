@@ -66,24 +66,43 @@ $(document).ready(function() {
                     columns: ':visible'
                 },
                 customize: function ( win ) {
-                    $(win.document.body)
-                        .css( 'font-size', '7pt' )
-                        ;
+                    // 1. Style de base (ton code existant)
+                    $(win.document.body).css( 'font-size', '7pt' );
                     $(win.document.body).find( 'table' )
                         .css( 'font-size', 'inherit' )
                         .css( 'border-collapse', 'collapse' )
-                        .css( 'border', '1px solid black' )
-                    ;
+                        .css( 'border', '1px solid black' );
                     $(win.document.body).find('td').css( 'border', '1px solid black' );
-                    // $(win.document.body).find('th').css( 'border', '1px solid black' );
-                    // $(win.document.body).find('th').addClass('display').css('text-align', 'center');
-                    // $(win.document.body).find('table').addClass('display').css('text-align', 'center');
-                    // $(win.document.body).find('tr:nth-child(odd) td').each(function (index) {
-                    //     $(this).css('background-color', '#D0D0D0');
-                    // });
-                    $(win.document.body).find('h1').css('text-align','center');
-                    $(win.document.body).find('h1').css('font-size', '9pt');
+
+                    // Registre de présence only: replace checkboxes with printable marks
+                    if ($('.pointage-check').length > 0) {
+                        $(win.document.body).find('table tbody tr').each(function() {
+                            $(this).find('td').each(function() {
+                                var cellIndex = $(this).index();
+                                var rowIndex = $(this).parent().index();
+                                var originalCheckbox = $('.datatable tbody tr').eq(rowIndex).find('td').eq(cellIndex).find('input[type="checkbox"]');
+                                if (originalCheckbox.length > 0) {
+                                    if (originalCheckbox.is(':checked')) {
+                                        $(this).html('<b style="font-size:10pt;">[ X ]</b>');
+                                        $(this).css('background-color', '#EEE');
+                                    } else {
+                                        $(this).html(' [   ] ');
+                                    }
+                                    $(this).css('text-align', 'center');
+                                }
+                            });
+                        });
                     }
+
+                    // Centrage du titre
+                    $(win.document.body).find('h1').css({'text-align':'center', 'font-size':'9pt'});
+
+                    // 4. Forcer l'impression des fonds de couleur (pour certains navigateurs)
+                    $(win.document.body).css({
+                        '-webkit-print-color-adjust': 'exact',
+                        'print-color-adjust': 'exact'
+                    });
+                }
             },
             {
                 extend: 'collection',

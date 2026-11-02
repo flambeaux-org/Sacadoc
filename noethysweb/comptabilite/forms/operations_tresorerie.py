@@ -16,8 +16,6 @@ from core.utils import utils_preferences
 from core.models import ComptaOperation, ComptaTiers, ComptaVentilation, ComptaAnalytique, ComptaCategorie
 from core.widgets import DatePickerWidget, Select_avec_commandes_advanced
 from comptabilite.widgets import Ventilation_operation
-
-
 from django.forms.models import inlineformset_factory, BaseInlineFormSet
 from core.forms.select2 import Select2MultipleWidget
 from core.forms.base import FormulaireBase
@@ -141,25 +139,17 @@ class Formulaire(FormulaireBase, ModelForm):
                 if self.instance.num_piece:
                     self.fields["num_piece"].widget.attrs["readonly"] = True
             else:
-                # Création → auto-complétion
-                last = (
+                nums = (
                     ComptaOperation.objects
                     .filter(compte_id=idcompte, type="debit")
-                    .exclude(num_piece__isnull=True)
-                    .exclude(num_piece="")
-                    .order_by("-num_piece")
-                    .first()
+                    .values_list("num_piece", flat=True)
                 )
-
-                next_number = 1
-                if last and last.num_piece:
-                    try:
-                        next_number = int(last.num_piece) + 1
-                    except ValueError:
-                        pass
-
-                self.fields["num_piece"].initial = next_number
-                self.fields["num_piece"].widget.attrs["readonly"] = True  # le grise
+                max_num = max(
+                    (int(n.strip()) for n in nums if n and n.strip().isdigit()),
+                    default=0,
+                )
+                self.fields["num_piece"].initial = max_num + 1
+                self.fields["num_piece"].widget.attrs["readonly"] = True
 
         else:
             # Type recette → ne pas afficher le champ
@@ -228,6 +218,10 @@ class Formulaire(FormulaireBase, ModelForm):
                     Formset("formset_categories"),
                     style="margin-bottom:20px;"
                 ),
+            ),
+            Fieldset(
+                "Divers",
+                Field("observation"),
             ),
         )
 

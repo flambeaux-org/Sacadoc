@@ -138,8 +138,8 @@ class DateTimePickerWidget(Widget):
         date = data.get(name, None)
         if not date:
             return None
-        date = datetime.datetime.strptime(date, "%d/%m/%Y %H:%M")
-        return date
+        # Valeur non reconnue : on renvoie la chaîne brute pour laisser le champ générer une erreur de validation
+        return utils_dates.ConvertDateTimeFRtoDateTime(date) or date
 
 
 class ColorPickerWidget(Widget):

@@ -41,6 +41,9 @@ class Formulaire(FormulaireBase, ModelForm):
         self.helper.label_class = 'col-md-2'
         self.helper.field_class = 'col-md-10'
 
+        # Une pièce sans structure est un standard défini par l'organisateur, valable pour toutes les structures
+        self.fields['structure'].empty_label = "Organisateur (toutes les structures)"
+
         # Validité
         self.fields["validite_jours"].widget.attrs.update({"min": 0})
         self.fields["validite_mois"].widget.attrs.update({"min": 0})

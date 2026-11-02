@@ -30,7 +30,7 @@ class CategorieForm(FormulaireBase, forms.ModelForm):
 
         # Catégories
         condition_structure = Q(structure__in=self.request.user.structures.all()) | Q(structure__isnull=True)
-        self.fields["categorie"].queryset = ComptaCategorie.objects.filter(condition_structure).order_by("nom")
+        self.fields["categorie"].queryset = ComptaCategorie.objects.filter(condition_structure, orga=False).order_by("nom")
         self.fields["categorie"].label_from_instance = self.label_from_instance
 
         self.helper.layout = Layout(
