@@ -182,7 +182,7 @@ class View(CustomView, TemplateView):
             inscription.besoin_certification = False
             inscription.save()
 
-            rattachement = Rattachement.objects.filter(individu=inscription.individu).first()
+            rattachement = Rattachement.objects.filter(individu=inscription.individu, famille=self.request.user.famille).first()
             if rattachement:
                 rattachement.certification_date = datetime.datetime.now()
                 rattachement.save()
