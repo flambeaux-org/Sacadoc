@@ -5,6 +5,7 @@
 
 import json
 from django.urls import reverse_lazy
+from django.shortcuts import get_object_or_404
 from django.core.serializers.json import DjangoJSONEncoder
 from django.contrib import messages
 from django.http import HttpResponseRedirect
@@ -41,7 +42,8 @@ class Page(Onglet):
     def get_object(self):
         if not self.kwargs.get("idinformation"):
             return None
-        return Information.objects.get(pk=self.kwargs.get("idinformation"))
+        # Sécurité : uniquement les objets de l'individu du rattachement (même filtre que la liste)
+        return get_object_or_404(Information, pk=self.kwargs.get("idinformation"), individu=self.get_individu())
 
     def get_success_url(self):
         url = self.url_liste

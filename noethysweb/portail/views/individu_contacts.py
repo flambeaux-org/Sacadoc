@@ -5,6 +5,7 @@
 
 import json
 from django.urls import reverse_lazy
+from django.shortcuts import get_object_or_404
 from django.http import HttpResponseRedirect
 from django.views.generic import TemplateView
 from django.utils.translation import gettext_lazy as _
@@ -41,7 +42,8 @@ class Page(Onglet):
     def get_object(self):
         if not self.kwargs.get("idcontact"):
             return None
-        return ContactUrgence.objects.get(pk=self.kwargs.get("idcontact"))
+        # Sécurité : uniquement les objets de l'individu du rattachement (même filtre que la liste)
+        return get_object_or_404(ContactUrgence, pk=self.kwargs.get("idcontact"), individu=self.get_individu(), famille=self.get_rattachement().famille)
 
     def get_success_url(self):
         url = self.url_liste
@@ -125,16 +127,19 @@ class Importer(Page, TemplateView):
         liste_txt = form.cleaned_data.get("contacts", "")
         if liste_txt:
             liste_idcontact = liste_txt.split(";")
-            for contact in ContactUrgence.objects.filter(pk__in=[int(idcontact) for idcontact in liste_idcontact]):
+            # Sécurité : uniquement des fiches de la famille (même filtre que le formulaire d'import)
+            contacts = ContactUrgence.objects.filter(pk__in=[int(idcontact) for idcontact in liste_idcontact], famille=self.request.user.famille).exclude(individu=self.get_individu())
+            for contact in contacts:
                 contact.pk = None
                 contact.individu_id = self.get_individu().pk
+                contact.famille = self.request.user.famille
                 contact.save()
 
                 # Mémorisation du renseignement
                 PortailRenseignement.objects.create(famille=self.get_famille(), individu=self.get_individu(), categorie=self.categorie, code="Contact importé",
                                                     nouvelle_valeur=json.dumps(contact.Get_nom(), cls=DjangoJSONEncoder))
 
-            messages.add_message(self.request, messages.SUCCESS, _("%d contacts importés avec succès") % len(liste_idcontact))
+            messages.add_message(self.request, messages.SUCCESS, _("%d contacts importés avec succès") % len(contacts))
 
         else:
             messages.add_message(self.request, messages.INFO, _("Aucun contact importé"))
