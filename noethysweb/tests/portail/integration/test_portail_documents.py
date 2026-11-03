@@ -49,6 +49,29 @@ class TestTransmettrePiece:
         assert response.status_code == 302
         assert Piece.objects.filter(famille=famille, titre="Test document").exists()
 
+    def test_upload_ignores_posted_auteur_and_famille(
+        self, logged_client, famille_user, other_famille
+    ):
+        """The hidden auteur/famille inputs are never trusted."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        user, famille, _ratt = famille_user
+        user_b, famille_b, _ratt_b = other_famille
+        doc = SimpleUploadedFile("doc.png", b"\x89PNG\r\n", content_type="image/png")
+        logged_client.post(
+            reverse("portail_transmettre_piece"),
+            {
+                "selection_piece": 9999,
+                "titre": "Forged document",
+                "famille": famille_b.pk,
+                "auteur": user_b.pk,
+                "document": doc,
+            },
+        )
+        piece = Piece.objects.get(titre="Forged document")
+        assert piece.famille == famille
+        assert piece.auteur == user
+
 
 @pytest.mark.django_db
 class TestSupprimerPiece:
@@ -120,12 +143,6 @@ class TestSupprimerPiece:
 
 @pytest.mark.django_db
 class TestModifierPiece:
-    @pytest.mark.xfail(
-        reason="BUG #4: transmettre_piece.Modifier.get_queryset filters only by pk (no "
-        "famille) despite its 'sécurité' comment — family A can open/modify family B's "
-        "Piece via /documents/modifier/<pk>/. See TEST_PLAN.md.",
-        strict=True,
-    )
     def test_cannot_open_other_family_piece(self, logged_client, other_famille):
         _user_b, famille_b, _ratt_b = other_famille
         piece = PieceFactory(famille=famille_b)
@@ -143,12 +160,6 @@ class TestModifierPiece:
         )
         assert response.status_code == 200
 
-    @pytest.mark.xfail(
-        reason="BUG #7: documents.html / renseignements.html link the edit button with "
-        "{% url 'portail_documents_modifier' %}, a name now owned by the *staff* parametrage "
-        "route — the family's edit button points to a page they cannot access. See TEST_PLAN.md.",
-        strict=True,
-    )
     def test_documents_page_edit_link_targets_portail_route(
         self, logged_client, famille_user
     ):

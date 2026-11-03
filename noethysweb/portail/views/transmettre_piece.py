@@ -5,6 +5,7 @@
 
 import logging, json
 logger = logging.getLogger(__name__)
+from django.db.models import Q
 from django.urls import reverse_lazy
 from django.core.serializers.json import DjangoJSONEncoder
 from django.utils.translation import gettext_lazy as _
@@ -91,7 +92,11 @@ class Modifier(Page, crud.Modifier):
         Sécurité : l'utilisateur ne peut modifier
         que ses propres documents"""
 
+        famille = self.request.user.famille
+        # Même règle que la liste des pièces : pièces de la famille OU des individus rattachés
+        individus_famille = famille.rattachement_set.values_list("individu_id", flat=True)
         return Piece.objects.filter(
+            Q(famille=famille) | Q(individu__in=individus_famille),
             pk=self.kwargs["pk"],
         )
     def get_context_data(self, **kwargs):

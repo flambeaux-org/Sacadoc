@@ -106,7 +106,7 @@
                                 <td>{{ piece.type_piece.nom|default:piece.titre }}</td>
                                 <td>
                                     <a href="{{ MEDIA_URL }}{{ piece.document }}" class="btn btn-primary btn-xs bouton_telecharger" target="_blank" title="{% trans "Ouvrir le document" %}"><i class="fa fa-eye"></i> </a>
-                                    <a href="{% url 'portail_documents_modifier' piece.pk %}" class="btn btn-warning btn-xs" title="{% trans "Modifier le document" %}"> <i class="fa fa-pencil"></i> </a>
+                                    <a href="{% url 'portail_documents_parents_modifier' piece.pk %}" class="btn btn-warning btn-xs" title="{% trans "Modifier le document" %}"> <i class="fa fa-pencil"></i> </a>
                                     <form action="{% url 'supprimer_piece' pk=piece.pk %}" method="post" style="display: inline;" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cette pièce ?');">
                                         {% csrf_token %}
                                         <button type="submit" class="btn btn-danger btn-xs" title="{% trans "Supprimer le document" %}"><i class="fa fa-trash"></i></button>
