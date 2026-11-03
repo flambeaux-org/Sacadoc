@@ -130,12 +130,6 @@ class TestImprimerFacture:
         assert kwargs["dict_options"]["signataire"] == "x"
         assert kwargs["dict_options"]["modele"] == modele.modele_document
 
-    @pytest.mark.xfail(
-        reason="SECURITY BUG: portail/views/facturation.py:630 imprimer_facture never checks that the facture belongs to "
-        "request.user.famille (get_detail_facture does) -> any logged-in family can generate the PDF of any other "
-        "family's invoice by guessing IDs (IDOR). Fix: filter famille=request.user.famille.",
-        strict=True,
-    )
     def test_other_family_facture_is_not_printable(self, logged_client, other_famille):
         make_modele_impression(
             nom="Facture standard", options=self.options, categorie="facture"

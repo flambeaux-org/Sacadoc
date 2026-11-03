@@ -625,9 +625,9 @@ def imprimer_facture(request):
     """ Imprimer une facture au format PDF """
     idfacture = int(request.POST.get("idfacture", 0))
 
-    # Trouver la facture correspondante
+    # Trouver la facture correspondante (sécurité : uniquement une facture de la famille)
     try:
-        facture = Facture.objects.get(pk=idfacture)
+        facture = Facture.objects.get(pk=idfacture, famille=request.user.famille)
     except Facture.DoesNotExist:
         return JsonResponse({"error": "La facture spécifiée n'existe pas."}, status=400)
 
