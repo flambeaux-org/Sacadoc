@@ -576,11 +576,6 @@ class TestGetFormExtra:
         ).json()["form_html"]
         assert html.count("piece-item") == 2
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="BUG: Get_form_extra never checks that the posted individu belongs to the logged-in family "
-        "(IDOR): the first name of another family's child is rendered in the response.",
-    )
     def test_cross_family_individu_is_rejected(
         self, logged_client, graph, other_famille
     ):
@@ -879,11 +874,6 @@ class TestValidFormSuccess:
         )
         assert post_valid(logged_client, data).status_code == 200
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="BUG: Valid_form trusts the posted 'famille' field (hidden input) -> a family user can create "
-        "an inscription request on behalf of another family (and for another family's child).",
-    )
     def test_cannot_submit_for_another_family(
         self, logged_client, graph, other_famille
     ):
