@@ -384,11 +384,6 @@ class TestQuestionsPost:
         logged_client.post(self.url(s), {"question_%d" % q.pk: ""})
         assert not SondageRepondant.objects.filter(sondage=s, famille=famille).exists()
 
-    @pytest.mark.xfail(
-        reason="BUG: sondage.View_questions accepts any idindividu (Individu.objects.get(pk=...), no family check): "
-        "a family can record survey answers for another family's individual.",
-        strict=True,
-    )
     def test_cannot_answer_for_other_family_individual(
         self, logged_client, famille_user, other_famille
     ):

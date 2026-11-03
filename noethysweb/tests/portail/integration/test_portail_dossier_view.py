@@ -667,11 +667,6 @@ class TestPostQuestionnaire:
             == "RAS"
         )
 
-    @pytest.mark.xfail(
-        reason="BUG: completer_dossier.Post_questionnaire does not check that individu_pk belongs to the logged-in "
-        "family: any authenticated family can write questionnaire answers for another family's individual (IDOR).",
-        strict=True,
-    )
     def test_cannot_answer_for_individual_of_other_family(
         self, logged_client, dossier_complet, other_famille
     ):

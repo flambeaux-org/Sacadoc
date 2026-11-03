@@ -1,5 +1,6 @@
 from django.shortcuts import redirect
-from core.models import QuestionnaireReponse, QuestionnaireQuestion
+from django.contrib import messages
+from core.models import QuestionnaireReponse, QuestionnaireQuestion, Rattachement
 from portail.utils.utils_questionnaires_manquants import Get_questions_manquantes_famille
 from portail.views.base import CustomView
 from django.views.generic import TemplateView
@@ -91,10 +92,11 @@ class View(CustomView, TemplateView):
         question_pk = request.POST.get("question_pk")
         question_ctrl = request.POST.get("question_ctrl")
         valeur = request.POST.get("valeur")
-        print(individu_pk)
-        print(question_pk)
-        print(valeur)
-        print(question_ctrl)
+
+        # Sécurité : uniquement pour un individu rattaché à la famille
+        if not Rattachement.objects.filter(famille=request.user.famille, individu_id=individu_pk).exists():
+            messages.error(request, _("Vous ne pouvez pas répondre pour cet individu."))
+            return redirect("portail_questionnaires")
 
         reponse_valeur = valeur
         if question_ctrl in ("liste_deroulante", "liste_coches"):
@@ -107,8 +109,6 @@ class View(CustomView, TemplateView):
         elif question_ctrl == "liste_coches_ouinon":
             # Pour ce type, on prend directement la valeur envoyée
             reponse_valeur = valeur
-
-        print(reponse_valeur)
 
         #Crée la réponse
         try:
