@@ -94,11 +94,21 @@ class ActiviteFactory(DjangoModelFactory):
         model = "core.Activite"
 
     nom = factory.Sequence(lambda n: f"Activite {n}")
-    abrege = factory.Sequence(lambda n: f"Act{n}")
+    abrege = factory.Sequence(lambda n: f"ACT{n}")
     structure = factory.SubFactory(StructureFactory)
     visible = True
     portail_inscriptions_affichage = "TOUJOURS"
     portail_reservations_affichage = "TOUJOURS"
+
+
+class AgrementFactory(DjangoModelFactory):
+    class Meta:
+        model = "core.Agrement"
+
+    activite = factory.SubFactory(ActiviteFactory)
+    agrement = factory.Sequence(lambda n: f"AGR-{n}")
+    date_debut = datetime.date(2026, 1, 1)
+    date_fin = datetime.date(2026, 12, 31)
 
 
 class GroupeFactory(DjangoModelFactory):
