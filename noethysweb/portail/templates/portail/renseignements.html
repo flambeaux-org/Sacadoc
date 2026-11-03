@@ -233,11 +233,11 @@
                     {% for document in liste_documents %}
                         <div class="card mb-4" style="margin-top: 1px;">
                             <div class="card-body pl-3 pr-3 pt-3 pb-1" style="background-color: #f4f6f9">
-                                <h5 class="card-title"><a href="{{ document.fichier.url }}" target="_blank" title="{% trans "Télécharger le document" %}">{{ document.titre }}</a></h5>
+                                <h5 class="card-title"><a href="{{ document.url }}" target="_blank" title="{% trans "Télécharger le document" %}">{{ document.titre }}</a></h5>
                                 <div class="card-text link-muted mt-1"><small>{{ document.texte|default:"&nbsp;" }}</small></div>
                                 <span class="mailbox-attachment-size clearfix mt-1 mb-2">
                                     <span>{{ document.fichier.size|filesizeformat }} - {{ document.extension|upper }}</span>
-                                    <a href="{{ document.fichier.url }}" class="btn btn-default btn-sm float-right" target="_blank" title="{% trans "Télécharger le document" %}"><i class="fa fa-download"></i></a>
+                                    <a href="{{ document.url }}" class="btn btn-default btn-sm float-right" target="_blank" title="{% trans "Télécharger le document" %}"><i class="fa fa-download"></i></a>
                                 </span>
                             </div>
                         </div>
@@ -267,7 +267,7 @@
                                 <td>{{ piece.individu.prenom }}</td>
                                 <td>{{ piece.type_piece.nom|default:piece.titre }}</td>
                                 <td>
-                                    <a href="{{ MEDIA_URL }}{{ piece.document }}" class="btn btn-primary btn-xs bouton_telecharger" target="_blank" title="{% trans "Ouvrir le document" %}"><i class="fa fa-eye"></i> </a>
+                                    <a href="{% url 'serve_piece_document' piece.pk %}" class="btn btn-primary btn-xs bouton_telecharger" target="_blank" title="{% trans "Ouvrir le document" %}"><i class="fa fa-eye"></i> </a>
                                     <a href="{% url 'portail_documents_modifier' piece.pk %}" class="btn btn-warning btn-xs" title="{% trans "Modifier le document" %}"> <i class="fa fa-pencil"></i> </a>
                                     <form action="{% url 'supprimer_piece' pk=piece.pk %}" method="post" style="display: inline;" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cette pièce ?');">
                                         {% csrf_token %}
