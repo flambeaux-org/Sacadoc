@@ -52,11 +52,6 @@ class TestTransmettrePiece:
 
 @pytest.mark.django_db
 class TestSupprimerPiece:
-    @pytest.mark.xfail(
-        reason="BUG: supprimer_piece GET renders 'core/confirmation_suppression.html' "
-        "which does not exist -> TemplateDoesNotExist (500). See TEST_PLAN.md.",
-        strict=True,
-    )
     def test_confirmation_page_renders_for_owner(self, logged_client, famille_user):
         _user, famille, _ratt = famille_user
         piece = PieceFactory(famille=famille)
@@ -64,6 +59,42 @@ class TestSupprimerPiece:
             reverse("supprimer_piece", kwargs={"pk": piece.pk})
         )
         assert response.status_code == 200
+        assert "core/confirmation_suppression.html" in [
+            t.name for t in response.templates
+        ]
+        assert response.context["piece"] == piece
+        assert Piece.objects.filter(pk=piece.pk).exists()
+
+    def test_confirmation_page_redirects_other_family(
+        self, logged_client, other_famille
+    ):
+        _user_b, famille_b, _ratt_b = other_famille
+        piece = PieceFactory(famille=famille_b)
+        response = logged_client.get(
+            reverse("supprimer_piece", kwargs={"pk": piece.pk})
+        )
+        assert response.status_code == 302
+        assert response.url == reverse("portail_documents")
+
+    def test_can_delete_individual_piece_without_famille(
+        self, logged_client, famille_user
+    ):
+        # Pièces individuelles valide_rattachement : famille=None, liées à l'individu
+        _user, _famille, ratt = famille_user
+        piece = PieceFactory(famille=None, individu=ratt[1].individu)
+        response = logged_client.post(
+            reverse("supprimer_piece", kwargs={"pk": piece.pk})
+        )
+        assert response.status_code == 302
+        assert not Piece.objects.filter(pk=piece.pk).exists()
+
+    def test_cannot_delete_other_family_individual_piece(
+        self, logged_client, other_famille
+    ):
+        _user_b, _famille_b, ratt_b = other_famille
+        piece = PieceFactory(famille=None, individu=ratt_b[1].individu)
+        logged_client.post(reverse("supprimer_piece", kwargs={"pk": piece.pk}))
+        assert Piece.objects.filter(pk=piece.pk).exists()
 
     def test_owner_can_delete_own_piece(self, logged_client, famille_user):
         _user, famille, _ratt = famille_user
@@ -74,23 +105,12 @@ class TestSupprimerPiece:
         assert response.status_code == 302
         assert not Piece.objects.filter(pk=piece.pk).exists()
 
-    @pytest.mark.xfail(
-        reason="BUG: documents.supprimer_piece is a plain function view with no "
-        "login/ownership check — an anonymous user can delete any Piece by pk. "
-        "See TEST_PLAN.md.",
-        strict=True,
-    )
     def test_anonymous_cannot_delete_piece(self, client, famille_user):
         _user, famille, _ratt = famille_user
         piece = PieceFactory(famille=famille)
         client.post(reverse("supprimer_piece", kwargs={"pk": piece.pk}))
         assert Piece.objects.filter(pk=piece.pk).exists()
 
-    @pytest.mark.xfail(
-        reason="BUG: documents.supprimer_piece has no ownership check — family A can "
-        "delete family B's Piece by pk. See TEST_PLAN.md.",
-        strict=True,
-    )
     def test_cannot_delete_other_family_piece(self, logged_client, other_famille):
         _user_b, famille_b, _ratt_b = other_famille
         piece = PieceFactory(famille=famille_b)

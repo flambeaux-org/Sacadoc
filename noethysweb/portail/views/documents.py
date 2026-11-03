@@ -5,7 +5,7 @@
 
 import logging
 from django.db.models import Q
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import get_object_or_404, redirect
 from django.contrib import messages
 from django.utils.translation import gettext as _
 from django.views.generic import TemplateView
@@ -72,10 +72,33 @@ class View(CustomView, TemplateView):
 
         return context
 
+class ConfirmationSuppressionPiece(CustomView, TemplateView):
+    """ Page de confirmation avant la suppression d'une pièce """
+    menu_code = "portail_documents"
+    template_name = "core/confirmation_suppression.html"
+    piece = None
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_titre'] = _("Supprimer une pièce")
+        context['piece'] = self.piece
+        return context
+
+
 def supprimer_piece(request, pk):
+    if not request.user.is_authenticated:
+        messages.error(request, 'Vous devez être connecté pour supprimer une pièce.')
+        return redirect('portail_connexion')
     piece = get_object_or_404(Piece, pk=pk)
+    famille = getattr(request.user, 'famille', None)
+    # Même règle que la liste des pièces : pièces de la famille OU des individus rattachés
+    # (les pièces individuelles avec valide_rattachement n'ont pas de famille)
+    individus_famille = list(famille.rattachement_set.values_list('individu_id', flat=True)) if famille else []
+    if famille is None or (piece.famille_id != famille.pk and piece.individu_id not in individus_famille):
+        messages.error(request, 'Vous n\'avez pas la permission de supprimer cette pièce.')
+        return redirect('portail_documents')
     if request.method == 'POST':
         piece.delete()
         messages.success(request, 'La pièce a été supprimée avec succès.')
         return redirect('portail_documents')  # Redirigez vers la vue appropriée
-    return render(request, 'core/confirmation_suppression.html', {'piece': piece})
+    return ConfirmationSuppressionPiece.as_view(piece=piece)(request)

@@ -333,8 +333,9 @@ class TestSupprimerPieceDeadCode:
             View.supprimer_piece(request, 999999)
 
     @pytest.mark.xfail(
-        reason="BUG: renseignements.py:supprimer_piece renders 'core/confirmation_suppression.html' on GET but that "
-        "template does not exist (TemplateDoesNotExist). The function is also unrouted dead code with no ownership check.",
+        reason="BUG: renseignements.py:supprimer_piece renders 'core/confirmation_suppression.html' via a bare render() "
+        "without the portail context (options_interface, menu...) -> crash in base.html. The function is also unrouted "
+        "dead code (no self, nested in View) with no ownership check.",
         strict=True,
     )
     def test_get_renders_confirmation(self, famille_user, rf):
