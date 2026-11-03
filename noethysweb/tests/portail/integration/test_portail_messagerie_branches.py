@@ -296,25 +296,26 @@ class TestMessageriePost:
         assert "texte" in response.context["form"].errors
         assert not PortailMessage.objects.exists()
 
-    def test_missing_famille_is_invalid(self, logged_client, no_notification):
-        structure = StructureFactory()
-        response = logged_client.post(
-            messagerie_url(structure.pk), {"structure": structure.pk, "texte": "x"}
-        )
-        assert response.status_code == 200
-        assert "famille" in response.context["form"].errors
-
-    def test_unknown_structure_in_form_is_invalid(
+    def test_famille_comes_from_session_not_post(
         self, logged_client, famille_user, no_notification
     ):
         _u, famille, _r = famille_user
         structure = StructureFactory()
-        response = logged_client.post(
+        response = logged_client.post(messagerie_url(structure.pk), {"texte": "x"})
+        assert response.status_code == 302
+        assert PortailMessage.objects.get().famille == famille
+
+    def test_posted_structure_is_ignored(
+        self, logged_client, famille_user, no_notification
+    ):
+        _u, famille, _r = famille_user
+        structure = StructureFactory()
+        autre = StructureFactory()
+        logged_client.post(
             messagerie_url(structure.pk),
-            {"famille": famille.pk, "structure": 987654, "texte": "x"},
+            {"famille": famille.pk, "structure": autre.pk, "texte": "x"},
         )
-        assert response.status_code == 200
-        assert "structure" in response.context["form"].errors
+        assert PortailMessage.objects.get().structure == structure
 
     def test_anonymous_post_does_not_create_message(
         self, client, famille_user, no_notification
@@ -341,12 +342,6 @@ class TestMessageriePost:
         assert response.status_code == 403
         assert not PortailMessage.objects.exists()
 
-    @pytest.mark.xfail(
-        reason="BUG (cross-family write): the messagerie form takes the `famille` hidden field "
-        "from the POST body and never compares it with request.user.famille — a family can "
-        "post messages into another family's conversation by changing the hidden field.",
-        strict=True,
-    )
     def test_cannot_post_as_another_family(
         self, logged_client, other_famille, no_notification
     ):
