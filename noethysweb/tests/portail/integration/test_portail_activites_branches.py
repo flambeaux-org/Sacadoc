@@ -315,11 +315,11 @@ class TestAnnulationAjax:
         )
         assert PortailRenseignement.objects.filter(pk=d2.pk).exists()
 
-    def test_unknown_request_raises_does_not_exist(self, logged_client):
-        with pytest.raises(PortailRenseignement.DoesNotExist):
-            logged_client.post(
-                reverse(URL_CANCEL), {"iddemande": 999999, "etat": "x"}, **AJAX
-            )
+    def test_unknown_request_returns_404(self, logged_client):
+        response = logged_client.post(
+            reverse(URL_CANCEL), {"iddemande": 999999, "etat": "x"}, **AJAX
+        )
+        assert response.status_code == 404
 
     def test_non_numeric_id_raises_value_error(self, logged_client):
         with pytest.raises(ValueError):
@@ -333,11 +333,6 @@ class TestAnnulationAjax:
         with pytest.raises(MultiValueDictKeyError):
             logged_client.post(reverse(URL_CANCEL), {}, **AJAX)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="BUG: Appliquer_modification (portail/views/activites.py) deletes any PortailRenseignement by id "
-        "without checking it belongs to the logged-in family (IDOR) nor that it is a pending inscription request.",
-    )
     def test_cannot_delete_other_family_request(self, logged_client, other_famille):
         _u, famille_b, ratt_b = other_famille
         d = make_demande(famille_b, ratt_b[1].individu, json.dumps("1;1;[]"))
@@ -346,11 +341,6 @@ class TestAnnulationAjax:
         )
         assert PortailRenseignement.objects.filter(pk=d.pk).exists()
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="BUG: Appliquer_modification deletes already processed requests (etat != ATTENTE) too, "
-        "erasing the history; the 'etat' parameter is read but ignored.",
-    )
     def test_cannot_delete_processed_request(self, logged_client, famille_user):
         _u, famille, ratt = famille_user
         d = make_demande(famille, ratt[1].individu, json.dumps("1;1;[]"), etat="VALIDE")
