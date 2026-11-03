@@ -537,11 +537,6 @@ class TestSoldeFamille:
 
 @pytest.mark.django_db
 class TestBug6ReturnContext:
-    @pytest.mark.xfail(
-        reason="BUG: portail/views/facturation.py:851 `return context` is indented inside "
-        "`if facturation_afficher_solde_famille:`; default False -> get_context_data returns None -> 500.",
-        strict=True,
-    )
     def test_default_parameter_page_renders_with_facture(
         self, logged_client, famille_user
     ):

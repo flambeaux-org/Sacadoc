@@ -848,4 +848,4 @@ class View(CustomView, TemplateView):
             context["liste_activites_soldes"] = liste_activites_ordonnee
             context["solde_famille"] = solde_global
 
-            return context
+        return context
