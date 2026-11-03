@@ -1,5 +1,5 @@
 name: Set up test environment
-description: Install Python, system packages, Python dependencies and (optionally) Playwright browsers, then run migrations.
+description: Install Python, system packages, Python dependencies and (optionally) Playwright browsers.
 
 inputs:
   playwright:
@@ -31,8 +31,3 @@ runs:
       if: inputs.playwright == 'true'
       shell: bash
       run: python -m playwright install --with-deps
-
-    - name: Run migrations
-      shell: bash
-      working-directory: ./noethysweb
-      run: python manage.py migrate

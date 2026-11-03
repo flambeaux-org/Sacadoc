@@ -54,6 +54,25 @@ jobs:
               - ".github/workflows/tests.yml"
               - ".github/actions/setup-tests/**"
 
+  migrations:
+    name: Migrations
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-tests
+
+      # The tests build their schema from the models (--nomigrations), so this
+      # job is what proves the migrations themselves still apply.
+      - name: Check every model change has a migration
+        working-directory: ./noethysweb
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Apply all migrations on a fresh SQLite database
+        working-directory: ./noethysweb
+        run: python manage.py migrate --noinput
+
   core:
     name: Tests (excluding portail)
     runs-on: ubuntu-latest
@@ -70,7 +89,7 @@ jobs:
         env:
           HEADLESS: "1"
           COVERAGE_FILE: .coverage.core
-        run: pytest --ignore=tests/portail --junitxml=pytest-core.xml --cov=. --cov-report=
+        run: pytest --create-db --ignore=tests/portail --junitxml=pytest-core.xml --cov=. --cov-report=
 
       - name: Upload results
         if: ${{ !cancelled() }}
@@ -99,7 +118,7 @@ jobs:
         env:
           COVERAGE_FILE: .coverage.portail
         run: >-
-          pytest tests/portail
+          pytest --create-db tests/portail
           --ignore=tests/portail/e2e
           --ignore=tests/portail/test_signin.py
           --junitxml=pytest-portail.xml --cov=. --cov-report=
@@ -134,7 +153,7 @@ jobs:
           HEADLESS: "1"
           COVERAGE_FILE: .coverage.portail-e2e
         run: >-
-          pytest tests/portail/e2e tests/portail/test_signin.py
+          pytest --create-db tests/portail/e2e tests/portail/test_signin.py
           --junitxml=pytest-portail-e2e.xml --cov=. --cov-report=
 
       - name: Upload results
