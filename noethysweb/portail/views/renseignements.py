@@ -4,7 +4,6 @@
 #  Distribué sous licence GNU GPL.
 import logging
 from django.db.models import Q
-from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib import messages
 from django.utils.translation import gettext as _
 from django.views.generic import TemplateView
@@ -26,7 +25,6 @@ from core.models import Consentement, Rattachement, Inscription, Famille, Inform
 from individus.utils import utils_vaccinations, utils_assurances
 from portail.views.base import CustomView
 from portail.forms.approbations import Formulaire
-from django.shortcuts import render
 
 
 
@@ -154,12 +152,3 @@ class View(CustomView, crud.Modifier):
         else:
             messages.add_message(self.request, messages.SUCCESS, _("Les %d approbations cochées ont bien été enregistrées") % nbre_coches)
         return HttpResponseRedirect(self.get_success_url())
-
-
-    def supprimer_piece(request, pk):
-        piece = get_object_or_404(Piece, pk=pk)
-        if request.method == 'POST':
-            piece.delete()
-            messages.success(request, 'La pièce a été supprimée avec succès.')
-            return redirect('portail_renseignements')  # Redirigez vers la vue appropriée
-        return render(request, 'core/confirmation_suppression.html', {'piece': piece})
