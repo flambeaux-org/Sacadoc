@@ -3,9 +3,8 @@
 import base64
 
 import pytest
-from playwright.sync_api import Page, expect
-
 from core.models import Piece
+from playwright.sync_api import Page, expect
 
 # 1x1 transparent PNG.
 PNG_BYTES = base64.b64decode(

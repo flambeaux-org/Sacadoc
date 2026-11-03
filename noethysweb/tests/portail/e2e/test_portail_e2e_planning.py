@@ -8,9 +8,8 @@ the grille JS internals — that interaction is left deferred (see TEST_PLAN.md)
 import datetime
 
 import pytest
-from playwright.sync_api import Page, expect
-
 from core.models import PortailPeriode
+from playwright.sync_api import Page, expect
 from tests.unit.factories import ActiviteFactory, InscriptionFactory
 
 
@@ -32,9 +31,12 @@ def test_planning_grid_renders(auto_login_user, famille_user, live_server, page:
         famille=famille, individu=enfant, activite=activite, internet_reservations=True
     )
     periode = PortailPeriode.objects.create(
-        activite=activite, nom="Période E2E",
-        date_debut=datetime.date(2024, 1, 1), date_fin=datetime.date(2030, 12, 31),
-        affichage="TOUJOURS", type_date="TOUTES",
+        activite=activite,
+        nom="Période E2E",
+        date_debut=datetime.date(2024, 1, 1),
+        date_fin=datetime.date(2030, 12, 31),
+        affichage="TOUJOURS",
+        type_date="TOUTES",
     )
 
     page = auto_login_user(user)

@@ -6,7 +6,6 @@ Covers the cascading endpoints used by the inscription form:
 
 import pytest
 from django.urls import reverse
-
 from tests.unit.factories import ActiviteFactory, GroupeFactory, StructureFactory
 
 AJAX = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}

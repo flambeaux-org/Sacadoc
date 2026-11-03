@@ -1,9 +1,8 @@
 """E2E: a family posts a message to a structure (summernote editor)."""
 
 import pytest
-from playwright.sync_api import Page
-
 from core.models import PortailMessage
+from playwright.sync_api import Page
 from tests.unit.factories import StructureFactory
 
 

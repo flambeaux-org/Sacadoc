@@ -7,10 +7,9 @@ which also enforce the cross-family ownership check.
 import datetime
 
 import pytest
+from core.models import ContactUrgence
 from django.db.models.fields.files import FieldFile
 from django.urls import reverse
-
-from core.models import ContactUrgence
 
 
 def build_form_data(form, **overrides):
@@ -29,12 +28,18 @@ class TestContactsCrud:
     def test_add_contact(self, logged_client, famille_user):
         _user, famille, ratt = famille_user
         enfant = ratt[1].individu
-        url = reverse("portail_individu_contacts_ajouter", kwargs={"idrattachement": ratt[1].pk})
+        url = reverse(
+            "portail_individu_contacts_ajouter", kwargs={"idrattachement": ratt[1].pk}
+        )
 
         form = logged_client.get(url).context["form"]
         data = build_form_data(
-            form, nom="Mamie", prenom="Jeanne", lien="Grand-mère",
-            famille=famille.pk, individu=enfant.pk,
+            form,
+            nom="Mamie",
+            prenom="Jeanne",
+            lien="Grand-mère",
+            famille=famille.pk,
+            individu=enfant.pk,
         )
         response = logged_client.post(url, data)
 
@@ -61,7 +66,11 @@ class TestContactsCrud:
         _user, famille, ratt = famille_user
         enfant = ratt[1].individu
         contact = ContactUrgence.objects.create(
-            individu=enfant, famille=famille, nom="Original", prenom="Contact", lien="Oncle"
+            individu=enfant,
+            famille=famille,
+            nom="Original",
+            prenom="Contact",
+            lien="Oncle",
         )
         url = reverse(
             "portail_individu_contacts_modifier",
@@ -73,7 +82,11 @@ class TestContactsCrud:
         _user, famille, ratt = famille_user
         enfant = ratt[1].individu
         contact = ContactUrgence.objects.create(
-            individu=enfant, famille=famille, nom="AncienNom", prenom="Contact", lien="Oncle"
+            individu=enfant,
+            famille=famille,
+            nom="AncienNom",
+            prenom="Contact",
+            lien="Oncle",
         )
         url = reverse(
             "portail_individu_contacts_modifier",
@@ -104,7 +117,9 @@ class TestVaccinationCrud:
 
         _user, _famille, ratt = famille_user
         tv = TypeVaccin.objects.create(nom="BCG")
-        vaccin = Vaccin.objects.create(individu=ratt[1].individu, type_vaccin=tv, date=datetime.date(2020, 6, 1))
+        vaccin = Vaccin.objects.create(
+            individu=ratt[1].individu, type_vaccin=tv, date=datetime.date(2020, 6, 1)
+        )
         url = reverse(
             "portail_individu_vaccinations_modifier",
             kwargs={"idrattachement": ratt[1].pk, "idvaccin": vaccin.pk},
@@ -116,12 +131,16 @@ class TestVaccinationCrud:
 
         _user, _famille, ratt = famille_user
         tv = TypeVaccin.objects.create(nom="BCG")
-        vaccin = Vaccin.objects.create(individu=ratt[1].individu, type_vaccin=tv, date=datetime.date(2020, 6, 1))
+        vaccin = Vaccin.objects.create(
+            individu=ratt[1].individu, type_vaccin=tv, date=datetime.date(2020, 6, 1)
+        )
         url = reverse(
             "portail_individu_vaccinations_modifier",
             kwargs={"idrattachement": ratt[1].pk, "idvaccin": vaccin.pk},
         )
-        data = build_form_data(logged_client.get(url).context["form"], date="2021-09-01")
+        data = build_form_data(
+            logged_client.get(url).context["form"], date="2021-09-01"
+        )
         assert logged_client.post(url, data).status_code == 302
         assert Vaccin.objects.get(pk=vaccin.pk).date == datetime.date(2021, 9, 1)
 
@@ -130,7 +149,9 @@ class TestVaccinationCrud:
 
         _user, _famille, ratt = famille_user
         tv = TypeVaccin.objects.create(nom="BCG")
-        vaccin = Vaccin.objects.create(individu=ratt[1].individu, type_vaccin=tv, date=datetime.date(2020, 6, 1))
+        vaccin = Vaccin.objects.create(
+            individu=ratt[1].individu, type_vaccin=tv, date=datetime.date(2020, 6, 1)
+        )
         url = reverse(
             "portail_individu_vaccinations_supprimer",
             kwargs={"idrattachement": ratt[1].pk, "idvaccin": vaccin.pk},
@@ -151,7 +172,9 @@ class TestInformationCrud:
 
         _user, _famille, ratt = famille_user
         cat = CategorieInformation.objects.create(nom="Allergie")
-        info = Information.objects.create(individu=ratt[1].individu, categorie=cat, intitule="Original")
+        info = Information.objects.create(
+            individu=ratt[1].individu, categorie=cat, intitule="Original"
+        )
         url = reverse(
             "portail_individu_informations_modifier",
             kwargs={"idrattachement": ratt[1].pk, "idinformation": info.pk},
@@ -163,12 +186,16 @@ class TestInformationCrud:
 
         _user, _famille, ratt = famille_user
         cat = CategorieInformation.objects.create(nom="Allergie")
-        info = Information.objects.create(individu=ratt[1].individu, categorie=cat, intitule="Ancien intitulé")
+        info = Information.objects.create(
+            individu=ratt[1].individu, categorie=cat, intitule="Ancien intitulé"
+        )
         url = reverse(
             "portail_individu_informations_modifier",
             kwargs={"idrattachement": ratt[1].pk, "idinformation": info.pk},
         )
-        data = build_form_data(logged_client.get(url).context["form"], intitule="Nouvel intitulé")
+        data = build_form_data(
+            logged_client.get(url).context["form"], intitule="Nouvel intitulé"
+        )
         assert logged_client.post(url, data).status_code == 302
         assert Information.objects.get(pk=info.pk).intitule == "Nouvel intitulé"
 
@@ -177,7 +204,9 @@ class TestInformationCrud:
 
         _user, _famille, ratt = famille_user
         cat = CategorieInformation.objects.create(nom="Allergie")
-        info = Information.objects.create(individu=ratt[1].individu, categorie=cat, intitule="ASupprimer")
+        info = Information.objects.create(
+            individu=ratt[1].individu, categorie=cat, intitule="ASupprimer"
+        )
         url = reverse(
             "portail_individu_informations_supprimer",
             kwargs={"idrattachement": ratt[1].pk, "idinformation": info.pk},
@@ -194,7 +223,7 @@ class TestInformationCrud:
 @pytest.mark.django_db
 class TestAssuranceCrud:
     def _make_assurance(self, famille_user):
-        from core.models import Assureur, Assurance
+        from core.models import Assurance, Assureur
 
         _user, famille, ratt = famille_user
         assureur = Assureur.objects.create(nom="AXA")
@@ -223,7 +252,9 @@ class TestAssuranceCrud:
             "portail_individu_assurances_modifier",
             kwargs={"idrattachement": ratt[1].pk, "idassurance": assurance.pk},
         )
-        data = build_form_data(logged_client.get(url).context["form"], num_contrat="CONTRAT-999")
+        data = build_form_data(
+            logged_client.get(url).context["form"], num_contrat="CONTRAT-999"
+        )
         assert logged_client.post(url, data).status_code == 302
         assert Assurance.objects.get(pk=assurance.pk).num_contrat == "CONTRAT-999"
 

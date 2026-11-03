@@ -1,14 +1,13 @@
 """Tests for the survey (sondage) flow: intro -> questions -> conclusion."""
 
 import pytest
-from django.urls import reverse
-
 from core.models import (
     SondagePage,
     SondageQuestion,
     SondageRepondant,
     SondageReponse,
 )
+from django.urls import reverse
 from tests.unit.factories import SondageFactory
 
 

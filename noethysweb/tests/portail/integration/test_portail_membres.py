@@ -1,9 +1,8 @@
 """Tests for adding family members (child / parent) from the portal."""
 
 import pytest
-from django.urls import reverse
-
 from core.models import Individu, Rattachement
+from django.urls import reverse
 
 
 @pytest.mark.django_db

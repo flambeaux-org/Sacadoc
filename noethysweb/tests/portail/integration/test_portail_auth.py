@@ -38,10 +38,13 @@ class TestProfil:
     def test_profil_password_change_post(self, logged_client):
         """POST with new passwords redirects to profil on success."""
         url = reverse("portail_profil_password_change")
-        response = logged_client.post(url, {
-            "new_password1": "NewSecure_Pass123!",
-            "new_password2": "NewSecure_Pass123!",
-        })
+        response = logged_client.post(
+            url,
+            {
+                "new_password1": "NewSecure_Pass123!",
+                "new_password2": "NewSecure_Pass123!",
+            },
+        )
         assert response.status_code == 302
 
 
@@ -56,11 +59,14 @@ class TestPasswordChange:
 
         user, _famille, _ratt = famille_user
         url = reverse("password_change")
-        response = logged_client.post(url, {
-            "new_password1": "NewSecure_Pass123!",
-            "new_password2": "NewSecure_Pass123!",
-            "check_conditions": True,
-        })
+        response = logged_client.post(
+            url,
+            {
+                "new_password1": "NewSecure_Pass123!",
+                "new_password2": "NewSecure_Pass123!",
+                "check_conditions": True,
+            },
+        )
         assert response.status_code == 302
         user.refresh_from_db()
         assert check_password("NewSecure_Pass123!", user.password)
@@ -73,7 +79,6 @@ class TestPasswordResetConfirm:
         from django.contrib.auth.tokens import default_token_generator
         from django.utils.encoding import force_bytes
         from django.utils.http import urlsafe_base64_encode
-
         from tests.unit.factories import FamilleFactory, FamilleUtilisateurFactory
 
         user = FamilleUtilisateurFactory()
@@ -93,7 +98,9 @@ class TestFamilleParent:
 
         _user, famille, _ratt = famille_user
         url = reverse("famille_parent")
-        response = logged_client.post(url, {"prenom": "NouveauParent", "nom": "Dupont", "civilite": 1})
+        response = logged_client.post(
+            url, {"prenom": "NouveauParent", "nom": "Dupont", "civilite": 1}
+        )
         assert response.status_code == 302
         assert Rattachement.objects.filter(
             famille=famille, individu__prenom="NouveauParent"

@@ -1,7 +1,6 @@
 """Integration tests for the portail dashboard (accueil)."""
 
 import pytest
-
 from core.models import PortailMessage
 
 
@@ -17,13 +16,18 @@ class TestAccueil:
         assert response.status_code == 200
         assert "portail/accueil.html" in [t.name for t in response.templates]
 
-    def test_accueil_counts_unread_messages(self, logged_client, famille_user, staff_user):
+    def test_accueil_counts_unread_messages(
+        self, logged_client, famille_user, staff_user
+    ):
         _user, famille, _ratt = famille_user
         from tests.unit.factories import StructureFactory
 
         structure = StructureFactory()
         PortailMessage.objects.create(
-            famille=famille, structure=structure, utilisateur=staff_user, texte="Bonjour"
+            famille=famille,
+            structure=structure,
+            utilisateur=staff_user,
+            texte="Bonjour",
         )
         response = logged_client.get("/")
         assert response.status_code == 200

@@ -112,7 +112,9 @@ def test_ajouter_medecin_creates_medecin(logged_client, famille_user):
 
     from core.models import Medecin
 
-    valeurs = json.dumps({"nom": "Dupont", "prenom": "", "rue_resid": "", "ville_resid": ""})
+    valeurs = json.dumps(
+        {"nom": "Dupont", "prenom": "", "rue_resid": "", "ville_resid": ""}
+    )
     response = logged_client.post(
         reverse("portail_ajax_ajouter_medecin"), {"valeurs": valeurs}, **AJAX
     )

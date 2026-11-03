@@ -7,7 +7,6 @@ populates the activity dropdown via AJAX (get_activites_par_structure).
 
 import pytest
 from playwright.sync_api import Page, expect
-
 from tests.unit.factories import ActiviteFactory, GroupeFactory, StructureFactory
 
 

@@ -99,7 +99,9 @@ def test_identite_modifier_saves_change(logged_client, famille_user):
 
     _user, _famille, ratt = famille_user
     enfant = ratt[1].individu
-    url = reverse("portail_individu_identite_modifier", kwargs={"idrattachement": ratt[1].pk})
+    url = reverse(
+        "portail_individu_identite_modifier", kwargs={"idrattachement": ratt[1].pk}
+    )
     response = logged_client.get(url)
     assert response.status_code == 200
 
@@ -135,7 +137,9 @@ def test_coords_modifier_saves(logged_client, famille_user):
 
     _user, _famille, ratt = famille_user
     enfant = ratt[1].individu
-    url = reverse("portail_individu_coords_modifier", kwargs={"idrattachement": ratt[1].pk})
+    url = reverse(
+        "portail_individu_coords_modifier", kwargs={"idrattachement": ratt[1].pk}
+    )
     data = form_post_data(logged_client.get(url).context["form"])
     data["rue_resid"] = "1 rue de la Paix"
     assert logged_client.post(url, data).status_code == 302
@@ -157,7 +161,11 @@ def test_regimes_alimentaires_modifier_saves(logged_client, famille_user):
     data = form_post_data(logged_client.get(url).context["form"])
     data["regimes_alimentaires"] = [regime.pk]
     assert logged_client.post(url, data).status_code == 302
-    assert Individu.objects.get(pk=enfant.pk).regimes_alimentaires.filter(pk=regime.pk).exists()
+    assert (
+        Individu.objects.get(pk=enfant.pk)
+        .regimes_alimentaires.filter(pk=regime.pk)
+        .exists()
+    )
 
 
 @pytest.mark.django_db
@@ -168,7 +176,9 @@ def test_maladies_modifier_saves(logged_client, famille_user):
     _user, _famille, ratt = famille_user
     enfant = ratt[1].individu
     maladie = TypeMaladie.objects.create(nom="Varicelle")
-    url = reverse("portail_individu_maladies_modifier", kwargs={"idrattachement": ratt[1].pk})
+    url = reverse(
+        "portail_individu_maladies_modifier", kwargs={"idrattachement": ratt[1].pk}
+    )
     data = form_post_data(logged_client.get(url).context["form"])
     data["maladies"] = [maladie.pk]
     assert logged_client.post(url, data).status_code == 302
@@ -182,7 +192,9 @@ def test_allergies_modifier_saves(logged_client, famille_user):
 
     _user, _famille, ratt = famille_user
     enfant = ratt[1].individu
-    url = reverse("portail_individu_allergies_modifier", kwargs={"idrattachement": ratt[1].pk})
+    url = reverse(
+        "portail_individu_allergies_modifier", kwargs={"idrattachement": ratt[1].pk}
+    )
     data = form_post_data(logged_client.get(url).context["form"])
     data["allergies_detail"] = "Éviter le gluten"
     assert logged_client.post(url, data).status_code == 302
@@ -196,11 +208,16 @@ def test_dispmed_modifier_saves(logged_client, famille_user):
 
     _user, _famille, ratt = famille_user
     enfant = ratt[1].individu
-    url = reverse("portail_individu_dispmed_modifier", kwargs={"idrattachement": ratt[1].pk})
+    url = reverse(
+        "portail_individu_dispmed_modifier", kwargs={"idrattachement": ratt[1].pk}
+    )
     data = form_post_data(logged_client.get(url).context["form"])
     data["dispmed_detail"] = "Lunettes correctrices obligatoires"
     assert logged_client.post(url, data).status_code == 302
-    assert Individu.objects.get(pk=enfant.pk).dispmed_detail == "Lunettes correctrices obligatoires"
+    assert (
+        Individu.objects.get(pk=enfant.pk).dispmed_detail
+        == "Lunettes correctrices obligatoires"
+    )
 
 
 @pytest.mark.django_db
@@ -211,7 +228,9 @@ def test_medecin_modifier_saves(logged_client, famille_user):
     _user, _famille, ratt = famille_user
     enfant = ratt[1].individu
     medecin = Medecin.objects.create(nom="Dupont")
-    url = reverse("portail_individu_medecin_modifier", kwargs={"idrattachement": ratt[1].pk})
+    url = reverse(
+        "portail_individu_medecin_modifier", kwargs={"idrattachement": ratt[1].pk}
+    )
     data = form_post_data(logged_client.get(url).context["form"])
     data["medecin"] = medecin.pk
     assert logged_client.post(url, data).status_code == 302
@@ -222,7 +241,9 @@ def test_medecin_modifier_saves(logged_client, famille_user):
 def test_individu_questionnaire_modifier_submits(logged_client, famille_user):
     """POST to the individu questionnaire modifier returns 302 (no questions configured → no-op)."""
     _user, _famille, ratt = famille_user
-    url = reverse("portail_individu_questionnaire_modifier", kwargs={"idrattachement": ratt[1].pk})
+    url = reverse(
+        "portail_individu_questionnaire_modifier", kwargs={"idrattachement": ratt[1].pk}
+    )
     assert logged_client.get(url).status_code == 200
     assert logged_client.post(url, {}).status_code == 302
 

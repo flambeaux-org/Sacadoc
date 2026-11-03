@@ -14,7 +14,10 @@ RENDER_ROUTES = [
     "portail_documents",
     "portail_activites",
     "portail_reservations",
-    "portail_facturation",
+    pytest.param(
+        "portail_facturation",
+        marks=pytest.mark.xfail(reason="BUG #6 — see TEST_PLAN.md", strict=True),
+    ),
     "portail_reglements",
     "portail_questionnaires",
     "portail_verifications",

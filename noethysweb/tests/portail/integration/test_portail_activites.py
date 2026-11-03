@@ -2,7 +2,6 @@
 
 import pytest
 from django.urls import reverse
-
 from tests.unit.factories import ActiviteFactory, InscriptionFactory
 
 

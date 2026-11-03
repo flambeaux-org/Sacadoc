@@ -8,9 +8,8 @@ ownership/authorization logic in planning.View.test_func.
 import datetime
 
 import pytest
-from django.urls import reverse
-
 from core.models import PortailPeriode
+from django.urls import reverse
 from tests.unit.factories import ActiviteFactory, InscriptionFactory
 
 
@@ -70,20 +69,27 @@ class TestPlanning:
         enfant = ratt[1].individu
         activite = ActiviteFactory(portail_reservations_affichage="TOUJOURS")
         InscriptionFactory(
-            famille=famille, individu=enfant, activite=activite, internet_reservations=True
+            famille=famille,
+            individu=enfant,
+            activite=activite,
+            internet_reservations=True,
         )
         periode = make_periode(activite)
         response = logged_client.get(self._url(enfant, activite, periode))
         assert response.status_code == 200
 
-    def test_cross_family_individu_forbidden(self, logged_client, famille_user, other_famille):
+    def test_cross_family_individu_forbidden(
+        self, logged_client, famille_user, other_famille
+    ):
         _ua, famille_a, ratt_a = famille_user
         certify(famille_a, ratt_a)
         _ub, _famille_b, ratt_b = other_famille
         activite = ActiviteFactory(portail_reservations_affichage="TOUJOURS")
         # Inscription belongs to family A's child; we request family B's child id.
         InscriptionFactory(
-            famille=famille_a, individu=ratt_a[1].individu, activite=activite,
+            famille=famille_a,
+            individu=ratt_a[1].individu,
+            activite=activite,
             internet_reservations=True,
         )
         periode = make_periode(activite)

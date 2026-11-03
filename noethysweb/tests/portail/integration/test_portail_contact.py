@@ -1,9 +1,8 @@
 """Tests for the contact hub, per-structure conversation and messagerie."""
 
 import pytest
-from django.urls import reverse
-
 from core.models import PortailMessage
+from django.urls import reverse
 from tests.unit.factories import PortailMessageFactory, StructureFactory
 
 
@@ -13,7 +12,9 @@ class TestContact:
         response = logged_client.get(reverse("portail_contact"))
         assert response.status_code == 200
 
-    def test_conversation_renders_and_marks_read(self, logged_client, famille_user, staff_user):
+    def test_conversation_renders_and_marks_read(
+        self, logged_client, famille_user, staff_user
+    ):
         _user, famille, _ratt = famille_user
         structure = StructureFactory()
         msg = PortailMessageFactory(
@@ -21,7 +22,9 @@ class TestContact:
         )
         assert msg.date_lecture is None
 
-        url = reverse("portail_contact_conversation", kwargs={"idstructure": structure.pk})
+        url = reverse(
+            "portail_contact_conversation", kwargs={"idstructure": structure.pk}
+        )
         response = logged_client.get(url)
         assert response.status_code == 200
         # Opening the conversation marks the incoming message as read.
@@ -43,7 +46,11 @@ class TestMessagerie:
         url = reverse("portail_messagerie", kwargs={"idstructure": structure.pk})
         response = logged_client.post(
             url,
-            {"famille": famille.pk, "structure": structure.pk, "texte": "Bonjour la structure"},
+            {
+                "famille": famille.pk,
+                "structure": structure.pk,
+                "texte": "Bonjour la structure",
+            },
         )
         assert response.status_code == 302
         msg = PortailMessage.objects.get(famille=famille, structure=structure)

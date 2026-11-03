@@ -1,14 +1,13 @@
 """E2E: a family adds a child through the portal form in a real browser."""
 
 import pytest
-from playwright.sync_api import Page, expect
-
 from core.models import Individu
+from playwright.sync_api import Page, expect
 
 
 @pytest.mark.django_db
 def test_add_child_flow(auto_login_user, famille_user, live_server, page: Page):
-    user, famille, _ratt = famille_user
+    user, _famille, _ratt = famille_user
     page = auto_login_user(user)
 
     page.goto(f"{live_server.url}/individu/ajouter/")

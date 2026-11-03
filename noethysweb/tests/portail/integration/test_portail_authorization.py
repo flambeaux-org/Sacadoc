@@ -62,7 +62,9 @@ class TestAnonymousRedirected:
         assert "connexion" in response.url
 
     @pytest.mark.parametrize("route_name", RATTACHEMENT_ROUTES)
-    def test_rattachement_route_redirects_to_login(self, client, famille_user, route_name):
+    def test_rattachement_route_redirects_to_login(
+        self, client, famille_user, route_name
+    ):
         _user, _famille, ratt = famille_user
         url = reverse(route_name, kwargs={"idrattachement": ratt[1].pk})
         response = client.get(url)
@@ -82,9 +84,16 @@ class TestStaffDenied:
 
     @pytest.mark.parametrize(
         "route_name",
-        ["portail_renseignements", "portail_facturation", "portail_documents", "portail_contact"],
+        [
+            "portail_renseignements",
+            "portail_facturation",
+            "portail_documents",
+            "portail_contact",
+        ],
     )
-    def test_staff_forbidden_on_portail_pages(self, client, staff_user, organisateur, route_name):
+    def test_staff_forbidden_on_portail_pages(
+        self, client, staff_user, organisateur, route_name
+    ):
         client.force_login(staff_user)
         response = client.get(reverse(route_name))
         assert response.status_code == 403
@@ -111,6 +120,8 @@ class TestCrossFamilyIsolation:
     def test_can_access_own_rattachement(self, client, famille_user):
         user_a, _famille_a, ratt_a = famille_user
         client.force_login(user_a)
-        url = reverse("portail_individu_identite", kwargs={"idrattachement": ratt_a[1].pk})
+        url = reverse(
+            "portail_individu_identite", kwargs={"idrattachement": ratt_a[1].pk}
+        )
         response = client.get(url)
         assert response.status_code == 200
