@@ -45,11 +45,6 @@ class TestAuthorization:
         client.force_login(staff_user)
         assert client.get(reverse(URL)).status_code in (302, 403)
 
-    @pytest.mark.xfail(
-        reason="BUG: verifications.View.post fetches the Inscription by pk only (no famille filter): a family can "
-        "validate (clear besoin_certification of) another family's inscription (IDOR).",
-        strict=True,
-    )
     def test_cannot_validate_other_family_inscription(
         self, logged_client, famille_user, other_famille
     ):

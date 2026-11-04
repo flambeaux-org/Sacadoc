@@ -6,7 +6,7 @@
 from django.forms import ModelForm
 from django.utils.translation import gettext_lazy as _
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Layout, Hidden, Fieldset
+from crispy_forms.layout import Layout, Fieldset
 from crispy_forms.bootstrap import Field
 from core.models import Vaccin, TypeVaccin
 from core.utils.utils_commandes import Commandes
@@ -30,6 +30,11 @@ class Formulaire(FormulaireBase, ModelForm):
         rattachement = kwargs.pop("rattachement", None)
         mode = kwargs.pop("mode", "MODIFICATION")
         super(Formulaire, self).__init__(*args, **kwargs)
+
+        # Sécurité : l'individu viennent du rattachement, jamais des champs cachés postés
+        for nom_champ in ("individu",):
+            self.fields.pop(nom_champ, None)
+        self.instance.individu = rattachement.individu
         self.helper = FormHelper()
         self.helper.form_id = 'individu_vaccinations_form'
         self.helper.form_method = 'post'
@@ -44,7 +49,6 @@ class Formulaire(FormulaireBase, ModelForm):
 
         # Affichage
         self.helper.layout = Layout(
-            Hidden('individu', value=rattachement.individu_id),
             Fieldset("Vaccination",
                 Field("type_vaccin"),
                 Field("date"),

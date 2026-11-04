@@ -177,11 +177,6 @@ class TestPost:
             == "42"
         )
 
-    @pytest.mark.xfail(
-        reason="BUG: questionnaires.View.post does not check that individu_pk belongs to the logged-in family: "
-        "a family can overwrite questionnaire answers of any individual (IDOR). Also leaves debug print() calls.",
-        strict=True,
-    )
     def test_cannot_answer_for_other_family(
         self, logged_client, famille_user, other_famille
     ):

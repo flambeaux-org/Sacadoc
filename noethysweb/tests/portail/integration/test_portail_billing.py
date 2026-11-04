@@ -8,22 +8,12 @@ import pytest
 from django.urls import reverse
 from tests.unit.factories import FactureFactory
 
-FACTURATION_RETURN_BUG = pytest.mark.xfail(
-    reason="BUG #6: facturation.View.get_context_data has `return context` indented inside "
-    "`if facturation_afficher_solde_famille:` — with the (default) False setting it returns "
-    "None and the page 500s. See TEST_PLAN.md.",
-    strict=True,
-)
-
-
 @pytest.mark.django_db
 class TestFacturation:
-    @FACTURATION_RETURN_BUG
     def test_page_renders_empty(self, logged_client):
         response = logged_client.get(reverse("portail_facturation"))
         assert response.status_code == 200
 
-    @FACTURATION_RETURN_BUG
     def test_page_renders_with_facture(self, logged_client, famille_user):
         _user, famille, _ratt = famille_user
         FactureFactory(famille=famille, total=120, solde_actuel=120)

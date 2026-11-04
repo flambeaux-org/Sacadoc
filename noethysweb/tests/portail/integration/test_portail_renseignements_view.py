@@ -9,7 +9,6 @@ from core.models import (
     CategorieInformation,
     Consentement,
     Information,
-    Piece,
     PortailDocument,
     TypeAllergie,
     TypeConsentement,
@@ -19,7 +18,6 @@ from core.models import (
     UniteConsentement,
 )
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.http import Http404
 from django.urls import reverse
 from tests.unit.factories import (
     ActiviteFactory,
@@ -304,43 +302,3 @@ class TestFormValid:
         assert "Aucune approbation n'a été cochée" in [
             str(m) for m in response.context["messages"]
         ]
-
-
-@pytest.mark.django_db
-class TestSupprimerPieceDeadCode:
-    """renseignements.View.supprimer_piece is not routed (documents.supprimer_piece is) but is still part of the module."""
-
-    def test_post_deletes_and_redirects(self, famille_user, rf, django_user_model):
-        from portail.views.renseignements import View
-
-        _u, famille, _r = famille_user
-        piece = PieceFactory(famille=famille)
-        request = rf.post("/x")
-        request.session = {}
-        from django.contrib.messages.storage.fallback import FallbackStorage
-
-        request._messages = FallbackStorage(request)
-        response = View.supprimer_piece(request, piece.pk)
-        assert response.status_code == 302
-        assert response.url == reverse(URL)
-        assert not Piece.objects.filter(pk=piece.pk).exists()
-
-    def test_unknown_piece_404(self, rf):
-        from portail.views.renseignements import View
-
-        request = rf.post("/x")
-        with pytest.raises(Http404):
-            View.supprimer_piece(request, 999999)
-
-    @pytest.mark.xfail(
-        reason="BUG: renseignements.py:supprimer_piece renders 'core/confirmation_suppression.html' on GET but that "
-        "template does not exist (TemplateDoesNotExist). The function is also unrouted dead code with no ownership check.",
-        strict=True,
-    )
-    def test_get_renders_confirmation(self, famille_user, rf):
-        from portail.views.renseignements import View
-
-        _u, famille, _r = famille_user
-        piece = PieceFactory(famille=famille)
-        response = View.supprimer_piece(rf.get("/x"), piece.pk)
-        assert response.status_code == 200

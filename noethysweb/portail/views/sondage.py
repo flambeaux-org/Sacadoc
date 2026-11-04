@@ -58,6 +58,15 @@ class View_questions(CustomView, TemplateView):
     menu_code = "portail_sondage"
     template_name = "portail/sondage/sondage_questions.html"
 
+    def test_func(self):
+        if not super(View_questions, self).test_func():
+            return False
+        # Sécurité : uniquement pour un individu rattaché à la famille
+        idindividu = self.kwargs.get("idindividu", None)
+        if idindividu and not Rattachement.objects.filter(famille=self.request.user.famille, individu_id=idindividu).exists():
+            return False
+        return True
+
     def get_context_data(self, **kwargs):
         context = super(View_questions, self).get_context_data(**kwargs)
         sondage = Sondage.objects.get(code=self.kwargs.get("code", None))

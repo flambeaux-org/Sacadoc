@@ -1,0 +1,35 @@
+{% extends "portail/page.html" %}
+{% load i18n %}
+{% load static %}
+{% load embed %}
+
+{% block page_titre %}{% trans "Supprimer une pièce" %}{% endblock page_titre %}
+
+{% block contenu_page %}
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            {% embed 'core/box.html' %}
+                {% block box_theme %}card-outline card-danger{% endblock %}
+                {% block box_titre %}{% trans "Confirmation de suppression" %}{% endblock %}
+                {% block box_contenu %}
+                    <form method="post" id="form_confirmation_suppression">
+                        {% csrf_token %}
+                        <p>{% trans "Voulez-vous vraiment supprimer la pièce suivante ?" %}</p>
+                        <ul>
+                            <li><strong>{{ piece }}</strong></li>
+                            {% if piece.individu %}<li>{% trans "Individu" %} : {{ piece.individu.prenom|default:"" }} {{ piece.individu.nom|default:"" }}</li>{% endif %}
+                            {% if piece.date_debut or piece.date_fin %}
+                                <li>{% trans "Validité" %} : {{ piece.date_debut|date:"d/m/Y"|default:"?" }} - {{ piece.date_fin|date:"d/m/Y"|default:"?" }}</li>
+                            {% endif %}
+                        </ul>
+                        <p class="text-danger"><i class="fa fa-exclamation-triangle margin-r-5"></i>{% trans "Cette action est irréversible." %}</p>
+                        <div class="float-right">
+                            <button type="submit" class="btn btn-danger" title="{% trans "Supprimer" %}"><i class="fa fa-trash margin-r-5"></i>{% trans "Supprimer" %}</button>
+                            <a class="btn btn-default" href="{% if url_retour %}{{ url_retour }}{% else %}{% url 'portail_documents' %}{% endif %}"><i class="fa fa-ban margin-r-5"></i>{% trans "Annuler" %}</a>
+                        </div>
+                    </form>
+                {% endblock %}
+            {% endembed %}
+        </div>
+    </div>
+{% endblock contenu_page %}

@@ -399,11 +399,6 @@ class TestModifier:
             logged_client.get(spec.url("modifier", ratt_b[1], obj)).status_code == 403
         )
 
-    @pytest.mark.xfail(
-        reason="BUG: Page.get_object() fetches the object by pk only (no ownership check against the "
-        "rattachement), so family A can open family B's object through A's own idrattachement (IDOR).",
-        strict=True,
-    )
     def test_cross_family_object_get_denied(
         self, logged_client, famille_user, other_famille, key
     ):
@@ -416,11 +411,6 @@ class TestModifier:
             404,
         )
 
-    @pytest.mark.xfail(
-        reason="BUG: Page.get_object() has no ownership check, so family A can overwrite family B's object "
-        "by posting to its own idrattachement with B's object id (IDOR).",
-        strict=True,
-    )
     def test_cross_family_object_post_denied(
         self, logged_client, famille_user, other_famille, key
     ):
@@ -481,11 +471,6 @@ class TestSupprimer:
         )
         assert spec.model.objects.filter(pk=obj.pk).exists()
 
-    @pytest.mark.xfail(
-        reason="BUG: Page.get_object() has no ownership check, so family A can delete family B's object "
-        "through its own idrattachement (IDOR).",
-        strict=True,
-    )
     def test_cross_family_object_delete_denied(
         self, logged_client, famille_user, other_famille, key
     ):
@@ -505,11 +490,6 @@ class TestSupprimer:
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("key", ["vaccinations", "informations", "contacts"])
-@pytest.mark.xfail(
-    reason="BUG: the ModelForm exposes 'individu' (and 'famille' for contacts) as hidden inputs that are "
-    "trusted on POST, so a family can attach a record to another family's individu (mass assignment).",
-    strict=True,
-)
 def test_ajouter_cannot_target_foreign_individu(
     logged_client, famille_user, other_famille, key
 ):
@@ -728,11 +708,6 @@ class TestImporter:
             == 403
         )
 
-    @pytest.mark.xfail(
-        reason="BUG: the importers copy any object by pk without checking it belongs to the user's family "
-        "(also keeps the source famille), so a family can import another family's data (IDOR).",
-        strict=True,
-    )
     def test_cannot_import_other_family_object(
         self, logged_client, famille_user, other_famille, key
     ):
