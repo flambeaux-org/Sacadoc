@@ -299,7 +299,7 @@ class AdresseMail(models.Model):
 
     def Get_from_email(self):
         """ Retourne l'expéditeur au format 'Nom affiché <adresse>' (ou l'adresse seule si aucun nom n'est saisi) """
-        return Address.__str__(Address(display_name=(self.nom_adresse or "").strip(), addr_spec=self.adresse))
+        return str(Address(display_name=(self.nom_adresse or "").strip(), addr_spec=self.adresse))
 
     def Get_parametre(self, nom=""):
         try:
