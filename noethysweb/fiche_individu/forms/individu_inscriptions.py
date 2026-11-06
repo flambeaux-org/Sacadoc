@@ -365,7 +365,7 @@ Cordialement,
 L'équipe de Sacadoc
         """
 
-        message = EmailMultiAlternatives(subject=objet, body=body, from_email=adresse_exp.adresse, to=[inscription.famille.mail], connection=connection)
+        message = EmailMultiAlternatives(subject=objet, body=body, from_email=adresse_exp.Get_from_email(), to=[inscription.famille.mail], connection=connection)
 
         # Envoie le mail
         try:

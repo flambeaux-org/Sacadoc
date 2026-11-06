@@ -14,6 +14,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.db.models import Q
 from django.contrib import messages
 from email.mime.image import MIMEImage
+from email.headerregistry import Address
 from core.models import Mail, Organisateur, Famille
 from core.utils import utils_dates, utils_historique, utils_texte
 
@@ -159,7 +160,7 @@ def Envoyer_model_mail(idmail=None, request=None):
             html += "<br><hr><p style='font-size: 12px;'>Si vous ne souhaitez plus recevoir nos mails groupés, cliquez sur le lien suivant : <a href='%s'>Désinscription</a></p>" % Generation_lien_desinscription(request=request, idfamille=destinataire.famille_id, adresse=destinataire.adresse)
 
         # Création du message
-        message = EmailMultiAlternatives(subject=objet, body=utils_texte.Textify(html), from_email=mail.adresse_exp.adresse, to=[destinataire.adresse], connection=connection)
+        message = EmailMultiAlternatives(subject=objet, body=utils_texte.Textify(html), from_email=mail.adresse_exp.Get_from_email(), to=[destinataire.adresse], connection=connection)
         message.mixed_subtype = 'related'
         message.attach_alternative(html, "text/html")
 
@@ -253,7 +254,7 @@ def Envoyer_mail_test(request=None, dict_options={}):
         return "Connexion impossible au serveur de messagerie : %s" % err
 
     # Création du message
-    message = EmailMultiAlternatives(subject="Test de messagerie", body="Ceci est un message test.", from_email=dict_options["adresse"], to=[dict_options["adresse_destination"]], connection=connection)
+    message = EmailMultiAlternatives(subject="Test de messagerie", body="Ceci est un message test.", from_email=str(Address(display_name=(dict_options.get("nom_adresse") or "").strip(), addr_spec=dict_options["adresse"])), to=[dict_options["adresse_destination"]], connection=connection)
 
     # Envoie le mail
     try:

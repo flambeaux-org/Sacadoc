@@ -6,6 +6,7 @@ import datetime
 import decimal
 import os
 import uuid
+from email.headerregistry import Address
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser, UserManager
@@ -295,6 +296,10 @@ class AdresseMail(models.Model):
         if self.adresse:
             return "%s (%s)" % (self.adresse, self.get_moteur_display())
         return "Adresse mail"
+
+    def Get_from_email(self):
+        """ Retourne l'expéditeur au format 'Nom affiché <adresse>' (ou l'adresse seule si aucun nom n'est saisi) """
+        return str(Address(display_name=(self.nom_adresse or "").strip(), addr_spec=self.adresse))
 
     def Get_parametre(self, nom=""):
         try:
