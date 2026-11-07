@@ -1,10 +1,27 @@
+import hashlib
 import os
+from pathlib import Path
 
 import pytest
 from django.conf.global_settings import SESSION_COOKIE_NAME
 from playwright.sync_api import Page
 
 os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
+
+BASE_DIR = Path(__file__).resolve().parents[1]
+
+
+def pytest_configure(config):
+    """Recreate the --reuse-db test database whenever a models file changed since it was built."""
+    db_path = BASE_DIR / os.environ.get("TEST_DB_NAME", "test.sqlite3")
+    stamp_path = db_path.with_name(db_path.name + ".models")
+    digest = hashlib.sha256()
+    for models in sorted(BASE_DIR.glob("*/models.py")) + sorted(BASE_DIR.glob("*/models/*.py")):
+        digest.update(models.read_bytes())
+    stamp = digest.hexdigest()
+    if not stamp_path.exists() or stamp_path.read_text() != stamp:
+        config.option.create_db = True
+        stamp_path.write_text(stamp)
 
 
 @pytest.fixture(scope="session")
