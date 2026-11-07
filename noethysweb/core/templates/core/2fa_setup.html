@@ -1,0 +1,127 @@
+{% extends "core/base_login.html" %}
+{% load static %}
+
+{% block titre_contenu %}
+    Configuration de la 2FA
+{% endblock titre_contenu %}
+
+{% block contenu_page %}
+
+    {% if already_configured and not reset_requested %}
+        <div class="alert alert-info">
+            <i class="fa fa-check"></i> La double authentification est déjà activée sur votre compte.
+        </div>
+        
+        <p>Votre appareil est configuré et actif.</p>
+        
+        <div style="margin-top: 20px;">
+            <a href="{% url 'accueil' %}" class="btn btn-default btn-block">
+                <i class="fa fa-arrow-left"></i> Retour à l'accueil
+            </a>
+            <a href="{% url '2fa_setup' %}?reset=true" class="btn btn-warning btn-block">
+                <i class="fa fa-refresh"></i> Reconfigurer (appareil perdu)
+            </a>
+            <a href="{% url '2fa_disable' %}" class="btn btn-danger btn-block">
+                <i class="fa fa-power-off"></i> Désactiver la 2FA
+            </a>
+        </div>
+    {% elif reset_requested %}
+        <div class="alert alert-warning" style="margin-bottom: 25px;">
+            <i class="fa fa-exclamation-triangle"></i> <strong>Réinitialisation de la 2FA</strong>
+        </div>
+        
+        <p style="font-size: 13px; margin-bottom: 20px;">
+            Vous allez reconfigurer votre authentification à deux facteurs.<br>
+            Pour des raisons de sécurité, veuillez confirmer votre identité.
+        </p>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="password" style="font-weight: 500; color: #000;">Mot de passe</label>
+                <input type="password" 
+                       class="form-control" 
+                       id="password" 
+                       name="password" 
+                       required 
+                       autofocus 
+                       placeholder="Entrez votre mot de passe">
+                <small class="form-text text-muted">Requis pour réinitialiser la 2FA</small>
+            </div>
+            
+            <button type="submit" class="btn btn-warning btn-block login-btn">
+                <i class="fa fa-refresh"></i> Confirmer la réinitialisation
+            </button>
+            
+            <a href="{% url 'accueil' %}" class="btn btn-default btn-block" style="margin-top: 10px;">
+                <i class="fa fa-times"></i> Annuler
+            </a>
+        </form>
+        
+        <div class="alert alert-info" style="margin-top: 20px; font-size: 12px;">
+            <i class="fa fa-info-circle"></i> Après confirmation, vos anciens codes de secours ne seront plus valides.
+        </div>
+    {% else %}
+        {% if is_required %}
+            <div class="alert alert-danger" style="font-size: 15px; font-weight: bold;">
+                <i class="fa fa-exclamation-triangle"></i> <strong>ATTENTION :</strong> La double authentification est obligatoire pour votre compte.
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                <i class="fa fa-shield"></i> Configuration recommandée pour sécuriser votre compte.
+            </div>
+        {% endif %}
+
+        <h5 style="margin-top: 25px; color: #000;">Étape 1 : Scanner le QR code</h5>
+        <p style="font-size: 13px;">Utilisez une application d'authentification (Google Authenticator, Microsoft Authenticator, Authy, etc.) pour scanner ce QR code :</p>
+        
+        <div class="text-center" style="margin: 20px 0; padding: 15px; background: white; border-radius: 8px;">
+            <img src="data:image/png;base64,{{ qr_code }}" alt="QR Code" style="max-width: 220px;">
+        </div>
+        
+        <h5 style="margin-top: 25px; color: #000;">Ou entrez manuellement ce code secret :</h5>
+        <div class="alert alert-secondary text-center" style="font-family: monospace; font-size: 16px; letter-spacing: 3px; margin-bottom: 25px;">
+            {{ secret_key }}
+        </div>
+        
+        <h5 style="margin-top: 25px; color: #000;">Étape 2 : Vérifier le code</h5>
+        <p style="font-size: 13px;">Entrez le code à 6 chiffres généré par votre application :</p>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <input type="text" 
+                       class="form-control text-center" 
+                       id="token" 
+                       name="token" 
+                       maxlength="6" 
+                       pattern="[0-9]{6}" 
+                       placeholder="123456" 
+                       autofocus 
+                       required 
+                       style="font-size: 24px; letter-spacing: 8px; font-weight: bold;">
+            </div>
+            
+            <button type="submit" class="btn btn-success btn-block login-btn">
+                <i class="fa fa-check"></i> Activer la 2FA
+            </button>
+            
+            {% if not is_required %}
+                <a href="{% url 'accueil' %}" class="btn btn-default btn-block">
+                    <i class="fa fa-times"></i> Annuler
+                </a>
+            {% endif %}
+        </form>
+    {% endif %}
+
+    <script>
+        $(document).ready(function() {
+            $('#token').focus();
+            
+            $('#token').on('input', function() {
+                this.value = this.value.replace(/[^0-9]/g, '');
+            });
+        });
+    </script>
+
+{% endblock contenu_page %}
