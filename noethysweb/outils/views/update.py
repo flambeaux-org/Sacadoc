@@ -19,7 +19,7 @@ class View(CustomView, TemplateView):
     def get_context_data(self, **kwargs):
         context = super(View, self).get_context_data(**kwargs)
         context['page_titre'] = "Mise à jour de l'application"
-        version_disponible, changelog = utils_update.Recherche_update()
+        version_disponible, changelog = utils_update.get_changelog()
         context['version_disponible'] = version_disponible
         context['changelog'] = changelog
         return context

@@ -13,7 +13,7 @@ from django.core.cache import cache
 from core.views.menu import GetMenuPrincipal
 from core.models import Organisateur, Parametre, Utilisateur, PortailMessage, PortailRenseignement, Structure, Activite, Famille, Inscription
 from core.utils import utils_parametres
-from noethysweb.version import GetVersion
+from noethysweb.version import VERSION
 from django.db.models import OuterRef, Subquery
 from django.utils import timezone
 from datetime import timedelta
@@ -107,7 +107,7 @@ class CustomView(LoginRequiredMixin, UserPassesTestMixin): #, PermissionRequired
         context = super(CustomView, self).get_context_data(**kwargs)
 
         # Version application
-        context['version_application'] = cache.get_or_set('version_application', GetVersion())
+        context['version_application'] = VERSION
 
         # Organisateur
         organisateur = cache.get('organisateur')
