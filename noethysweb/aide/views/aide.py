@@ -6,6 +6,7 @@
 import logging, json, importlib
 logger = logging.getLogger(__name__)
 from django.views.generic import TemplateView
+from django.http import JsonResponse
 from django.conf import settings
 from core.views.base import CustomView
 from outils.utils import utils_update
@@ -19,7 +20,10 @@ class Aide(CustomView, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['page_titre'] = "Aide"
-        context['videos'] = self.get_playlist_videos()
+        videos = self.get_playlist_videos()
+        context['videos'] = videos
+        # Passer les vidéos en JSON pour le chatbot
+        context['videos_json'] = json.dumps(videos)
         return context
 
     def get_playlist_videos(self):
@@ -41,3 +45,10 @@ class Aide(CustomView, TemplateView):
         except Exception as e:
             logger.error(f"Erreur lors de la récupération des vidéos : {e}")
         return []  # Retourne une liste vide en cas d'erreur
+
+
+def get_videos_json(request):
+    """API pour récupérer les vidéos en JSON pour le chatbot"""
+    aide_view = Aide()
+    videos = aide_view.get_playlist_videos()
+    return JsonResponse(videos, safe=False)
