@@ -138,7 +138,7 @@ def Supprimer_filtre(request, idfiltre=None):
     """ Suppression du filtre de liste """
     FiltreListe.objects.get(pk=idfiltre).delete()
     # Recharge la page
-    return redirect(request.META["HTTP_REFERER"])
+    return redirect(request.headers["referer"])
 
 
 class Formulaire(FormulaireBase, forms.Form):

@@ -33,7 +33,7 @@ def secure_ajax(function):
     """ A associer aux requêtes AJAX """
     def _function(request, *args, **kwargs):
         # Vérifie que c'est une requête AJAX
-        if not request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest':
+        if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
             return HttpResponseBadRequest()
         # Vérifie que l'utilisateur est authentifié
         if not request.user.is_authenticated:
@@ -51,7 +51,7 @@ def secure_ajax_portail(function):
     """ A associer aux requêtes AJAX """
     def _function(request, *args, **kwargs):
         # Vérifie que c'est une requête AJAX
-        if not request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest':
+        if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
             return HttpResponseBadRequest()
         # Vérifie que l'utilisateur est authentifié
         if not request.user.is_authenticated:
