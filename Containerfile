@@ -23,4 +23,4 @@ RUN uv python install 3.10 && \
 WORKDIR /app/noethysweb
 
 
-CMD ["uv", "run", "gunicorn", "--access-logfile", "/var/log/sacadoc/gunicorn_access.log", "--error-logfile", "/var/log/sacadoc/gunicorn_error.log", "-b", "0.0.0.0:8012", "--forwarded-allow-ips", "*"]
+CMD ["./tools/run.sh"]
