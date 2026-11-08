@@ -365,13 +365,6 @@ class TestEmailBackendLogin:
         assert response.status_code == 302
         assert client.session["_auth_user_id"] == str(user.pk)
 
-    @pytest.mark.xfail(
-        reason="BUG: core/backends.py EmailModelBackend does "
-        "individu.rattachement_set.first().famille.utilisateur — an Individu whose "
-        "email matches the typed username but who has no Rattachement makes .first() "
-        "None -> AttributeError (500) on the login page.",
-        strict=True,
-    )
     def test_login_with_email_of_orphan_individu_does_not_crash(
         self, client, organisateur
     ):

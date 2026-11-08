@@ -150,7 +150,7 @@ class TestInscriptionPostMailExists:
     def test_individus_without_email_do_not_block(
         self, client, organisateur, adresse_1, envoi
     ):
-        IndividuFactory(mail=None)
+        IndividuFactory(mail="")
         response = client.post(reverse(URL), payload())
         assert response.context["inscription_ok"] is True
 
