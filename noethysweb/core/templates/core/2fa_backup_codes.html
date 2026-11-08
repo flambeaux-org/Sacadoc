@@ -1,0 +1,80 @@
+{% extends "core/base_login.html" %}
+{% load static %}
+
+{% block titre_contenu %}
+    2FA Activée
+{% endblock titre_contenu %}
+
+{% block contenu_page %}
+
+    <div class="alert alert-success" style="margin-bottom: 25px;">
+        <i class="fa fa-check-circle"></i> La double authentification a été activée avec succès !
+    </div>
+
+    <h5 style="color: #f39c12; margin-bottom: 15px;">
+        <i class="fa fa-warning"></i> Codes de secours
+    </h5>
+    
+    <p style="font-size: 13px;">Voici vos <strong>10 codes de secours</strong>. Chaque code ne peut être utilisé qu'une seule fois.</p>
+    
+    <div class="alert alert-danger" style="font-size: 13px; margin-bottom: 20px;">
+        <i class="fa fa-exclamation-triangle"></i> <strong>Important :</strong> Vous ne pourrez plus consulter ces codes après avoir quitté cette page. Téléchargez-les ou imprimez-les maintenant.
+    </div>
+
+    <div style="background-color: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 6px; padding: 15px; margin-bottom: 20px;">
+        <div id="backup-codes" style="font-family: 'Courier New', monospace; font-size: 14px;">
+            {% for code in backup_codes %}
+                <div style="padding: 6px 0; {% if not forloop.last %}border-bottom: 1px solid #e0e0e0;{% endif %}">
+                    <span style="letter-spacing: 3px; font-weight: bold;">{{ forloop.counter }}.</span>
+                    <span style="letter-spacing: 2px; margin-left: 15px;">{{ code|upper }}</span>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="text-center" style="margin-bottom: 15px;">
+        <button type="button" class="btn btn-info" onclick="downloadBackupCodes()">
+            <i class="fa fa-download"></i> Télécharger
+        </button>
+        <button type="button" class="btn btn-default" onclick="window.print()">
+            <i class="fa fa-print"></i> Imprimer
+        </button>
+    </div>
+
+    <a href="{% url 'accueil' %}" class="btn btn-success btn-block login-btn">
+        <i class="fa fa-check"></i> J'ai sauvegardé mes codes - Continuer
+    </a>
+    
+    <div class="alert alert-info" style="margin-top: 20px; font-size: 12px;">
+        <i class="fa fa-info-circle"></i> <strong>Bon à savoir :</strong> Si vous perdez votre appareil ET vos codes de secours, vous pourrez reconfigurer la 2FA en utilisant votre mot de passe.
+    </div>
+
+    <script>
+        function downloadBackupCodes() {
+            var codes = [
+                {% for code in backup_codes %}
+                    "{{ code|upper }}"{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ];
+            
+            var text = "Codes de secours - Double Authentification\n";
+            text += "==========================================\n\n";
+            text += "Date de génération : " + new Date().toLocaleDateString('fr-FR') + "\n\n";
+            text += "ATTENTION : Chaque code ne peut être utilisé qu'une seule fois.\n";
+            text += "Conservez ces codes dans un endroit sûr.\n\n";
+            
+            codes.forEach(function(code, index) {
+                text += (index + 1) + ". " + code + "\n";
+            });
+            
+            var element = document.createElement('a');
+            element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+            element.setAttribute('download', 'backup_codes_2fa.txt');
+            element.style.display = 'none';
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        }
+    </script>
+
+{% endblock contenu_page %}

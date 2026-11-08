@@ -97,6 +97,11 @@ INSTALLED_APPS = [
     'dbbackup',
     'django_crontab',
     'django_cleanup.apps.CleanupConfig',
+    
+    # Two-Factor Authentication
+    'django_otp',
+    'django_otp.plugins.otp_totp',
+    'django_otp.plugins.otp_static',
 ]
 
 # import crispy_forms
@@ -119,11 +124,13 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django_otp.middleware.OTPMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'csp.middleware.CSPMiddleware',
     'axes.middleware.AxesMiddleware',
     'noethysweb.middleware.CustomMiddleware',
+    'noethysweb.middleware.TwoFactorAuthMiddleware',
     'noethysweb.middleware.UserInHeaderMiddleware',
 ]
 
