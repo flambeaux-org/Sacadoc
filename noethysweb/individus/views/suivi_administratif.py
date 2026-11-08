@@ -31,7 +31,7 @@ class Liste(Page, crud.CustomListe):
         Colonne("pieces_manquantes", "Pièces manquantes"),
         Colonne("vaccins_manquants", "Vaccins manquants"),
         Colonne("questions_manquantes", "Questionnaires"),
-        Colonne("sondages_manquants", "Sondages"),
+        Colonne("sondages_manquants", "Formulaires"),
         Colonne("besoin_certification", "Vérification en attente"),
         Colonne("solde_a_payer", "Solde à payer"),
     ]

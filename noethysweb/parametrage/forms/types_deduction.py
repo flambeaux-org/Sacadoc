@@ -30,7 +30,16 @@ class Formulaire(FormulaireBase, ModelForm):
         self.helper.form_class = 'form-horizontal'
         self.helper.label_class = 'col-md-2'
         self.helper.field_class = 'col-md-10'
-        self.fields["structure"].required = True
+
+        # Une déduction sans structure est un mouvement valable pour toutes les structures
+        # Seuls les utilisateurs Staff sont autorisés à créer un mouvement sans structure
+        if self.request and not self.request.user.is_staff:
+            self.fields['structure'].required = True
+            self.fields['structure'].empty_label = None
+        else:
+            self.fields['structure'].required = False
+            self.fields['structure'].empty_label = "Mouvement (toutes les structures)"
+
         # Affichage
         self.helper.layout = Layout(
             Commandes(annuler_url="{% url 'types_deductions_liste' %}"),

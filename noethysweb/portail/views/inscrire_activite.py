@@ -58,8 +58,9 @@ def Get_form_extra(request):
     try:
         # On récupère les objets en base
         activite = Activite.objects.get(pk=activite_id)
-        individu = Individu.objects.get(pk=individu_id)
         famille = request.user.famille  # On utilise la famille de la session
+        # Sécurité : uniquement un individu rattaché à la famille
+        individu = Individu.objects.get(pk=individu_id, rattachement__famille=famille)
 
         # On prépare le formulaire extra avec ces objets
         form = Formulaire_extra(
@@ -79,11 +80,12 @@ def Valid_form(request):
     print("--- Début de la validation ---")
 
     # 1. On prépare les données (Copie pour injecter les champs Hidden manquants)
+    # Sécurité : ces champs cachés ne sont jamais pris du POST
     data = request.POST.copy()
-    if not data.get('famille'): data['famille'] = request.user.famille.pk
-    if not data.get('etat'): data['etat'] = 'ATTENTE'
-    if not data.get('categorie'): data['categorie'] = 'activites'
-    if not data.get('code'): data['code'] = 'inscrire_activite'
+    data['famille'] = request.user.famille.pk
+    data['etat'] = 'ATTENTE'
+    data['categorie'] = 'activites'
+    data['code'] = 'inscrire_activite'
 
     # 2. Validation du formulaire principal
     form = Formulaire(data, request=request)

@@ -16,6 +16,8 @@ from individus.views import liste_pieces_manquantes, liste_pieces_fournies, list
                             abonnes_listes_diffusion, abonnes_listes_diffusion_ajouter, liste_mails, imprimer_liste_inscrits, sondages_reponses, telecharger_plusieurs, famille_attestations, \
                             liste_questionnaires_individus_modif,demande_approbation, suivi_administratif, liste_questionnaires_individus_modif_valid, liste_allergies, liste_dispmed, inscriptions_activite_lot, registre_presence
 from fiche_individu.views import individu_inscriptions
+from individus.views.demande_approbation import EnvoyerDemandeIndividuelle  # adaptez le chemin d'import
+
 
 urlpatterns = [
 
@@ -54,6 +56,7 @@ urlpatterns = [
 
     path('individus/approbation', demande_approbation.Liste.as_view(),  name='demande_approbation_liste'),
     path('individus/approbation/<str:activite>', demande_approbation.Liste.as_view(), name='demande_approbation_liste'),
+    path("individus/approbation/individu/<int:pk>", EnvoyerDemandeIndividuelle.as_view(),name="demande_approbation_individuelle"),
 
     path('individus/suivi_administratif', suivi_administratif.Liste.as_view(), name='suivi_administratif_liste'),
     path('individus/suivi_administratif/<str:activite>', suivi_administratif.Liste.as_view(), name='suivi_administratif_liste'),
@@ -207,6 +210,7 @@ urlpatterns = [
     path('individus/comptes_internet_reinitialiser_mdp', secure_ajax(liste_comptes_internet.Reinitialiser_mdp), name='ajax_comptes_internet_reinitialiser_mdp'),
     path('individus/comptes_internet_reinitialiser_identifiant', secure_ajax(liste_comptes_internet.Reinitialiser_identifiant), name='ajax_comptes_internet_reinitialiser_identifiant'),
     path('individus/informations/modifier_diffusion/', secure_ajax(liste_informations.Modifier_diffusion), name='ajax_modifier_diffusion_information'),
+    path('individus/informations/generer_pdf_medical', secure_ajax(liste_informations.Generer_pdf_medical), name='ajax_informations_generer_pdf_medical'),
     path('individus/importer_photos_individus', secure_ajax(importation_photos.Importer_photos_individus), name="ajax_importer_photos_individus"),
     path('individus/edition_contacts/generer_pdf', secure_ajax(edition_contacts.Generer_pdf), name='ajax_edition_contacts_generer_pdf'),
     path('individus/edition_renseignements/generer_pdf', secure_ajax(edition_renseignements.Generer_pdf), name='ajax_edition_renseignements_generer_pdf'),

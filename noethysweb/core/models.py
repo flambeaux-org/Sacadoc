@@ -6,6 +6,7 @@ import datetime
 import decimal
 import os
 import uuid
+from email.headerregistry import Address
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser, UserManager
@@ -295,6 +296,10 @@ class AdresseMail(models.Model):
         if self.adresse:
             return "%s (%s)" % (self.adresse, self.get_moteur_display())
         return "Adresse mail"
+
+    def Get_from_email(self):
+        """ Retourne l'expéditeur au format 'Nom affiché <adresse>' (ou l'adresse seule si aucun nom n'est saisi) """
+        return str(Address(display_name=(self.nom_adresse or "").strip(), addr_spec=self.adresse))
 
     def Get_parametre(self, nom=""):
         try:
@@ -817,7 +822,7 @@ class TypeMaladie(models.Model):
 class TypeDeduction(models.Model):
     idtype_deduction = models.AutoField(verbose_name="ID", db_column='IDtype_deduction', primary_key=True)
     nom = models.CharField(verbose_name="Nom", max_length=200)
-    structure = models.ForeignKey(Structure, verbose_name="Structure associée", blank=False, null=False, on_delete=models.PROTECT)
+    structure = models.ForeignKey(Structure, verbose_name="Structure associée", blank=True, null=True, on_delete=models.PROTECT)
     remb = models.BooleanField(verbose_name="Déduction payée par un tier", default=True, help_text="")
 
     class Meta:
@@ -1832,7 +1837,7 @@ class Individu(models.Model):
     tel_domicile = encrypt(models.CharField(verbose_name=_("Tél domicile"), max_length=100, blank=True, null=True))
     tel_mobile = encrypt(models.CharField(verbose_name=_("Tél portable"), max_length=100, blank=True, null=True))
     tel_fax = encrypt(models.CharField(verbose_name=_("Fax personnel"), max_length=100, blank=True, null=True))
-    mail = encrypt(models.EmailField(verbose_name=_("Email personnel"), max_length=300, blank=True, null=True))
+    mail = models.EmailField(verbose_name=_("Email personnel"), max_length=300, blank=True)
     medecin = models.ForeignKey(Medecin, verbose_name=_("Médecin"), on_delete=models.PROTECT, blank=True, null=True)
     memo = models.TextField(verbose_name=_("Mémo"), blank=True, null=True)
     type_sieste = models.ForeignKey(TypeSieste, verbose_name=_("Sieste"), on_delete=models.PROTECT, blank=True, null=True)

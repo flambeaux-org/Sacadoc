@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 from django.http import JsonResponse
 from core.views.mydatatableview import MyDatatable, columns
 from core.views import crud
-from core.models import Rattachement, Activite, Piece
+from core.models import Rattachement, Activite, Piece, Information
 from individus.forms.edition_renseignements import Formulaire
 from individus.utils import utils_impression_renseignements, utils_impression_renseignements_pieces
 
@@ -140,6 +140,28 @@ def Generer_pdf_pieces(request):
             except Exception as e:
                 writer_final.add_page(utils_impression_renseignements_pieces.generer_page_erreur(
                     f"Erreur de lecture du document : {nom_piece.upper()}", largeur, height
+                ))
+
+        # B bis. Ajout des pièces jointes attachées aux informations médicales (PAI, automédication...)
+        informations_avec_document = Information.objects.filter(individu=individu).exclude(document="").exclude(document__isnull=True)
+        for information in informations_avec_document:
+            try:
+                chemin_information = information.document.path if hasattr(information.document, 'path') else os.path.join(
+                    settings.MEDIA_ROOT, information.document.name)
+                chemin_information = os.path.normpath(chemin_information)
+
+                if os.path.exists(chemin_information):
+                    reader_pj = utils_impression_renseignements_pieces.formater_information_jointe(information, individu, largeur, height)
+                    for page in reader_pj.pages:
+                        writer_final.add_page(page)
+                else:
+                    writer_final.add_page(utils_impression_renseignements_pieces.generer_page_erreur(
+                        f"Document absent : {information.intitule.upper()} (Adhérent : {individu.Get_nom().upper()})", largeur,
+                        height
+                    ))
+            except Exception as e:
+                writer_final.add_page(utils_impression_renseignements_pieces.generer_page_erreur(
+                    f"Erreur de lecture du document : {information.intitule.upper()}", largeur, height
                 ))
 
     # 4. Sauvegarde du livret final unique via default_storage dans un répertoire propre

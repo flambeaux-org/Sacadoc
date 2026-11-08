@@ -3,17 +3,73 @@
 #  Noethysweb, application de gestion multi-activités.
 #  Distribué sous licence GNU GPL.
 
+import os, io
+from django.conf import settings
 from django.urls import reverse_lazy, reverse
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from datatableview.views import MultipleDatatableView
 from core.views.mydatatableview import MyDatatable, columns, helpers
 from core.views import crud
-from core.models import Individu, Vaccin, Information, Medecin, TypeMaladie, Vaccin
+from core.models import Individu, Vaccin, Information, Medecin, TypeMaladie, Vaccin, Rattachement
 from fiche_individu.forms.individu_information import Formulaire as Formulaire_information
 from fiche_individu.forms.individu_vaccin import Formulaire as Formulaire_vaccin
 from fiche_individu.forms.individu_medecin import Formulaire as Formulaire_medecin
 from fiche_individu.views.individu import Onglet
-from individus.utils import utils_vaccinations
+from individus.utils import utils_vaccinations, utils_impression_renseignements, utils_impression_renseignements_pieces
+
+
+def Telecharger_pdf_medical(request, idfamille, idindividu):
+    """ Génère un PDF complet des informations médicales de l'individu, avec les pièces jointes """
+    from pypdf import PdfReader, PdfWriter
+    from reportlab.lib.pagesizes import A4
+
+    individu = Individu.objects.get(pk=idindividu)
+    rattachement = Rattachement.objects.filter(individu=individu, famille_id=idfamille).first()
+    if not rattachement:
+        return HttpResponse("Rattachement introuvable", status=404)
+
+    impression = utils_impression_renseignements.Impression(
+        titre="Fiche médicale",
+        dict_donnees={"rattachements": [rattachement.pk], "tri": "nom", "mode_condense": False},
+        request=request)
+    if impression.erreurs:
+        return HttpResponse(impression.erreurs[0], status=401)
+
+    largeur, hauteur = A4
+    writer_final = PdfWriter()
+
+    nom_fichier_virtuel = impression.Get_nom_fichier()
+    chemin_pdf = os.path.normpath(os.path.join(settings.MEDIA_ROOT, nom_fichier_virtuel.strip("/")))
+    if os.path.exists(chemin_pdf):
+        with open(chemin_pdf, 'rb') as fichier:
+            for page in PdfReader(fichier).pages:
+                writer_final.add_page(page)
+        try:
+            os.remove(chemin_pdf)
+        except Exception:
+            pass
+
+    # Ajout des pièces jointes attachées aux informations médicales
+    informations_avec_document = Information.objects.filter(individu=individu).exclude(document="").exclude(document__isnull=True)
+    for information in informations_avec_document:
+        try:
+            chemin_information = information.document.path
+            if os.path.exists(chemin_information):
+                reader_pj = utils_impression_renseignements_pieces.formater_information_jointe(information, individu, largeur, hauteur)
+                for page in reader_pj.pages:
+                    writer_final.add_page(page)
+            else:
+                writer_final.add_page(utils_impression_renseignements_pieces.generer_page_erreur(
+                    f"Document absent : {information.intitule.upper()}", largeur, hauteur))
+        except Exception:
+            writer_final.add_page(utils_impression_renseignements_pieces.generer_page_erreur(
+                f"Erreur de lecture du document : {information.intitule.upper()}", largeur, hauteur))
+
+    buffer_final = io.BytesIO()
+    writer_final.write(buffer_final)
+    response = HttpResponse(buffer_final.getvalue(), content_type="application/pdf")
+    response["Content-Disposition"] = "attachment; filename=\"Fiche_medicale_%s.pdf\"" % individu.Get_nom().replace(" ", "_")
+    return response
 
 
 def Select_medecin(request):
@@ -65,6 +121,8 @@ class Page(Onglet):
         context['form_selection_medecin'] = Formulaire_medecin(idindividu=self.Get_idindividu())
         context['vaccins_obligatoires'] = utils_vaccinations.Get_vaccins_obligatoires_individu(individu=context["individu"])
         context['pieces_manquantes'] = [{"label": "Fiche sanitaire", "valide": True}, {"label": "Fiche famille", "valide": False}]
+        context['pieces_medicales'] = Information.objects.filter(individu=self.Get_idindividu()).exclude(document="").exclude(document__isnull=True)
+        context['url_telecharger_pdf_medical'] = reverse_lazy("individu_medical_telecharger_pdf", kwargs={'idfamille': self.Get_idfamille(), 'idindividu': self.Get_idindividu()})
         return context
 
     def get_form_kwargs(self, **kwargs):
@@ -92,16 +150,22 @@ class Liste(Page, MultipleDatatableView):
         actions = columns.TextColumn("Actions", sources=None, processor='Get_actions_speciales')
         intitule = columns.TextColumn("Intitulé", processor="Get_intitule")
         categorie = columns.CompoundColumn("Catégorie", sources=['categorie__nom'])
+        piece_jointe = columns.TextColumn("Pièce jointe", sources=None, processor="Get_piece_jointe")
 
         class Meta:
             model = Information
             structure_template = MyDatatable.structure_template
-            columns = ['categorie', 'intitule']
+            columns = ['categorie', 'intitule', 'piece_jointe']
             ordering = ['categorie', 'intitule']
             footer = False
 
         def Get_intitule(self, instance, *args, **kwargs):
             return instance.intitule
+
+        def Get_piece_jointe(self, instance, *args, **kwargs):
+            if instance.document:
+                return "<a href='%s' target='_blank'><i class='fa fa-paperclip'></i> Consulter</a>" % instance.document.url
+            return ""
 
         def Get_actions_speciales(self, instance, *args, **kwargs):
             """ Inclut l'idindividu dans les boutons d'actions """

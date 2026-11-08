@@ -6,46 +6,211 @@ on:
   pull_request:
     branches: ["main"]
 
+concurrency:
+  group: tests-${{ github.event.pull_request.number || github.ref }}
+  # A new push to a PR supersedes the previous run; runs on main always finish.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-  test:
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read # paths-filter lists PR files through the API
+    outputs:
+      portail: ${{ steps.filter.outputs.portail }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          # Everything the portail code imports or renders, plus the test
+          # infrastructure. Changes limited to other apps (aide, collaborateurs,
+          # comptabilite, locations, plugins...) or to docs skip the portail jobs.
+          filters: |
+            portail:
+              - "noethysweb/portail/**"
+              - "noethysweb/core/**"
+              - "noethysweb/individus/**"
+              - "noethysweb/outils/**"
+              - "noethysweb/parametrage/**"
+              - "noethysweb/fiche_famille/**"
+              - "noethysweb/fiche_individu/**"
+              - "noethysweb/cotisations/**"
+              - "noethysweb/consommations/**"
+              - "noethysweb/facturation/**"
+              - "noethysweb/reglements/**"
+              - "noethysweb/noethysweb/**"
+              - "noethysweb/static/**"
+              - "noethysweb/locale/**"
+              - "noethysweb/test.sqlite3"
+              - "noethysweb/tests/conftest.py"
+              - "noethysweb/tests/unit/factories.py"
+              - "noethysweb/tests/portail/**"
+              - "pytest.ini"
+              - "requirements*.txt"
+              - ".github/workflows/tests.yml"
+              - ".github/actions/setup-tests/**"
+
+  migrations:
+    name: Migrations
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-tests
+
+      # The tests build their schema from the models (--nomigrations), so this
+      # job is what proves the migrations themselves still apply.
+      - name: Check every model change has a migration
+        working-directory: ./noethysweb
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Apply all migrations on a fresh SQLite database
+        working-directory: ./noethysweb
+        run: python manage.py migrate --noinput
+
+  core:
+    name: Tests (excluding portail)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-tests
+        with:
+          playwright: "true"
+
+      - name: Test with pytest
+        working-directory: ./noethysweb
+        env:
+          HEADLESS: "1"
+          COVERAGE_FILE: .coverage.core
+        run: pytest --create-db --ignore=tests/portail --junitxml=pytest-core.xml --cov=. --cov-report=
+
+      - name: Upload results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-core
+          path: |
+            noethysweb/.coverage.core
+            noethysweb/pytest-core.xml
+          include-hidden-files: true
+          retention-days: 3
+
+  portail:
+    name: Portail tests (pytest)
+    needs: changes
+    if: github.event_name == 'push' || needs.changes.outputs.portail == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-tests
+
+      - name: Test with pytest
+        working-directory: ./noethysweb
+        env:
+          COVERAGE_FILE: .coverage.portail
+        run: >-
+          pytest --create-db tests/portail
+          --ignore=tests/portail/e2e
+          --ignore=tests/portail/test_signin.py
+          --junitxml=pytest-portail.xml --cov=. --cov-report=
+
+      - name: Upload results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-portail
+          path: |
+            noethysweb/.coverage.portail
+            noethysweb/pytest-portail.xml
+          include-hidden-files: true
+          retention-days: 3
+
+  portail-e2e:
+    name: Portail tests (Playwright)
+    needs: changes
+    if: github.event_name == 'push' || needs.changes.outputs.portail == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-tests
+        with:
+          playwright: "true"
+
+      - name: Test with pytest
+        working-directory: ./noethysweb
+        env:
+          HEADLESS: "1"
+          COVERAGE_FILE: .coverage.portail-e2e
+        run: >-
+          pytest --create-db tests/portail/e2e tests/portail/test_signin.py
+          --junitxml=pytest-portail-e2e.xml --cov=. --cov-report=
+
+      - name: Upload results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-portail-e2e
+          path: |
+            noethysweb/.coverage.portail-e2e
+            noethysweb/pytest-portail-e2e.xml
+          include-hidden-files: true
+          retention-days: 3
+
+  report:
+    name: Coverage comment
+    needs: [core, portail, portail-e2e]
+    if: ${{ !cancelled() && github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read # For checkout and comparing commits
       pull-requests: write # For creating/updating PR comments
-
     steps:
       - uses: actions/checkout@v6
 
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.10"
-          cache: "pip"
 
-      - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y pkg-config libcairo2-dev
+      - name: Install coverage
+        run: python -m pip install "$(grep '^coverage==' requirements_test.txt)"
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
-          python -m pip install -r requirements_test.txt
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: results-*
+          path: ./noethysweb
+          merge-multiple: true
 
-      - name: Install Playwright Browsers and OS Dependencies
-        run: python -m playwright install --with-deps
-
-      - name: Run migrations
+      - name: Combine coverage and test results
         working-directory: ./noethysweb
         run: |
-          python manage.py migrate
+          coverage combine .coverage.*
+          coverage report -m
+          coverage xml -o coverage.xml
+          python - <<'EOF'
+          import glob
+          import xml.etree.ElementTree as ET
 
-      - name: Test with pytest
-        working-directory: ./noethysweb
-        run: |
-          HEADLESS=1 pytest --junitxml=pytest.xml --cov-report=term-missing --cov=. | tee pytest-coverage.txt
+          merged = ET.Element("testsuites")
+          for path in sorted(glob.glob("pytest-*.xml")):
+              root = ET.parse(path).getroot()
+              suites = [root] if root.tag == "testsuite" else list(root)
+              merged.extend(suites)
+          ET.ElementTree(merged).write("pytest.xml", encoding="utf-8", xml_declaration=True)
+          EOF
 
       - name: Post Pytest Coverage Comment
         uses: MishaKav/pytest-coverage-comment@v1.7.2
         with:
-          pytest-coverage-path: ./noethysweb/pytest-coverage.txt
+          pytest-xml-coverage-path: ./noethysweb/coverage.xml
           junitxml-path: ./noethysweb/pytest.xml

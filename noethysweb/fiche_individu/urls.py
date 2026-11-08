@@ -60,6 +60,7 @@ urlpatterns = [
  #   path('individus/individus/traitement/supprimer_info/<int:idfamille>/<int:idindividu>/<int:pk>', individu_traitement.Supprimer_traitement.as_view(), name='individu_traitement_supprimer'),
 
     path('individus/individus/medical/liste/<int:idfamille>/<int:idindividu>', individu_medical.Liste.as_view(), name='individu_medical_liste'),
+    path('individus/individus/medical/telecharger_pdf/<int:idfamille>/<int:idindividu>', individu_medical.Telecharger_pdf_medical, name='individu_medical_telecharger_pdf'),
 
     path('individus/individus/medical/ajouter_info/<int:idfamille>/<int:idindividu>', individu_medical.Ajouter_information.as_view(), name='individu_informations_ajouter'),
     path('individus/individus/medical/modifier_info/<int:idfamille>/<int:idindividu>/<int:pk>', individu_medical.Modifier_information.as_view(), name='individu_informations_modifier'),

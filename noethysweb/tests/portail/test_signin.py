@@ -1,9 +1,6 @@
-import re
-
 import pytest
-from playwright.sync_api import Page, expect
-
-from core.models import Utilisateur, AdresseMail, Organisateur
+from core.models import AdresseMail, Organisateur, Utilisateur
+from playwright.sync_api import Page
 
 
 @pytest.mark.django_db
@@ -21,8 +18,12 @@ def test_user_register_with_fixture(page: Page, live_server):
     page.get_by_role("textbox", name="Nom", exact=True).fill("Test")
     page.get_by_role("textbox", name="Prénom", exact=True).fill("Test")
     page.get_by_role("textbox", name="Email personnel").fill(email)
-    page.get_by_role("textbox", name="Nouveau mot de passe", exact=True).fill("SuperMotDePasse123987")
-    page.get_by_role("textbox", name="Confirmation du nouveau mot de passe", exact=True).fill("SuperMotDePasse123987")
+    page.get_by_role("textbox", name="Nouveau mot de passe", exact=True).fill(
+        "SuperMotDePasse123987"
+    )
+    page.get_by_role(
+        "textbox", name="Confirmation du nouveau mot de passe", exact=True
+    ).fill("SuperMotDePasse123987")
     page.get_by_role("button", name="Envoyer").click()
 
     new = Utilisateur.objects.count()

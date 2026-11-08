@@ -17,8 +17,10 @@ from django.http import JsonResponse
 
 def Appliquer_modification(request):
     iddemande = int(request.POST["iddemande"])
-    etat = request.POST["etat"]
-    demande = PortailRenseignement.objects.get(idrenseignement=iddemande)
+    # Sécurité : uniquement une demande de la famille encore en attente (on ne supprime pas l'historique)
+    demande = PortailRenseignement.objects.filter(idrenseignement=iddemande, famille=request.user.famille, etat="ATTENTE").first()
+    if not demande:
+        return JsonResponse({"erreur": "Cette demande n'existe pas ou a déjà été traitée"}, status=404)
     demande.delete()
     url_redirection = reverse('portail_activites')
     return JsonResponse({"redirection": url_redirection})

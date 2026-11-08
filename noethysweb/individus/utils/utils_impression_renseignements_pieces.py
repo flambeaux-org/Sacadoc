@@ -40,15 +40,26 @@ register_heif_opener()
 # FOUS-FONCTION COMPLÉMENTAIRE POUR LE FORMATAGE DES BANDEROLES DE PJ
 # =========================================================================
 def formater_piece_jointe(piece, individu, largeur, hauteur):
+    """ Met en page une pièce (TypePiece) jointe """
+    nom_type_piece = piece.type_piece.nom if piece.type_piece else "Document"
+    return formater_document_joint(piece.document, nom_type_piece, piece.idpiece, individu, largeur, hauteur)
+
+
+def formater_information_jointe(information, individu, largeur, hauteur):
+    """ Met en page une pièce jointe attachée à une information médicale (PAI, automédication...) """
+    nom_type_piece = "Information médicale : %s" % information.intitule
+    return formater_document_joint(information.document, nom_type_piece, information.idinformation, individu, largeur, hauteur)
+
+
+def formater_document_joint(document, nom_type_piece, ref_id, individu, largeur, hauteur):
     """
     Prend un fichier justificatif physique (Image ou PDF) et applique
     un bandeau d'entête professionnel sur une nouvelle page.
     Si le fichier est corrompu, génère une page d'erreur en texte pur.
     """
     writer_piece = PdfWriter()
-    full_path = piece.document.path
-    doc_name = piece.document.name.lower()
-    nom_type_piece = piece.type_piece.nom if piece.type_piece else "Document"
+    full_path = document.path
+    doc_name = document.name.lower()
 
     buffer_header = io.BytesIO()
     can = canvas.Canvas(buffer_header, pagesize=A4)
@@ -87,7 +98,7 @@ def formater_piece_jointe(piece, individu, largeur, hauteur):
             writer_piece.add_page(PdfReader(io.BytesIO(buffer_header.getvalue())).pages[0])
             logger.debug(f"      -> Image '{nom_type_piece}' convertie et ajustée.")
         except Exception as e:
-            logger.error(f"Erreur rendu image piece {piece.idpiece}: {e}")
+            logger.error(f"Erreur rendu image piece {ref_id}: {e}")
             logger.debug(f"      /!\\ Erreur rendu image : {e}")
 
     elif doc_name.endswith('.pdf'):
@@ -127,7 +138,7 @@ def formater_piece_jointe(piece, individu, largeur, hauteur):
             logger.debug(f"      -> PDF '{nom_type_piece}' contraint et ajusté.")
         except Exception as e:
             # En cas d'erreur de lecture (startxref, stream end...), on logue mais on ne plante plus
-            logger.exception(f"Erreur traitement PDF import piece {piece.idpiece}: {e}")
+            logger.exception(f"Erreur traitement PDF import piece {ref_id}: {e}")
 
     # =========================================================================
     # 🌟 CORRECTION CRITIQUE : DU TEXTE PUR SUR UNE PAGE NEUVE EN CAS D'ERREUR
@@ -155,7 +166,7 @@ def formater_piece_jointe(piece, individu, largeur, hauteur):
         # 3. Message d'erreur écrit en texte pur (pas d'appel au fichier corrompu)
         can_err.setFillColor(colors.HexColor("#C62828"))
         can_err.setFont("Helvetica-Bold", 12)
-        can_err.drawString(70, hauteur - 140, f"ERREUR DOCUMENT (Pièce n°{piece.idpiece})")
+        can_err.drawString(70, hauteur - 140, f"ERREUR DOCUMENT (Pièce n°{ref_id})")
 
         can_err.setFillColor(colors.black)
         can_err.setFont("Helvetica", 10)

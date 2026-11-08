@@ -5,6 +5,7 @@
 
 import json
 from django.urls import reverse_lazy
+from django.shortcuts import get_object_or_404
 from django.http import HttpResponseRedirect
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import TemplateView
@@ -41,7 +42,8 @@ class Page(Onglet):
     def get_object(self):
         if not self.kwargs.get("idvaccin"):
             return None
-        return Vaccin.objects.get(pk=self.kwargs.get("idvaccin"))
+        # Sécurité : uniquement les objets de l'individu du rattachement (même filtre que la liste)
+        return get_object_or_404(Vaccin, pk=self.kwargs.get("idvaccin"), individu=self.get_individu())
 
     def get_success_url(self):
         url = self.url_liste

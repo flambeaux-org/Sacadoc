@@ -14,6 +14,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.db.models import Q
 from django.contrib import messages
 from email.mime.image import MIMEImage
+from email.headerregistry import Address
 from core.models import Mail, Organisateur, Famille
 from core.utils import utils_dates, utils_historique, utils_texte
 
@@ -31,7 +32,7 @@ def Envoyer_model_mail(idmail=None, request=None):
     # Stoppe l'envoi si mode démo activé
     if settings.MODE_DEMO:
         messages.add_message(request, messages.ERROR, "Vous ne pouvez pas envoyer d'emails en mode démo.")
-        return
+        return []
 
     # Importation de l'email
     mail = Mail.objects.prefetch_related('destinataires', 'pieces_jointes').select_related("adresse_exp").get(pk=idmail)
@@ -72,9 +73,11 @@ def Envoyer_model_mail(idmail=None, request=None):
     connection = djangomail.get_connection(backend=backend, fail_silently=False, **backend_kwargs)
     try:
         connection.open()
-    except Exception as err:
-        messages.add_message(request, messages.ERROR, "Connexion impossible au serveur de messagerie : %s" % err)
-        return
+    except Exception:
+        if request:
+            messages.add_message(request, messages.ERROR, "Connexion impossible au serveur de messagerie")
+        logger.exception(f"Connexion impossible au serveur de messagerie {mail.adresse_exp}")
+        return []
 
     # Chargement de la signature de l'utilisateur
     signature = ""
@@ -83,7 +86,7 @@ def Envoyer_model_mail(idmail=None, request=None):
             signature = request.user.signature.html
         else:
             messages.add_message(request, messages.ERROR, "Vous avez demandé à intéger une signature d'emails alors que votre profil utilisateur n'est associé à aucune signature.")
-            return
+            return []
 
     # Récupération de l'organisateur
     organisateur = cache.get('organisateur', None)
@@ -138,7 +141,7 @@ def Envoyer_model_mail(idmail=None, request=None):
             valeurs = {}
         valeurs.update(valeurs_defaut)
         for motcle, valeur in valeurs.items():
-            if isinstance(valeur, float):
+            if not isinstance(valeur, str):
                 valeur = str(valeur)
             html = html.replace(motcle, valeur or "")
             objet = objet.replace(motcle, valeur or "")
@@ -157,7 +160,7 @@ def Envoyer_model_mail(idmail=None, request=None):
             html += "<br><hr><p style='font-size: 12px;'>Si vous ne souhaitez plus recevoir nos mails groupés, cliquez sur le lien suivant : <a href='%s'>Désinscription</a></p>" % Generation_lien_desinscription(request=request, idfamille=destinataire.famille_id, adresse=destinataire.adresse)
 
         # Création du message
-        message = EmailMultiAlternatives(subject=objet, body=utils_texte.Textify(html), from_email=mail.adresse_exp.adresse, to=[destinataire.adresse], connection=connection)
+        message = EmailMultiAlternatives(subject=objet, body=utils_texte.Textify(html), from_email=mail.adresse_exp.Get_from_email(), to=[destinataire.adresse], connection=connection)
         message.mixed_subtype = 'related'
         message.attach_alternative(html, "text/html")
 
@@ -251,7 +254,7 @@ def Envoyer_mail_test(request=None, dict_options={}):
         return "Connexion impossible au serveur de messagerie : %s" % err
 
     # Création du message
-    message = EmailMultiAlternatives(subject="Test de messagerie", body="Ceci est un message test.", from_email=dict_options["adresse"], to=[dict_options["adresse_destination"]], connection=connection)
+    message = EmailMultiAlternatives(subject="Test de messagerie", body="Ceci est un message test.", from_email=str(Address(display_name=(dict_options.get("nom_adresse") or "").strip(), addr_spec=dict_options["adresse"])), to=[dict_options["adresse_destination"]], connection=connection)
 
     # Envoie le mail
     try:

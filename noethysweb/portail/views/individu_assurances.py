@@ -5,6 +5,7 @@
 
 import json, datetime
 from django.urls import reverse_lazy
+from django.shortcuts import get_object_or_404
 from django.http import JsonResponse, HttpResponseRedirect
 from django.views.generic import TemplateView
 from django.utils.translation import gettext_lazy as _
@@ -66,7 +67,8 @@ class Page(Onglet):
     def get_object(self):
         if not self.kwargs.get("idassurance"):
             return None
-        return Assurance.objects.get(pk=self.kwargs.get("idassurance"))
+        # Sécurité : uniquement les objets de l'individu du rattachement (même filtre que la liste)
+        return get_object_or_404(Assurance, pk=self.kwargs.get("idassurance"), individu=self.get_individu(), famille=self.get_rattachement().famille)
 
     def get_success_url(self):
         url = self.url_liste
@@ -155,16 +157,19 @@ class Importer(Page, TemplateView):
         liste_txt = form.cleaned_data.get("assurances", "")
         if liste_txt:
             liste_idassurance = liste_txt.split(";")
-            for assurance in Assurance.objects.filter(pk__in=[int(idassurance) for idassurance in liste_idassurance]):
+            # Sécurité : uniquement des fiches de la famille (même filtre que le formulaire d'import)
+            assurances = Assurance.objects.filter(pk__in=[int(idassurance) for idassurance in liste_idassurance], famille=self.request.user.famille).exclude(individu=self.get_individu())
+            for assurance in assurances:
                 assurance.pk = None
                 assurance.individu_id = self.get_individu().pk
+                assurance.famille = self.request.user.famille
                 assurance.save()
 
                 # Mémorisation du renseignement
                 PortailRenseignement.objects.create(famille=self.get_famille(), individu=self.get_individu(), categorie=self.categorie, code="Assurance importée",
                                                     nouvelle_valeur=json.dumps(str(assurance), cls=DjangoJSONEncoder))
 
-            messages.add_message(self.request, messages.SUCCESS, _("%d assurances importées avec succès") % len(liste_idassurance))
+            messages.add_message(self.request, messages.SUCCESS, _("%d assurances importées avec succès") % len(assurances))
 
         else:
             messages.add_message(self.request, messages.INFO, _("Aucune assurance importée"))

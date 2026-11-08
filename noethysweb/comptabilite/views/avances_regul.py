@@ -3,11 +3,11 @@
 #  Noethysweb, application de gestion multi-activités.
 #  Distribué sous licence GNU GPL.
 
-import json, datetime
-from datetime import datetime
+from django.contrib import messages
 from django.http import JsonResponse
 from django.views.generic import TemplateView
 from core.views.base import CustomView
+from core.utils import utils_dates
 from comptabilite.forms.avances_regul import Formulaire
 from core.models import ComptaOperation, Structure, ComptaVentilation, ModeReglement
 from django.db import transaction
@@ -19,10 +19,12 @@ def Exporter(request):
     nouvelle_date_str = request.POST.get('date')
     mode_id = request.POST.get('mode_id')
     mode_obj = ModeReglement.objects.get(pk=mode_id) if mode_id else None
-    nouvelle_date = datetime.strptime(nouvelle_date_str, '%d/%m/%Y').date()
+    nouvelle_date = utils_dates.ConvertDateTimeFRtoDateTime(nouvelle_date_str)
 
     if not operation_ids or not nouvelle_date:
         return JsonResponse({'success': False, 'message': "Veuillez sélectionner des opérations et une date."})
+
+    nouvelle_date = nouvelle_date.date()
 
     operations = ComptaOperation.objects.filter(pk__in=operation_ids)
 

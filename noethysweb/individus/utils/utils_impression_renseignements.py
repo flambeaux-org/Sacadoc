@@ -13,13 +13,14 @@ from reportlab.platypus import Paragraph, Table, TableStyle, PageBreak
 from reportlab.platypus.flowables import Image
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib import colors
-from core.models import Lien, Rattachement, ContactUrgence, Information, Assurance, Organisateur, Scolarite, Activite, Inscription, Structure
+from core.models import Lien, Rattachement, ContactUrgence, Information, CategorieInformation, Assurance, Organisateur, Scolarite, Activite, Inscription, Structure
 from core.data.data_liens import DICT_TYPES_LIENS
 from core.data import data_civilites
 from core.utils import utils_dates, utils_impression, utils_questionnaires
 from individus.utils import utils_vaccinations
 import os
 from reportlab.platypus import Spacer
+from portail.utils import utils_approbations
 
 
 class Impression(utils_impression.Impression):
@@ -66,6 +67,9 @@ class Impression(utils_impression.Impression):
             dict_informations.setdefault(information.individu_id, [])
             dict_informations[information.individu_id].append(information)
 
+        # Importation des catégories d'informations médicales (PAI, automédication...)
+        categories_informations = list(CategorieInformation.objects.all().order_by("nom"))
+
         # Importation des vaccinations
         dict_vaccinations = utils_vaccinations.Get_tous_vaccins(individus_ids)
 
@@ -96,12 +100,41 @@ class Impression(utils_impression.Impression):
         def Img(fichier=""):
             return "<img src='%s/images/%s' width='6' height='6' valign='middle'/> " % (settings.STATIC_ROOT, fichier)
 
+        def Decouper_contenu(contenu=[]):
+            """ Découpe les flowables trop hauts pour tenir sur une page (ReportLab ne sait pas
+            couper une ligne de tableau en cours de route : sans ça, un contenu trop long lève un LayoutError) """
+            largeur_dispo = largeur_contenu - 12
+            hauteur_dispo = hauteur_cadre - 28
+            resultat = []
+            for flowable in contenu:
+                if not hasattr(flowable, "split") or not hasattr(flowable, "wrap"):
+                    resultat.append(flowable)
+                    continue
+                try:
+                    reste = flowable
+                    while reste is not None:
+                        if reste.wrap(largeur_dispo, hauteur_dispo)[1] <= hauteur_dispo:
+                            resultat.append(reste)
+                            break
+                        morceaux = reste.split(largeur_dispo, hauteur_dispo)
+                        if len(morceaux) < 2:
+                            resultat.append(reste)
+                            break
+                        resultat.extend(morceaux[:-1])
+                        reste = morceaux[-1]
+                except Exception:
+                    logger.warning("Découpage impossible d'un flowable de la fiche de renseignements")
+                    resultat.append(flowable)
+            return resultat
+
         def Tableau(titre="", aide="", contenu=[], bord_bas=False):
+            # Une ligne de tableau par flowable : ReportLab ne peut couper un tableau qu'entre deux lignes
+            contenu = Decouper_contenu(contenu) or [""]
             dataTableau = [[titre, aide]]
-            dataTableau.append([contenu, ""])
+            dataTableau.extend([[flowable, ""] for flowable in contenu])
+            derniere_ligne = len(dataTableau) - 1
             tableau = Table(dataTableau, [largeur_contenu/2, largeur_contenu/2])
             style = [
-                ('SPAN', (0, 1), (-1, 1)),
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                 ('FONT', (0, 0), (-1, -1), "Helvetica", 7),
                 ('LINEBEFORE', (0, 0), (0, -1), 0.25, colors.black),
@@ -112,7 +145,13 @@ class Impression(utils_impression.Impression):
                 ('TEXTCOLOR', (0, 0), (-1, 0), (1, 1, 1)),
                 ('BACKGROUND', (0, 0), (-1, 0), (0.5, 0.5, 0.5)),
                 ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
+                # Paddings calibrés pour conserver exactement la hauteur du rendu d'origine
+                ('TOPPADDING', (0, 1), (-1, -1), 0),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 0),
+                ('TOPPADDING', (0, 1), (-1, 1), 3),
+                ('BOTTOMPADDING', (0, derniere_ligne), (-1, derniere_ligne), 3),
             ]
+            style.extend([('SPAN', (0, ligne), (-1, ligne)) for ligne in range(1, len(dataTableau))])
             if bord_bas:
                 style.append(('LINEBELOW', (0, -1), (-1, -1), 0.25, colors.black))
             tableau.setStyle(TableStyle(style))
@@ -120,6 +159,10 @@ class Impression(utils_impression.Impression):
 
         # Préparation du tableau
         largeur_contenu = self.taille_page[0] - 75
+
+        # Hauteur utile d'une page : cadre du modèle de document si défini, sinon marges du SimpleDocTemplate
+        taille_cadre = getattr(self, "taille_cadre", None)
+        hauteur_cadre = taille_cadre[3] if taille_cadre else self.taille_page[1] - 72
 
         # Importation de l'organisateur (une seule fois avant la boucle)
         organisateur = cache.get('organisateur', None)
@@ -271,16 +314,28 @@ class Impression(utils_impression.Impression):
                 texte_maladies += "<br/><br/>"
             self.story.append(Tableau(titre="Maladies déjà contractées".upper(), aide="", contenu=[Paragraph(texte_maladies, style_defaut)]))
 
-            # Informations
-            contenu_tableau = []
+            # Informations médicales, par catégorie (PAI, automédication...)
+            dict_informations_par_categorie = {}
             for information in dict_informations.get(rattachement.individu_id, []):
-                texte = "<b>%s</b>" % information.intitule
-                if information.description:
-                    texte += " : %s" % information.description
-                contenu_tableau.append(Paragraph(texte, style_defaut))
-            if not self.dict_donnees["mode_condense"]:
-                contenu_tableau.append(Paragraph("<br/><br/><br/>", style_defaut))
-            self.story.append(Tableau(titre="Informations et recommandations".upper(), aide="", contenu=contenu_tableau))
+                dict_informations_par_categorie.setdefault(information.categorie_id, [])
+                dict_informations_par_categorie[information.categorie_id].append(information)
+
+            for categorie in categories_informations:
+                contenu_tableau = []
+                informations_categorie = dict_informations_par_categorie.get(categorie.idcategorie, [])
+                if not informations_categorie:
+                    contenu_tableau.append(Paragraph("RAS", style_defaut))
+                else:
+                    for information in informations_categorie:
+                        texte = "<b>%s</b>" % information.intitule
+                        if information.description:
+                            texte += " : %s" % information.description
+                        if information.document:
+                            texte += " <font color='red'><b>ATTENTION pièce jointe à consulter</b></font>"
+                        contenu_tableau.append(Paragraph(texte, style_defaut))
+                if not self.dict_donnees["mode_condense"]:
+                    contenu_tableau.append(Paragraph("<br/><br/>", style_defaut))
+                self.story.append(Tableau(titre=categorie.nom.upper(), aide="", contenu=contenu_tableau))
 
             # Vaccinations obligatoires
             liste_vaccinations_obligatoires = [vaccination for vaccination in dict_vaccinations.get(rattachement.individu, []) if vaccination["obligatoire"]]
@@ -319,8 +374,14 @@ class Impression(utils_impression.Impression):
                 contenu_tableau = [Paragraph("%s : <b>%s</b>" % (question["label"], question["reponse"]), style_defaut) for question in questions_individu if question["visible_fiche_renseignement"]]
                 self.story.append(Tableau(titre="Questionnaire individuel".upper(), aide="", contenu=contenu_tableau))
 
-            # Certification
-            if rattachement.certification_date:
+            dict_inscriptions = {
+                inscription.individu_id: inscription
+                for inscription in inscriptions_accessibles
+            }
+
+            inscription = dict_inscriptions.get(rattachement.individu_id)
+
+            if inscription and not inscription.besoin_certification and rattachement.certification_date:
                 texte_certification = "Fiche vérifiée par le responsable le %s" % utils_dates.ConvertDateToFR(rattachement.certification_date)
             else:
                 texte_certification = "Fiche non vérifiée sur le portail"

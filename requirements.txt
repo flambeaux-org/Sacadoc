@@ -54,7 +54,7 @@ packaging==23.1
 pillow==11.1.0
 pillow-heif==1.4.0
 platformdirs==3.5.1
-playwright==1.56.0
+playwright==1.64.1
 pluggy==1.6.0
 ply==3.11
 pycairo==1.23.0
