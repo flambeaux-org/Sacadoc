@@ -137,4 +137,4 @@ class Saisie_rapide(Page, RedirectView):
         piece = PieceCollaborateur.objects.create(type_piece=type_piece, collaborateur=collaborateur,
                                                   date_debut=date_debut, date_fin=date_fin)
         messages.add_message(self.request, messages.SUCCESS, "La pièce '%s' a été créée avec succès" % piece.Get_nom())
-        return self.request.META['HTTP_REFERER']
+        return self.request.headers['referer']
