@@ -135,6 +135,8 @@ def Traiter_demande(request=None, demande=None, etat=None, email_objet=None, ema
                 demande.individu.categorie_travail_id = nouvelle_valeur
             elif demande.code == "medecin":
                 demande.individu.medecin_id = nouvelle_valeur
+            elif demande.code == "mail":
+                demande.individu.mail = nouvelle_valeur or ""
             else:
                 setattr(demande.individu, demande.code, nouvelle_valeur)
             demande.individu.save()

@@ -45,14 +45,11 @@ class InscriptionFamilleView(ClassCommuneLogin, ContextMixin, View):
             return render(request, "portail/inscription_famille.html", context)
 
         # Vérification que l'adresse mail n'est pas déjà utilisée
-        # N'utilise pas Individu.objects.get(mail=...) car le champ est chiffré
         mail = self.form.cleaned_data["mail"]
-        existing_individus = Individu.objects.values("idindividu", "mail")
-        for indv in existing_individus:
-            if indv["mail"] and indv["mail"].lower() == mail.lower():
-                # Le mail existe déjà, on prévient sur la page d'inscription
-                context["mail_exists"] = True
-                return render(self.request, "portail/inscription_famille.html", context)
+        if Individu.objects.filter(mail__iexact=mail).exists():
+            # Le mail existe déjà, on prévient sur la page d'inscription
+            context["mail_exists"] = True
+            return render(self.request, "portail/inscription_famille.html", context)
 
 
         # From fiche_famille.views.famille_ajouter.Ajouter.Creation_famille
