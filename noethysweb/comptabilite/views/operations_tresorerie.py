@@ -8,6 +8,7 @@ logger = logging.getLogger(__name__)
 from django.urls import reverse_lazy, reverse
 from django.db.models import Q, Sum, DecimalField, Case, When, F
 from django.contrib import messages
+from django.db import transaction
 from django.http import JsonResponse, HttpResponseRedirect
 from django.template.context_processors import csrf
 from crispy_forms.utils import render_crispy_form
@@ -17,6 +18,7 @@ from core.models import ComptaOperation, CompteBancaire, ComptaVentilation, Comp
 from core.utils import utils_dates, utils_parametres, utils_texte
 from comptabilite.forms.operations_tresorerie import Formulaire, FORMSET_CATEGORIES, Get_prochain_num_piece
 from comptabilite.forms.ventilation_tresorerie import Formulaire as Formulaire_ventilation
+from comptabilite.utils.utils_compta import Convert_date
 from django.forms.models import inlineformset_factory, BaseInlineFormSet
 from core.forms.base import FormulaireBase
 from django.forms import ModelForm
@@ -329,77 +331,73 @@ class Page(crud.Page):
             form.add_error(None, f"Vous ne pouvez pas saisir deux fois la même catégorie : {', '.join(noms)}.")
             return self.form_invalid(form)
 
-        # --- Sauvegarde du formulaire principal ---
-        self.object = form.save(commit=False)
+        # Opération, déduction et ventilations sont enregistrées d'un seul tenant
+        with transaction.atomic():
+            # --- Sauvegarde du formulaire principal ---
+            self.object = form.save(commit=False)
 
-        # --- Numéro de pièce attribué à l'enregistrement ---
-        # Il était calculé à l'ouverture du formulaire : deux saisies simultanées
-        # obtenaient alors le même numéro.
-        if not self.object.pk and self.object.type == "debit":
-            self.object.num_piece = str(Get_prochain_num_piece(self.object.compte_id))
+            # --- Numéro de pièce attribué à l'enregistrement ---
+            # Il était calculé à l'ouverture du formulaire : deux saisies simultanées
+            # obtenaient alors le même numéro. Lecture et écriture se font dans la même
+            # transaction : SQLite n'y laisse qu'un écrivain à la fois, une saisie concurrente
+            # échoue ("database is locked") au lieu de reprendre le même numéro. Le verrou
+            # sur la ligne du compte garde la même garantie sur une base qui le supporte.
+            if not self.object.pk and self.object.type == "debit":
+                CompteBancaire.objects.select_for_update().filter(pk=self.object.compte_id).first()
+                self.object.num_piece = str(Get_prochain_num_piece(self.object.compte_id, verrou=True))
 
-        # --- Si une déduction est sélectionnée ---
-        deduction = form.cleaned_data.get("deduction")
-        if deduction:
-            # 1️⃣ On marque la déduction comme remboursée
-            deduction.remb = True
-            deduction.save(update_fields=["remb"])
+            # --- Si une déduction est sélectionnée ---
+            deduction = form.cleaned_data.get("deduction")
+            if deduction:
+                # 1️⃣ On marque la déduction comme remboursée
+                deduction.remb = True
+                deduction.save(update_fields=["remb"])
 
-            # 2️⃣ On modifie le libellé de l'opération pour ajouter "(Déduction XX€)"
-            montant_deduction = deduction.montant
-            famille_nom = deduction.famille.nom
-            self.object.libelle = f"{self.object.libelle} (Famille : {famille_nom})"
+                # 2️⃣ On modifie le libellé de l'opération pour ajouter "(Déduction XX€)"
+                montant_deduction = deduction.montant
+                famille_nom = deduction.famille.nom
+                self.object.libelle = f"{self.object.libelle} (Famille : {famille_nom})"
 
-        # --- Sauvegarde définitive ---
-        self.object.save()
+            # --- Sauvegarde définitive ---
+            self.object.save()
 
-        # --- Récupération des ventilations existantes liées à cette opération ---
-        ventilations_existantes = {
-            v.categorie_id: v
-            for v in ComptaVentilation.objects.filter(operation=self.object)
-        }
+            # --- Récupération des ventilations existantes liées à cette opération ---
+            ventilations_existantes = {
+                v.categorie_id: v
+                for v in ComptaVentilation.objects.filter(operation=self.object)
+            }
 
-        # --- Création ou mise à jour des ventilations ---
-        categories_formset = set()
-        for v in ventilations_data:
-            categories_formset.add(v["categorie_id"])
-            if v["categorie_id"] in ventilations_existantes:
-                # Mise à jour de la ventilation existante
-                vent = ventilations_existantes[v["categorie_id"]]
-                vent.date_budget = v["date_budget"]
-                vent.analytique_id = v["analytique"]
-                vent.montant = v["montant"]
-                vent.libelle = v["libelle"]
-                vent.save()
-            else:
-                # Création d'une nouvelle ventilation
-                ComptaVentilation.objects.create(
-                    operation=self.object,
-                    categorie_id=v["categorie_id"],
-                    date_budget=v["date_budget"],
-                    analytique_id=v["analytique"],
-                    montant=v["montant"],
-                    libelle=v["libelle"],
-                )
+            # --- Création ou mise à jour des ventilations ---
+            categories_formset = set()
+            for v in ventilations_data:
+                categories_formset.add(v["categorie_id"])
+                if v["categorie_id"] in ventilations_existantes:
+                    # Mise à jour de la ventilation existante
+                    vent = ventilations_existantes[v["categorie_id"]]
+                    vent.date_budget = v["date_budget"]
+                    vent.analytique_id = v["analytique"]
+                    vent.montant = v["montant"]
+                    vent.libelle = v["libelle"]
+                    vent.save()
+                else:
+                    # Création d'une nouvelle ventilation
+                    ComptaVentilation.objects.create(
+                        operation=self.object,
+                        categorie_id=v["categorie_id"],
+                        date_budget=v["date_budget"],
+                        analytique_id=v["analytique"],
+                        montant=v["montant"],
+                        libelle=v["libelle"],
+                    )
 
-        # --- Suppression des ventilations supprimées ---
-        for cat_id, vent in ventilations_existantes.items():
-            if cat_id not in categories_formset:
-                vent.delete()
+            # --- Suppression des ventilations supprimées ---
+            for cat_id, vent in ventilations_existantes.items():
+                if cat_id not in categories_formset:
+                    vent.delete()
 
         return super().form_valid(form)
 
 CATEGORIE_PERIODE = "operations_tresorerie_periode"
-
-
-def Convert_date(texte):
-    """ Convertit une date au format YYYY-MM-DD en date, ou None """
-    if not texte:
-        return None
-    try:
-        return datetime.datetime.strptime(texte, "%Y-%m-%d").date()
-    except (ValueError, TypeError):
-        return None
 
 
 class Liste(Page, crud.Liste):

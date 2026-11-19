@@ -74,9 +74,16 @@ FORMSET_CATEGORIES = inlineformset_factory(ComptaOperation, ComptaVentilation, f
                                             fields=["categorie", "montant"], extra=1, min_num=0,
                                             can_delete=True, validate_max=True, can_order=False)
 
-def Get_prochain_num_piece(idcompte):
-    """ Renvoie le prochain numéro de pièce disponible pour les dépenses d'un compte """
-    numeros = ComptaOperation.objects.filter(compte_id=idcompte, type="debit").values_list("num_piece", flat=True)
+def Get_prochain_num_piece(idcompte, verrou=False):
+    """
+    Renvoie le prochain numéro de pièce disponible pour les dépenses d'un compte.
+    verrou : lecture verrouillante (select_for_update), à appeler dans une transaction.
+             Sans effet sous SQLite, qui n'accepte de toute façon qu'un écrivain à la fois.
+    """
+    operations = ComptaOperation.objects.filter(compte_id=idcompte, type="debit")
+    if verrou:
+        operations = operations.select_for_update()
+    numeros = operations.values_list("num_piece", flat=True)
     return max((int(n.strip()) for n in numeros if n and n.strip().isdigit()), default=0) + 1
 
 
