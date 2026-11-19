@@ -24,6 +24,7 @@ from PIL import Image  # Pour traiter l'image (si nécessaire)
 
 
 class View(CustomView, TemplateView):
+    menu_code = "correction_compte"
     template_name = "comptabilite/correction_compte.html"
 
     def get_context_data(self, **kwargs):

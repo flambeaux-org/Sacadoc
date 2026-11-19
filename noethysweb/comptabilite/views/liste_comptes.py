@@ -25,7 +25,7 @@ class Liste(Page, crud.Liste):
     def get_queryset(self):
         return CompteBancaire.objects.filter(self.Get_filtres("Q"), self.Get_condition_structure()).annotate(
             solde_final=Sum(Case(When(comptaoperation__type="credit", then=F("comptaoperation__montant")), output_field=DecimalField(), default=0)) - Sum(Case(When(comptaoperation__type="debit", then=F("comptaoperation__montant")), output_field=DecimalField(), default=0)),
-            solde_pointe=Sum(Case(When(comptaoperation__type="credit", comptaoperation__releve__isnull=False, then=F("comptaoperation__montant")), output_field=DecimalField(), default=0)) - Sum(Case(When(comptaoperation__type="debit", comptaoperation__releve__isnull=False, then=F("comptaoperation__montant")), output_field=DecimalField(), default=0)),
+            solde_pointe=Sum(Case(When(comptaoperation__type="credit", comptaoperation__pointage=True, then=F("comptaoperation__montant")), output_field=DecimalField(), default=0)) - Sum(Case(When(comptaoperation__type="debit", comptaoperation__pointage=True, then=F("comptaoperation__montant")), output_field=DecimalField(), default=0)),
             solde_jour=Sum(Case(When(comptaoperation__type="credit", comptaoperation__date__lte=datetime.date.today(), then=F("comptaoperation__montant")), output_field=DecimalField(), default=0)) - Sum(Case(When(comptaoperation__type="debit", comptaoperation__date__lte=datetime.date.today(), then=F("comptaoperation__montant")), output_field=DecimalField(), default=0)),
         )
 

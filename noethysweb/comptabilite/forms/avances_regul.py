@@ -66,4 +66,4 @@ class Formulaire(FormulaireBase, forms.Form):
         montant = instance.montant if instance.montant is not None else 0.0
         type_str = instance.type  # "credit" ou "debit"
         montant_str = utils_texte.Formate_montant(montant)
-        return f"{instance.libelle} payé par {avance_nom} le {date_str} - {montant_str} € ({type_str})"
+        return f"{instance.libelle} payé par {avance_nom} le {date_str} - {montant_str} ({type_str})"

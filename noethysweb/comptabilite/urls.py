@@ -7,7 +7,8 @@ from django.urls import include, path
 from core.views import toc
 from core.decorators import secure_ajax
 from comptabilite.views import operations_tresorerie, operations_budgetaires, liste_comptes, liste_virements, suivi_budget, suivi_tresorerie, \
-                                rapprochements, rapprochements_selection, suivi_compta, edition_justifs, avances_regul, correction_compte, liste_ventilation
+                                rapprochements, rapprochements_selection, suivi_compta, edition_justifs, avances_regul, correction_compte, liste_ventilation, \
+                                verification_compta
 
 
 urlpatterns = [
@@ -28,6 +29,10 @@ urlpatterns = [
     path('comptabilite/operations_tresorerie/ajouter_credit_avance/<int:categorie>', operations_tresorerie.Ajouter.as_view(type="remb"), name='operations_tresorerie_remb'),
     path('comptabilite/operations_tresorerie/modifier/<int:categorie>/<int:pk>', operations_tresorerie.Modifier.as_view(), name='operations_tresorerie_modifier'),
     path('comptabilite/operations_tresorerie/supprimer/<int:categorie>/<int:pk>', operations_tresorerie.Supprimer.as_view(), name='operations_tresorerie_supprimer'),
+
+    # Vérification comptable
+    path('comptabilite/verification_compta/liste', verification_compta.Liste.as_view(), name='verification_compta_liste'),
+    path('comptabilite/verification_compta/liste/<int:categorie>', verification_compta.Liste.as_view(), name='verification_compta_liste'),
 
     # Opérations budgétaires
     path('comptabilite/operations_budgetaires/liste', operations_budgetaires.Liste.as_view(), name='operations_budgetaires_liste'),
@@ -73,6 +78,7 @@ urlpatterns = [
     path('comptabilite/operations_tresorerie/get_form_ventilation', secure_ajax(operations_tresorerie.Get_form_ventilation), name='ajax_operations_tresorerie_form_ventilation'),
     path('comptabilite/operations_tresorerie/generer_pdf', secure_ajax(edition_justifs.Generer_pdf), name='ajax_comptabilite_generer_pdf'),
     path('comptabilite/avances/regul/modification', secure_ajax(avances_regul.Exporter), name='exporter_avances'),
-    path('comptabilite/operations_budgetaires/pointage', secure_ajax(operations_tresorerie.Pointer_operation_ajax), name='Pointer_operation_ajax')
+    path('comptabilite/operations_budgetaires/pointage', secure_ajax(operations_tresorerie.Pointer_operation_ajax), name='Pointer_operation_ajax'),
+    path('comptabilite/verification_compta/verifier', secure_ajax(verification_compta.Verifier_operation_ajax), name='ajax_verifier_operation'),
 
 ]

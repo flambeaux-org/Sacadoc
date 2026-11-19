@@ -524,6 +524,10 @@ class CompteBancaire(models.Model):
     dft_titulaire = models.CharField(verbose_name="Titulaire DFT", max_length=400, blank=True, null=True)
     dft_iban = encrypt(models.CharField(verbose_name="IBAN DFT", max_length=400, blank=True, null=True))
     structure = models.ForeignKey(Structure, verbose_name="Structure", on_delete=models.PROTECT, blank=True, null=True)
+    date_anouveau = models.DateField(verbose_name="Date de départ du rapprochement", blank=True, null=True,
+                                     help_text="Les opérations antérieures à cette date sont considérées comme déjà rapprochées.")
+    solde_anouveau = models.DecimalField(verbose_name="Solde d'à-nouveau", max_digits=10, decimal_places=2, default=0,
+                                         help_text="Solde du relevé bancaire à la date de départ du rapprochement.")
 
     class Meta:
         db_table = 'comptes_bancaires'
@@ -4208,6 +4212,8 @@ class ComptaOperation(models.Model):
     regul_avance = models.BooleanField(verbose_name="Opération de régularisation d'avance", default=False)
     observation = models.CharField(verbose_name="Remarque", max_length=400, blank=True, null=True)
     pointage = models.BooleanField(verbose_name="Opération pointée", default=False)
+    verification = models.BooleanField(verbose_name="Opération vérifiée", default=False)
+
     class Meta:
         db_table = "compta_operations"
         verbose_name = "Opération de trésorerie"

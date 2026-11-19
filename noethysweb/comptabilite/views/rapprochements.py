@@ -9,13 +9,14 @@ from django.http import HttpResponseRedirect
 from django.contrib import messages
 from core.views.mydatatableview import MyDatatable, columns, helpers
 from core.views import crud
-from core.models import ComptaReleve, ComptaOperation
+from core.models import ComptaReleve, ComptaOperation, CompteBancaire
 from core.utils import utils_texte
 from comptabilite.forms.rapprochements import Formulaire
 
 
 class Page(crud.Page):
     model = ComptaReleve
+    menu_code = "rapprochements_liste"
     url_liste = "rapprochements_liste"
     url_ajouter = "rapprochements_ajouter"
     url_modifier = "rapprochements_modifier"
@@ -37,7 +38,10 @@ class Liste(Page, crud.Liste):
     model = ComptaReleve
 
     def get_queryset(self):
-        return ComptaReleve.objects.filter(self.Get_filtres("Q")).annotate(nbre_operations=Count("comptaoperation"))
+        return ComptaReleve.objects.filter(
+            self.Get_filtres("Q"),
+            compte__in=CompteBancaire.objects.filter(self.Get_condition_structure()),
+        ).annotate(nbre_operations=Count("comptaoperation"))
 
     def get_context_data(self, **kwargs):
         context = super(Liste, self).get_context_data(**kwargs)

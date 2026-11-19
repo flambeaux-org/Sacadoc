@@ -4,14 +4,16 @@
 #  Distribué sous licence GNU GPL.
 
 from django.urls import reverse_lazy
+from django.db.models import Q
 from core.views.mydatatableview import MyDatatable, columns, helpers
 from core.views import crud
-from core.models import ComptaVirement, ComptaOperation
+from core.models import ComptaVirement, ComptaOperation, CompteBancaire
 from comptabilite.forms.liste_virements import Formulaire
 
 
 class Page(crud.Page):
     model = ComptaVirement
+    menu_code = "virements_liste"
     url_liste = "virements_liste"
     url_ajouter = "virements_ajouter"
     url_modifier = "virements_modifier"
@@ -53,7 +55,11 @@ class Liste(Page, crud.Liste):
     model = ComptaVirement
 
     def get_queryset(self):
-        return ComptaVirement.objects.filter(self.Get_filtres("Q"))
+        # Seuls les virements dont l'un des deux comptes est accessible à l'utilisateur
+        comptes = CompteBancaire.objects.filter(self.Get_condition_structure())
+        return ComptaVirement.objects.filter(
+            Q(compte_debit__in=comptes) | Q(compte_credit__in=comptes)
+        ).filter(self.Get_filtres("Q"))
 
     def get_context_data(self, **kwargs):
         context = super(Liste, self).get_context_data(**kwargs)

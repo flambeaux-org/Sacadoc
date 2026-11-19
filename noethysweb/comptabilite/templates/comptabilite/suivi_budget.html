@@ -23,6 +23,54 @@
                 </div>
             </div>
 
+            {# Résultat de la page #}
+            {% if totaux %}
+                <div class="card card-primary card-outline">
+                    <div class="card-header with-border">
+                        <h3 class="card-title"><i class="fa fa-calculator margin-r-5"></i> Résultat</h3>
+                    </div>
+                    <div class="card-body" style="padding:10px;">
+                        <p style="margin-bottom:6px;">
+                            <small class="text-muted">{{ totaux.nom_budget }} — du {{ totaux.date_debut|date:"d/m/Y" }} au {{ totaux.date_fin|date:"d/m/Y" }}</small>
+                        </p>
+                        <table class="table table-sm" style="margin-bottom:0;">
+                            <tr><th></th><th class="text-right">Réalisé</th><th class="text-right">Budgété</th></tr>
+                            <tr><td>Recettes</td>
+                                <td class="text-right">{{ totaux.total_recettes }} €</td>
+                                <td class="text-right text-muted">{{ totaux.recettes_budgetees }} €</td></tr>
+                            <tr><td>Dépenses</td>
+                                <td class="text-right">{{ totaux.total_depenses }} €</td>
+                                <td class="text-right text-muted">{{ totaux.depenses_budgetees }} €</td></tr>
+                            <tr class="bg-light">
+                                <td><b>Résultat du projet</b></td>
+                                <td class="text-right"><b>{{ totaux.resultat_projet }} €</b></td>
+                                <td class="text-right text-muted">{{ totaux.resultat_budgete }} €</td></tr>
+                            <tr><td class="text-muted">Écart au budget</td>
+                                <td class="text-right text-muted" colspan="2">{{ totaux.ecart_resultat }} €</td></tr>
+                            <tr><td colspan="3"><hr style="margin:4px 0;"></td></tr>
+                            <tr>
+                                <td>Solde bancaire des comptes<br><small class="text-muted">au {{ totaux.date_fin|date:"d/m/Y" }}</small></td>
+                                <td class="text-right" colspan="2">{{ totaux.solde_bancaire }} €</td>
+                            </tr>
+                            <tr><td class="text-muted">Écart projet / banque</td>
+                                <td class="text-right text-muted" colspan="2">{{ totaux.ecart_projet_banque }} €</td></tr>
+                        </table>
+                    </div>
+                </div>
+            {% endif %}
+
+            <p class="form-text">
+                <small>
+                    <i class="fa fa-info-circle"></i>
+                    <b>Résultat du projet</b> — périmètre complet : toutes les opérations des
+                    comptes du budget, y compris ce qui ne transite pas par le compte bancaire
+                    (avances, sommes encaissées par le Mouvement).<br>
+                    <b>Solde bancaire</b> — périmètre bancaire : uniquement ce qui est réellement
+                    passé sur les comptes, à la date de fin du budget. L'écart entre les deux
+                    correspond aux opérations hors banque.
+                </small>
+            </p>
+
         </div>
 
         <div class="col-md-9">

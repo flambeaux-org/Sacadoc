@@ -467,6 +467,7 @@ def GetMenuPrincipal(organisateur=None, user=None):
     # Analyse
     menu_comptabilite_analyse = menu_comptabilite.Add(titre="Analyse")
     #menu_comptabilite_analyse.Add(code="suivi_tresorerie", titre="Suivi de la trésorerie", icone="file-text-o")
+    menu_comptabilite_analyse.Add(code="verification_compta_liste", titre="Vérification comptable", icone="file-text-o")
     menu_comptabilite_analyse.Add(code="suivi_compta", titre="Bilan financier", icone="file-text-o")
     menu_comptabilite_analyse.Add(code="suivi_budget", titre="Suivi du budget", icone="file-text-o")
     menu_comptabilite_analyse.Add(code="liste_ventilation", titre="Liste des opérations par catégorie", icone="file-text-o")

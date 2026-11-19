@@ -9,7 +9,7 @@ from django.views.generic import TemplateView
 from core.views.base import CustomView
 from core.utils import utils_dates
 from comptabilite.forms.avances_regul import Formulaire
-from core.models import ComptaOperation, Structure, ComptaVentilation, ModeReglement
+from core.models import ComptaOperation, Structure, ComptaVentilation, ModeReglement, CompteBancaire
 from django.db import transaction
 from django.db.models import Max
 from django.db.models import Q
@@ -26,7 +26,15 @@ def Exporter(request):
 
     nouvelle_date = nouvelle_date.date()
 
-    operations = ComptaOperation.objects.filter(pk__in=operation_ids)
+    # Restreint aux opérations des comptes accessibles à l'utilisateur
+    condition_structure = Q(structure__in=request.user.structures.all()) | Q(structure__isnull=True)
+    operations = ComptaOperation.objects.filter(
+        pk__in=operation_ids,
+        compte__in=CompteBancaire.objects.filter(condition_structure),
+    )
+
+    if not operations.exists():
+        return JsonResponse({'success': False, 'message': "Aucune opération accessible n'a été sélectionnée."})
 
     # Vérification avance et compte
     avance_ids = set(op.avance_id for op in operations)
@@ -55,7 +63,7 @@ def Exporter(request):
             anciennes_ops = ComptaOperation.objects.filter(remb_avance=regul_id, regul_avance=False)
 
             # Déconnecter celles qui ne sont plus sélectionnées
-            ops_to_remove = anciennes_ops.exclude(pk__in=operation_ids)
+            ops_to_remove = anciennes_ops.exclude(pk__in=list(operations.values_list("pk", flat=True)))
             ops_to_remove.update(remb_avance=0)
 
             # Les nouvelles opérations sélectionnées prennent le même ID
@@ -123,6 +131,7 @@ class View(CustomView, TemplateView):
 
 
 class Modifier(CustomView, TemplateView):
+    menu_code = "avances_regul"
     form_class = Formulaire
     template_name = "comptabilite/avances_regul.html"
 
@@ -178,15 +187,14 @@ class Modifier(CustomView, TemplateView):
 from django.shortcuts import get_object_or_404, redirect
 
 class SupprimerRegul(CustomView, TemplateView):
+    menu_code = "avances_regul"
     template_name = "comptabilite/avances_regul_supprimer.html"  # template simple avec bouton de confirmation
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         pk = self.kwargs.get("pk")
-        print(pk)
         try:
             regul_op = ComptaOperation.objects.get(idoperation=pk, regul_avance=True)
-            print(regul_op)
             context['regul_op'] = regul_op  # objet ComptaOperation, utiliser directement dans le template
             context['page_titre'] = "Supprimer une régularisation d'avance"
             context['box_titre'] = "Confirmation de suppression"

@@ -8,14 +8,14 @@ logger = logging.getLogger(__name__)
 from django.urls import reverse_lazy, reverse
 from django.db.models import Q, Sum, DecimalField, Case, When, F
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseRedirect
 from django.template.context_processors import csrf
 from crispy_forms.utils import render_crispy_form
 from core.views.mydatatableview import MyDatatable, columns, helpers
 from core.views import crud
-from core.models import ComptaOperation, CompteBancaire, ComptaVentilation, ComptaCategorie, ComptaAvance, Structure
+from core.models import ComptaOperation, CompteBancaire, ComptaVentilation, ComptaCategorie, ComptaAvance, ComptaAnalytique, Structure
 from core.utils import utils_dates, utils_parametres, utils_texte
-from comptabilite.forms.operations_tresorerie import Formulaire, FORMSET_CATEGORIES
+from comptabilite.forms.operations_tresorerie import Formulaire, FORMSET_CATEGORIES, Get_prochain_num_piece
 from comptabilite.forms.ventilation_tresorerie import Formulaire as Formulaire_ventilation
 from django.forms.models import inlineformset_factory, BaseInlineFormSet
 from core.forms.base import FormulaireBase
@@ -31,7 +31,7 @@ from django.shortcuts import get_object_or_404
 @require_POST
 def Pointer_operation_ajax(request):
     """
-    Vue Ajax pour modifier le statut de pointage (Sauvegarde dans les préférences).
+    Vue Ajax pour modifier le statut de pointage d'une opération.
     """
     idoperation = request.POST.get('idoperation')
     pointage = request.POST.get('pointage') == 'true'
@@ -43,6 +43,11 @@ def Pointer_operation_ajax(request):
         )
 
     operation = get_object_or_404(ComptaOperation, idoperation=idoperation)
+
+    # Vérifie que l'utilisateur a bien accès au compte de cette opération
+    condition_structure = Q(structure__in=request.user.structures.all()) | Q(structure__isnull=True)
+    if not CompteBancaire.objects.filter(condition_structure, pk=operation.compte_id).exists():
+        return JsonResponse({"statut": "erreur", "message": "Accès non autorisé à ce compte"}, status=403)
 
     operation.pointage = pointage
     operation.save(update_fields=["pointage"])
@@ -144,6 +149,7 @@ FORMSET_CATEGORIES = inlineformset_factory(ComptaOperation, ComptaVentilation, f
 
 class Page(crud.Page):
     model = ComptaOperation
+    menu_code = "operations_tresorerie_liste"
     url_liste = "operations_tresorerie_liste"
     url_modifier = "operations_tresorerie_modifier"
     url_supprimer = "operations_tresorerie_supprimer"
@@ -281,6 +287,15 @@ class Page(crud.Page):
                 self.get_context_data(form=form, formset_categories=formset_categories)
             )
 
+        # --- Analytique par défaut (la première disponible) ---
+        analytique_defaut = ComptaAnalytique.objects.order_by("pk").first()
+        if not analytique_defaut:
+            form.add_error(None, "Aucun poste analytique n'est enregistré : impossible de ventiler l'opération.")
+            return self.form_invalid(form)
+
+        # --- Date de budget : celle de l'opération, et non celle du jour ---
+        date_budget = form.cleaned_data.get("date") or datetime.date.today()
+
         # --- Extraction et préparation des données du formset ---
         ventilations_data = []
         for f in formset_categories.forms:
@@ -289,8 +304,8 @@ class Page(crud.Page):
                 ventilations_data.append({
                     "categorie_id": data.get("categorie").pk if data.get("categorie") else None,
                     "montant": Decimal(data.get("montant") or 0),
-                    "date_budget": str(datetime.date.today()),
-                    "analytique": 1,
+                    "date_budget": date_budget,
+                    "analytique": analytique_defaut.pk,
                     "libelle": ""
                 })
 
@@ -298,10 +313,12 @@ class Page(crud.Page):
         total_montant = form.cleaned_data.get("montant") or Decimal(0)
         montant_ventilation = sum([v["montant"] for v in ventilations_data])
         if total_montant != montant_ventilation:
-            form.add_error(
-                None,
-                f"La somme des catégories ({montant_ventilation}) ne correspond pas au montant total ({total_montant})."
-            )
+            reste = total_montant - montant_ventilation
+            if reste > 0:
+                message = f"Il reste {reste} à ventiler : la somme des catégories ({montant_ventilation}) n'atteint pas le montant de l'opération ({total_montant})."
+            else:
+                message = f"La ventilation dépasse de {abs(reste)} le montant de l'opération : {montant_ventilation} réparti pour {total_montant} saisi."
+            form.add_error(None, message)
             return self.form_invalid(form)
 
         # --- Vérification des doublons de catégorie ---
@@ -314,6 +331,12 @@ class Page(crud.Page):
 
         # --- Sauvegarde du formulaire principal ---
         self.object = form.save(commit=False)
+
+        # --- Numéro de pièce attribué à l'enregistrement ---
+        # Il était calculé à l'ouverture du formulaire : deux saisies simultanées
+        # obtenaient alors le même numéro.
+        if not self.object.pk and self.object.type == "debit":
+            self.object.num_piece = str(Get_prochain_num_piece(self.object.compte_id))
 
         # --- Si une déduction est sélectionnée ---
         deduction = form.cleaned_data.get("deduction")
@@ -343,7 +366,7 @@ class Page(crud.Page):
             if v["categorie_id"] in ventilations_existantes:
                 # Mise à jour de la ventilation existante
                 vent = ventilations_existantes[v["categorie_id"]]
-                vent.date_budget = utils_dates.ConvertDateENGtoDate(v["date_budget"])
+                vent.date_budget = v["date_budget"]
                 vent.analytique_id = v["analytique"]
                 vent.montant = v["montant"]
                 vent.libelle = v["libelle"]
@@ -353,7 +376,7 @@ class Page(crud.Page):
                 ComptaVentilation.objects.create(
                     operation=self.object,
                     categorie_id=v["categorie_id"],
-                    date_budget=utils_dates.ConvertDateENGtoDate(v["date_budget"]),
+                    date_budget=v["date_budget"],
                     analytique_id=v["analytique"],
                     montant=v["montant"],
                     libelle=v["libelle"],
@@ -366,19 +389,66 @@ class Page(crud.Page):
 
         return super().form_valid(form)
 
+CATEGORIE_PERIODE = "operations_tresorerie_periode"
+
+
+def Convert_date(texte):
+    """ Convertit une date au format YYYY-MM-DD en date, ou None """
+    if not texte:
+        return None
+    try:
+        return datetime.datetime.strptime(texte, "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        return None
+
+
 class Liste(Page, crud.Liste):
     model = ComptaOperation
     template_name = "core/crud/liste_avec_categorie.html"
 
+    def Get_periode(self):
+        """ Période d'affichage mémorisée par utilisateur et par compte """
+        if not hasattr(self, "_periode"):
+            self._periode = utils_parametres.Get(
+                nom="compte_%s" % self.Get_categorie(), categorie=CATEGORIE_PERIODE,
+                utilisateur=self.request.user, valeur={"date_debut": "", "date_fin": ""})
+            if not isinstance(self._periode, dict):
+                self._periode = {"date_debut": "", "date_fin": ""}
+        return self._periode
+
+    def post(self, request, *args, **kwargs):
+        """ Mémorise la période d'affichage puis réaffiche la liste """
+        idcompte = self.Get_categorie()
+        if request.POST.get("action") == "reinitialiser":
+            periode = {"date_debut": "", "date_fin": ""}
+        else:
+            periode = {
+                "date_debut": request.POST.get("date_debut", "") or "",
+                "date_fin": request.POST.get("date_fin", "") or "",
+            }
+        utils_parametres.Set(nom="compte_%s" % idcompte, categorie=CATEGORIE_PERIODE,
+                             utilisateur=request.user, valeur=periode)
+        return HttpResponseRedirect(reverse("operations_tresorerie_liste", kwargs={"categorie": idcompte}))
+
     def get_queryset(self):
+        conditions = Q(compte=self.Get_categorie())
+        periode = self.Get_periode()
+        date_debut = Convert_date(periode.get("date_debut"))
+        date_fin = Convert_date(periode.get("date_fin"))
+        if date_debut:
+            conditions &= Q(date__gte=date_debut)
+        if date_fin:
+            conditions &= Q(date__lte=date_fin)
         return ComptaOperation.objects.select_related("tiers", "mode").filter(
-            Q(compte=self.Get_categorie()) & self.Get_filtres("Q"))
+            conditions & self.Get_filtres("Q"))
 
     def get_context_data(self, **kwargs):
         context = super(Liste, self).get_context_data(**kwargs)
         context['impression_introduction'] = ""
         context['impression_conclusion'] = ""
         context['afficher_menu_brothers'] = True
+        context['filtre_periode'] = True
+        context['periode'] = self.Get_periode()
 
         from django.db.models import Sum, Case, When, F, DecimalField, Q
 
