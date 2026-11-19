@@ -154,10 +154,11 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 # Database
+DATABASE_PATH = os.environ.get("DATABASE_PATH", default=os.path.join(BASE_DIR, '..', 'db.sqlite3'))
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        'NAME': DATABASE_PATH,
     }
 }
 
