@@ -73,7 +73,7 @@ def envoyer_email_paiement_stripe(prestation, montant, session_id):
     message = EmailMultiAlternatives(
         subject="Paiement Stripe reçu",
         body=body,
-        from_email=adresse_exp.adresse,
+        from_email=adresse_exp.Get_from_email(),
         to=[organisateur.mail],
         connection=connection,
     )

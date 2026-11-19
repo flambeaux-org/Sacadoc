@@ -161,6 +161,9 @@ class Formulaire(FormulaireBase, ModelForm):
         # on évite ainsi toute pièce orpheline (sans famille).
         self.cleaned_data["famille"] = self.request.user.famille
 
+        # Auteur : jamais pris du champ caché posté
+        self.cleaned_data["auteur"] = self.instance.auteur if self.instance.pk else self.request.user
+
         # Durée de validité
         self.cleaned_data["date_debut"] = datetime.date.today()
         self.cleaned_data["date_fin"] = piece["type_piece"].Get_date_fin_validite() if piece else datetime.date(2999, 1,1)

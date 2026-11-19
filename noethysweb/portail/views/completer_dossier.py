@@ -182,7 +182,7 @@ class View(CustomView, TemplateView):
             inscription.besoin_certification = False
             inscription.save()
 
-            rattachement = Rattachement.objects.filter(individu=inscription.individu).first()
+            rattachement = Rattachement.objects.filter(individu=inscription.individu, famille=self.request.user.famille).first()
             if rattachement:
                 rattachement.certification_date = datetime.datetime.now()
                 rattachement.save()
@@ -196,6 +196,11 @@ class View(CustomView, TemplateView):
         question_pk = request.POST.get("question_pk")
         question_ctrl = request.POST.get("question_ctrl")
         valeur = request.POST.get("valeur")
+
+        # Sécurité : uniquement pour un individu rattaché à la famille
+        if not Rattachement.objects.filter(famille=request.user.famille, individu_id=individu_pk).exists():
+            messages.error(request, _("Vous ne pouvez pas répondre pour cet individu."))
+            return self.Redirect_etape("questionnaires")
 
         reponse_valeur = valeur
         if question_ctrl in ("liste_deroulante", "liste_coches"):

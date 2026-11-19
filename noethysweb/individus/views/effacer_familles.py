@@ -79,9 +79,10 @@ def Effacer(request):
                 "nom_jfille", "prenom", "date_naiss", "cp_naiss", "ville_naiss",
                 "annee_deces", "adresse_auto", "rue_resid", "cp_resid", "ville_resid", "secteur",
                 "categorie_travail", "profession", "employeur", "travail_tel", "travail_fax", "travail_mail",
-                "tel_domicile", "tel_mobile", "tel_fax", "mail", "medecin", "memo", "type_sieste",
+                "tel_domicile", "tel_mobile", "tel_fax", "medecin", "memo", "type_sieste",
                 "situation_familiale", "info_garde",
             ])
+            rattachement.individu.mail = ""
             rattachement.individu.listes_diffusion.clear()
             rattachement.individu.regimes_alimentaires.clear()
             rattachement.individu.maladies.clear()

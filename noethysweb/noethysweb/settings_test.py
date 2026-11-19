@@ -11,12 +11,15 @@ SECRET_KEY = "test-secret-key-not-for-production-only-used-in-pytest"
 DEBUG = False
 
 # Named SQLite file so --reuse-db can reuse the schema across local runs.
+# TEST_DB_NAME lets parallel local runs use separate files (absolute path or name in BASE_DIR).
+_TEST_DB_NAME = os.path.join(BASE_DIR, os.environ.get("TEST_DB_NAME", "test.sqlite3"))  # noqa: F405
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": os.path.join(BASE_DIR, "test.sqlite3"),  # noqa: F405
+        "NAME": _TEST_DB_NAME,
         "TEST": {
-            "NAME": os.path.join(BASE_DIR, "test.sqlite3"),
+            "NAME": _TEST_DB_NAME,
         }
     }
 }

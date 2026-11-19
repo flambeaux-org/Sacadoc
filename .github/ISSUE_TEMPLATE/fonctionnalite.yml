@@ -1,0 +1,30 @@
+name: Proposer une fonctionnalité
+description: Suggérer une amélioration
+labels: ["enhancement"]
+body:
+  - type: input
+    id: url
+    attributes:
+      label: URL de la page concernée
+      description: Ou la page la plus proche si c'est une nouvelle page.
+      placeholder: "https://sacadoc.flambeaux.org/utilisateur/..."
+    validations:
+      required: true
+  - type: textarea
+    id: besoin
+    attributes:
+      label: Besoin
+      description: Quel problème voulez-vous résoudre ?
+    validations:
+      required: true
+  - type: textarea
+    id: proposition
+    attributes:
+      label: Solution envisagée
+    validations:
+      required: true
+  - type: textarea
+    id: contexte
+    attributes:
+      label: Contexte (facultatif)
+      description: Alternatives, maquettes, captures…

@@ -7,7 +7,7 @@ from re import UNICODE, compile
 from django.forms import ModelForm
 from django.utils.translation import gettext as _
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Layout, Hidden
+from crispy_forms.layout import Layout
 from crispy_forms.bootstrap import Field
 from core.models import PortailMessage
 from core.utils.utils_commandes import Commandes
@@ -31,14 +31,18 @@ class Formulaire(FormulaireBase, ModelForm):
     def __init__(self, *args, **kwargs):
         idstructure = kwargs.pop("idstructure", None)
         super(Formulaire, self).__init__(*args, **kwargs)
+
+        # Sécurité : la famille et la structure ne viennent jamais des champs cachés postés
+        for nom_champ in ("famille", "structure"):
+            self.fields.pop(nom_champ, None)
+        self.instance.famille = self.request.user.famille
+        self.instance.structure_id = idstructure
         self.helper = FormHelper()
         self.helper.form_id = 'portail_messages_form'
         self.helper.form_method = 'post'
 
         # Affichage
         self.helper.layout = Layout(
-            Hidden('famille', value=self.request.user.famille.pk),
-            Hidden('structure', value=idstructure),
             Field('texte'),
             Commandes(enregistrer_label="<i class='fa fa-send margin-r-5'></i>%s" % _("Envoyer"), annuler_url="{% url 'portail_contact' %}", ajouter=False, aide=False, css_class="pull-right"),
         )

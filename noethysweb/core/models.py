@@ -6,6 +6,7 @@ import datetime
 import decimal
 import os
 import uuid
+from email.headerregistry import Address
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser, UserManager
@@ -295,6 +296,10 @@ class AdresseMail(models.Model):
         if self.adresse:
             return "%s (%s)" % (self.adresse, self.get_moteur_display())
         return "Adresse mail"
+
+    def Get_from_email(self):
+        """ Retourne l'expéditeur au format 'Nom affiché <adresse>' (ou l'adresse seule si aucun nom n'est saisi) """
+        return str(Address(display_name=(self.nom_adresse or "").strip(), addr_spec=self.adresse))
 
     def Get_parametre(self, nom=""):
         try:
@@ -1836,7 +1841,7 @@ class Individu(models.Model):
     tel_domicile = encrypt(models.CharField(verbose_name=_("Tél domicile"), max_length=100, blank=True, null=True))
     tel_mobile = encrypt(models.CharField(verbose_name=_("Tél portable"), max_length=100, blank=True, null=True))
     tel_fax = encrypt(models.CharField(verbose_name=_("Fax personnel"), max_length=100, blank=True, null=True))
-    mail = encrypt(models.EmailField(verbose_name=_("Email personnel"), max_length=300, blank=True, null=True))
+    mail = models.EmailField(verbose_name=_("Email personnel"), max_length=300, blank=True)
     medecin = models.ForeignKey(Medecin, verbose_name=_("Médecin"), on_delete=models.PROTECT, blank=True, null=True)
     memo = models.TextField(verbose_name=_("Mémo"), blank=True, null=True)
     type_sieste = models.ForeignKey(TypeSieste, verbose_name=_("Sieste"), on_delete=models.PROTECT, blank=True, null=True)

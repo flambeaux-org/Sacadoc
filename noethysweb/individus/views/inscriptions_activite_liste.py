@@ -145,6 +145,8 @@ class Liste(Page, crud.Liste):
             return instance.individu.tel_mobile
 
         def Get_naissance(self, instance, *args, **kwargs):
+            if not instance.individu.date_naiss:
+                return ""
             return instance.individu.date_naiss.strftime("%d/%m/%Y")
 
         def Formate_statut(self, instance, *args, **kwargs):

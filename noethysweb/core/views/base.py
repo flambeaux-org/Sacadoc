@@ -144,7 +144,7 @@ class CustomView(LoginRequiredMixin, UserPassesTestMixin): #, PermissionRequired
         context['mode_demo'] = settings.MODE_DEMO
 
         # Mémorise le menu actif
-        menu_actif = menu_principal.Find(code=self.menu_code)
+        menu_actif = menu_principal.Find(code=self.menu_code) if self.menu_code else None
         context['menu_actif'] = menu_actif
         if menu_actif:
             context['menu_brothers'] = menu_actif.GetBrothers()

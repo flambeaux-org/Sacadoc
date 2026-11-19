@@ -7,7 +7,7 @@ from django import forms
 from django.forms import ModelForm
 from django.utils.translation import gettext_lazy as _
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Layout, Hidden, Fieldset
+from crispy_forms.layout import Layout, Fieldset
 from crispy_forms.bootstrap import Field
 from core.models import ContactUrgence
 from core.widgets import Telephone, CodePostal, Ville
@@ -41,6 +41,12 @@ class Formulaire(FormulaireBase, ModelForm):
         rattachement = kwargs.pop("rattachement", None)
         mode = kwargs.pop("mode", "MODIFICATION")
         super(Formulaire, self).__init__(*args, **kwargs)
+
+        # Sécurité : l'individu et la famille viennent du rattachement, jamais des champs cachés postés
+        for nom_champ in ("individu", "famille"):
+            self.fields.pop(nom_champ, None)
+        self.instance.individu = rattachement.individu
+        self.instance.famille = rattachement.famille
         self.helper = FormHelper()
         self.helper.form_id = 'individu_contacts_form'
         self.helper.form_method = 'post'
@@ -55,8 +61,6 @@ class Formulaire(FormulaireBase, ModelForm):
 
         # Affichage
         self.helper.layout = Layout(
-            Hidden('famille', value=rattachement.famille_id),
-            Hidden('individu', value=rattachement.individu_id),
             Fieldset(_("Identité"),
                 Field("nom"),
                 Field("prenom"),

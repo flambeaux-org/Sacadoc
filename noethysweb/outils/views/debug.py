@@ -7,6 +7,7 @@ from core.views import crud
 
 class DebugLog(crud.Page, TemplateView):
     template_name = "outils/debug.html"
+    menu_code = "debug_log"
 
     def get_context_data(self, **kwargs):
         # Initialisation du contexte via les parents

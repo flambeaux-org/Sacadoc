@@ -9,7 +9,7 @@ from django.forms import ModelForm
 from django.contrib import messages
 from django.utils.translation import gettext_lazy as _
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Layout, Hidden
+from crispy_forms.layout import Layout
 from crispy_forms.bootstrap import Field
 from core.models import Assurance, Assureur
 from core.widgets import DatePickerWidget, Select_avec_commandes_form
@@ -47,6 +47,12 @@ class Formulaire(FormulaireBase, ModelForm):
         rattachement = kwargs.pop("rattachement", None)
         mode = kwargs.pop("mode", "MODIFICATION")
         super(Formulaire, self).__init__(*args, **kwargs)
+
+        # Sécurité : l'individu et la famille viennent du rattachement, jamais des champs cachés postés
+        for nom_champ in ("individu", "famille"):
+            self.fields.pop(nom_champ, None)
+        self.instance.individu = rattachement.individu
+        self.instance.famille = rattachement.famille
         self.helper = FormHelper()
         self.helper.form_id = 'individu_contacts_form'
         self.helper.form_method = 'post'
@@ -61,8 +67,6 @@ class Formulaire(FormulaireBase, ModelForm):
 
         # Affichage
         self.helper.layout = Layout(
-            Hidden('famille', value=rattachement.famille_id),
-            Hidden('individu', value=rattachement.individu_id),
             Field("assureur"),
             Field("num_contrat"),
             Field("date_debut"),

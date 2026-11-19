@@ -10,7 +10,7 @@ from django.utils.translation import gettext_lazy as _
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Hidden, HTML, Div, Field
 from core.models import (Activite, Rattachement, Groupe, PortailRenseignement,
-                         NomTarif, Tarif, Structure, TarifLigne, PortailDocument, Piece)
+                         NomTarif, Tarif, Structure, TarifLigne, PortailDocument, Piece, Individu)
 from core.utils.utils_commandes import Commandes
 from portail.forms.fiche import FormulaireBase
 from individus.utils import utils_pieces_manquantes
@@ -302,6 +302,8 @@ class Formulaire(FormulaireBase, ModelForm):
         rattachements = Rattachement.objects.select_related("individu").filter(
             famille=self.request.user.famille).exclude(
             individu__in=self.request.user.famille.individus_masques.all()).order_by("categorie")
+        # Sécurité : la validation se fait sur le queryset, pas seulement sur les choix affichés
+        self.fields["individu"].queryset = Individu.objects.filter(pk__in=[r.individu_id for r in rattachements])
         self.fields["individu"].choices = [(r.individu_id, r.individu.Get_nom()) for r in rattachements]
 
         # On réduit le QuerySet d'affichage pour l'activité (mais Django garde .all() pour valider)

@@ -201,12 +201,14 @@ function On_change_moteur() {
 
     if($(this).val() == 'brevo') {
         $('#div_id_adresse').show();
+        $('#div_id_nom_adresse').show();
         $('#div_id_cle_api').show();
     }
 
 
     if($(this).val() == 'console') {
         $('#div_id_adresse').show();
+        $('#div_id_nom_adresse').show();
     }
 
 }

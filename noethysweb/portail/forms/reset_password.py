@@ -140,7 +140,7 @@ class MyPasswordResetForm(PasswordResetForm):
         objet = loader.render_to_string(subject_template_name, context).strip()
         body = loader.render_to_string(email_template_name, context)
 
-        message = EmailMultiAlternatives(subject=objet, body=body, from_email=adresse_exp.adresse, to=[email],
+        message = EmailMultiAlternatives(subject=objet, body=body, from_email=adresse_exp.Get_from_email(), to=[email],
                                          connection=connection)
 
         if html_email_template_name is not None:

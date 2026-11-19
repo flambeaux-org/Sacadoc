@@ -56,7 +56,8 @@ class View(CustomView, TemplateView):
             messages.error(request, "Inscription non spécifiée.")
             return redirect(request.path)
 
-        inscription = get_object_or_404(Inscription, pk=inscription_id)
+        # Sécurité : uniquement une inscription de la famille
+        inscription = get_object_or_404(Inscription, pk=inscription_id, famille=request.user.famille)
         individu = get_object_or_404(Individu, pk=inscription.individu.pk)
 
         # Double sécurité : si aucune information médicale n'est renseignée, la famille doit attester explicitement le RAS
@@ -67,7 +68,7 @@ class View(CustomView, TemplateView):
         inscription.besoin_certification = False
         inscription.save()
 
-        rattachement = get_object_or_404(Rattachement, individu=individu)
+        rattachement = get_object_or_404(Rattachement, individu=individu, famille=request.user.famille)
         rattachement.certification_date = datetime.datetime.now()
         rattachement.save()
 

@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import datetime
+
 from django import forms
 from django.forms import ModelForm
 from core.forms.base import FormulaireBase
@@ -69,6 +71,30 @@ class Formulaire(FormulaireBase, ModelForm):
                 </script>
             """)
         )
+
+    def clean_date_seance(self):
+        """Chaque entrée doit être une date JJ/MM/AAAA : le pointage ne sait enregistrer que des dates."""
+        valeur = self.cleaned_data.get("date_seance") or ""
+        if self.cleaned_data.get("type_date") != "LST":
+            return valeur
+
+        dates, invalides = set(), []
+        for texte in valeur.split(","):
+            texte = texte.strip()
+            if not texte:
+                continue
+            try:
+                dates.add(datetime.datetime.strptime(texte, "%d/%m/%Y").date())
+            except ValueError:
+                invalides.append(texte)
+
+        if invalides:
+            raise ValidationError(
+                "Ces valeurs ne sont pas des dates valides (format JJ/MM/AAAA) : %s" % ", ".join(invalides)
+            )
+
+        # Normalise (zéros initiaux, doublons, ordre) pour que la grille et le pointage utilisent le même libellé
+        return ", ".join(d.strftime("%d/%m/%Y") for d in sorted(dates))
 
     def clean(self):
         cleaned_data = super().clean()
