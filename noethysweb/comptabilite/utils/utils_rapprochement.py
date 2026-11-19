@@ -14,11 +14,8 @@
 #
 #  Les inclure dans le rapprochement rend l'écart avec le relevé insoluble.
 
-import decimal
-from django.db.models import Q, Sum, Case, When, F, DecimalField
 from core.models import ComptaOperation, ComptaVentilation, CompteBancaire
-
-ZERO = decimal.Decimal("0.00")
+from comptabilite.utils.utils_compta import ZERO, Agreger  # noqa: F401 (Agreger réexporté)
 
 
 def Get_ids_hors_releve(idcompte):
@@ -49,15 +46,11 @@ def Get_anouveau(idcompte):
     return compte.date_anouveau, (compte.solde_anouveau or ZERO)
 
 
-def Agreger(queryset):
-    """ Renvoie (total_debit, total_credit, solde) d'un queryset d'opérations """
-    stats = queryset.aggregate(
-        total_debit=Sum(Case(When(type="debit", then=F("montant")), output_field=DecimalField(), default=0)),
-        total_credit=Sum(Case(When(type="credit", then=F("montant")), output_field=DecimalField(), default=0)),
-    )
-    total_debit = stats["total_debit"] or ZERO
-    total_credit = stats["total_credit"] or ZERO
-    return total_debit, total_credit, total_credit - total_debit
+def _Get_compte(compte):
+    """ Accepte une instance de CompteBancaire ou un id """
+    if isinstance(compte, CompteBancaire):
+        return compte
+    return CompteBancaire.objects.filter(pk=compte).first()
 
 
 def Get_solde_bancaire(comptes, date_fin=None):
@@ -65,14 +58,44 @@ def Get_solde_bancaire(comptes, date_fin=None):
     Solde réellement disponible en banque pour une liste de comptes, à une date donnée.
     Sert de contrepoint au résultat "projet" des rapports, qui inclut lui les
     opérations hors banque (avances, part Mouvement).
+
+    Comme la page de vérification, on part de l'à-nouveau du compte s'il est
+    renseigné : les opérations antérieures peuvent être incomplètes. Si la date
+    demandée précède l'à-nouveau, seul l'historique brut est disponible.
+    """
+    total = ZERO
+    for compte in comptes:
+        compte = _Get_compte(compte)
+        if not compte:
+            continue
+        bancaires, _ = Get_operations(compte.pk)
+        if date_fin:
+            bancaires = bancaires.filter(date__lte=date_fin)
+        date_anouveau = compte.date_anouveau
+        if date_anouveau and (not date_fin or date_fin >= date_anouveau):
+            _, _, mouvements = Agreger(bancaires.filter(date__gte=date_anouveau))
+            total += (compte.solde_anouveau or ZERO) + mouvements
+        else:
+            _, _, solde = Agreger(bancaires)
+            total += solde
+    return total
+
+
+def Get_mouvements_bancaires(comptes, date_debut=None, date_fin=None):
+    """
+    Variation du solde bancaire sur une période (opérations passées en banque).
+    C'est la grandeur comparable au résultat d'une période : un solde, lui,
+    cumule tout l'historique et les reports des exercices antérieurs.
     """
     total = ZERO
     for compte in comptes:
         bancaires, _ = Get_operations(compte.pk if hasattr(compte, "pk") else compte)
+        if date_debut:
+            bancaires = bancaires.filter(date__gte=date_debut)
         if date_fin:
             bancaires = bancaires.filter(date__lte=date_fin)
-        _, _, solde = Agreger(bancaires)
-        total += solde
+        _, _, mouvements = Agreger(bancaires)
+        total += mouvements
     return total
 
 

@@ -12,13 +12,8 @@ from core.models import ComptaVentilation, ComptaOperationBudgetaire, ComptaCate
 from comptabilite.forms.suivi_compta import Formulaire
 from core.utils import utils_dates
 from comptabilite.utils import utils_rapprochement
+from comptabilite.utils.utils_compta import Arrondi as _arrondi
 from collections import defaultdict
-import decimal
-
-
-def _arrondi(valeur):
-    """ Évite les artefacts de calcul flottant dans les montants affichés """
-    return decimal.Decimal(valeur or 0).quantize(decimal.Decimal("0.01"))
 
 
 class View(CustomView, TemplateView):
@@ -257,13 +252,18 @@ class View(CustomView, TemplateView):
         # --- Totaux de la page : résultat du projet et contrepoint bancaire ---
         total_hors_bilan = sum((montant for _, montant, _ in soldes_hors_bilan), decimal.Decimal(0))
         solde_bancaire = utils_rapprochement.Get_solde_bancaire(comptes, date_fin=date_fin)
+        # Le résultat ne couvre que la période : on le compare à la variation du solde
+        # bancaire sur cette même période, et non au solde cumulé depuis l'origine.
+        mouvements_bancaires = utils_rapprochement.Get_mouvements_bancaires(comptes, date_debut=date_debut, date_fin=date_fin)
         totaux = {
             "total_recettes": _arrondi(total_credit),
             "total_depenses": _arrondi(total_debit),
             "resultat_projet": _arrondi(total_realise),
             "total_hors_bilan": _arrondi(total_hors_bilan),
             "solde_bancaire": _arrondi(solde_bancaire),
-            "ecart_projet_banque": _arrondi(total_realise - solde_bancaire),
+            "mouvements_bancaires": _arrondi(mouvements_bancaires),
+            "ecart_projet_banque": _arrondi(total_realise - mouvements_bancaires),
+            "date_debut": date_debut,
             "date_fin": date_fin,
         }
 

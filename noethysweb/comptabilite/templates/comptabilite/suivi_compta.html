@@ -46,7 +46,11 @@
                                 <td>Solde bancaire des comptes{% if totaux.date_fin %}<br><small class="text-muted">au {{ totaux.date_fin|date:"d/m/Y" }}</small>{% endif %}</td>
                                 <td class="text-right">{{ totaux.solde_bancaire }} €</td>
                             </tr>
-                            <tr><td class="text-muted">Écart projet / banque</td>
+                            <tr>
+                                <td>Mouvements bancaires{% if totaux.date_debut or totaux.date_fin %}<br><small class="text-muted">sur la période</small>{% endif %}</td>
+                                <td class="text-right">{{ totaux.mouvements_bancaires }} €</td>
+                            </tr>
+                            <tr><td class="text-muted">Écart projet / banque<br><small>résultat − mouvements bancaires</small></td>
                                 <td class="text-right text-muted">{{ totaux.ecart_projet_banque }} €</td></tr>
                         </table>
                     </div>
@@ -60,9 +64,10 @@
                     comptes sélectionnés, y compris ce qui ne transite pas par le compte
                     bancaire (avances, sommes encaissées par le Mouvement).<br>
                     <b>Solde bancaire</b> — périmètre bancaire : uniquement ce qui est réellement
-                    passé sur les comptes. C'est ce montant que rapproche la page
-                    <i>Vérification comptable</i>. L'écart entre les deux correspond aux
-                    opérations hors banque.
+                    passé sur les comptes, depuis l'à-nouveau s'il est renseigné. C'est ce montant
+                    que rapproche la page <i>Vérification comptable</i>.<br>
+                    <b>Écart projet / banque</b> — compare le résultat aux mouvements bancaires
+                    de la même période : il correspond aux opérations hors banque.
                 </small>
             </p>
 

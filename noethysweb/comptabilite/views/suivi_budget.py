@@ -11,11 +11,7 @@ from core.views.base import CustomView
 from core.models import ComptaVentilation, ComptaOperationBudgetaire, ComptaCategorieBudget, ComptaCategorie, Reglement, Ventilation
 from comptabilite.forms.suivi_budget import Formulaire
 from comptabilite.utils import utils_rapprochement
-
-
-def _arrondi(valeur):
-    """ Évite les artefacts de calcul flottant dans les montants affichés """
-    return decimal.Decimal(str(valeur or 0)).quantize(decimal.Decimal("0.01"))
+from comptabilite.utils.utils_compta import Arrondi as _arrondi
 
 
 class View(CustomView, TemplateView):
@@ -197,6 +193,10 @@ class View(CustomView, TemplateView):
         credit = regroupements.get("credit", {})
         debit = regroupements.get("debit", {})
         solde_bancaire = utils_rapprochement.Get_solde_bancaire(comptes, date_fin=budget.date_fin)
+        # Le réalisé couvre la période du budget : on le compare à la variation
+        # du solde bancaire sur cette même période, pas au solde cumulé.
+        mouvements_bancaires = utils_rapprochement.Get_mouvements_bancaires(
+            comptes, date_debut=budget.date_debut, date_fin=budget.date_fin)
         resultat_projet = decimal.Decimal(str(total_realise))
         totaux = {
             "nom_budget": budget.nom,
@@ -210,7 +210,8 @@ class View(CustomView, TemplateView):
             "resultat_budgete": _arrondi(total_budgete),
             "ecart_resultat": _arrondi(decimal.Decimal(str(total_ecart))),
             "solde_bancaire": _arrondi(solde_bancaire),
-            "ecart_projet_banque": _arrondi(resultat_projet - solde_bancaire),
+            "mouvements_bancaires": _arrondi(mouvements_bancaires),
+            "ecart_projet_banque": _arrondi(resultat_projet - mouvements_bancaires),
         }
 
         return lignes, totaux

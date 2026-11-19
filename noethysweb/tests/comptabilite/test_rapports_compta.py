@@ -267,7 +267,18 @@ class TestTotauxRapports(RapportsMixin, TestCase):
 
     def test_bilan_ecart_projet_banque(self):
         t = self.totaux_bilan()
-        self.assertEqual(t["ecart_projet_banque"], t["resultat_projet"] - t["solde_bancaire"])
+        # Sur tout l'historique, mouvements de la période = solde bancaire
+        self.assertEqual(t["mouvements_bancaires"], t["solde_bancaire"])
+        self.assertEqual(t["ecart_projet_banque"], t["resultat_projet"] - t["mouvements_bancaires"])
+        self.assertEqual(t["ecart_projet_banque"], D("-55.00"))
+
+    def test_bilan_ecart_sur_une_periode_ignore_le_report(self):
+        """ Régression : le report 2025 (+200 en banque) gonflait l'écart d'une période 2026 """
+        t = self.totaux_bilan(periode="2026-01-01;2026-12-31")
+        # Résultat 2026 : 90 - 40 - 30 (avance) = 20 ; banque 2026 : 90 - 40 + 25 (hors bilan) = 75
+        self.assertEqual(t["resultat_projet"], D("20.00"))
+        self.assertEqual(t["mouvements_bancaires"], D("75.00"))
+        self.assertEqual(t["solde_bancaire"], D("275.00"))
         self.assertEqual(t["ecart_projet_banque"], D("-55.00"))
 
     def test_bilan_total_hors_bilan(self):
@@ -282,4 +293,8 @@ class TestTotauxRapports(RapportsMixin, TestCase):
     def test_budget_resultat_et_solde_bancaire_different(self):
         t = self.totaux_budget()
         self.assertNotEqual(t["resultat_projet"], t["solde_bancaire"])
-        self.assertEqual(t["ecart_projet_banque"], t["resultat_projet"] - t["solde_bancaire"])
+        # L'écart compare le réalisé du budget aux mouvements bancaires de la même période
+        self.assertEqual(t["mouvements_bancaires"], D("75.00"))
+        self.assertEqual(t["ecart_projet_banque"], t["resultat_projet"] - t["mouvements_bancaires"])
+        # Le budget compte aussi la catégorie hors bilan : seul l'écart de l'avance (30) subsiste
+        self.assertEqual(t["ecart_projet_banque"], D("-30.00"))
