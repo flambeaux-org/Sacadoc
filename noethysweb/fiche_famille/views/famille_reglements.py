@@ -18,7 +18,7 @@ from fiche_famille.forms.famille_reglements import Formulaire
 from fiche_famille.views.famille import Onglet
 import datetime
 from django.utils import timezone
-from django.shortcuts import redirect
+from django.shortcuts import get_object_or_404, redirect
 from django.contrib import messages
 
 def Reglement_est_modifiable(reglement):
@@ -336,7 +336,7 @@ class Modifier(ClasseCommune, crud.Modifier):
     template_name = "fiche_famille/famille_edit.html"
 
     def dispatch(self, request, *args, **kwargs):
-        reglement = Reglement.objects.get(pk=kwargs.get("pk"))
+        reglement = get_object_or_404(Reglement, pk=kwargs.get("pk"), famille_id=kwargs.get("idfamille"))
         if not Reglement_est_modifiable(reglement):
             messages.error(request, "Ce règlement est lié à une activité archivée et ne peut pas être modifié.")
             return redirect(reverse(self.url_liste, kwargs={"idfamille": kwargs.get("idfamille")}))
