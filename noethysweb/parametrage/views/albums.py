@@ -14,7 +14,7 @@ from parametrage.forms.albums import Formulaire_album, Formulaire_photo, Formula
 
 def Importer_photos_album(request):
     assert request.method == 'POST'
-    assert request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+    assert request.headers.get('x-requested-with') == 'XMLHttpRequest'
     form = Formulaire_importation(request.POST, request.FILES, idalbum=request.POST.get("idalbum"))
     if form.is_valid():
         url = form.form_valid(request)

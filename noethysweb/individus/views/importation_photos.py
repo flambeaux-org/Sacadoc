@@ -18,7 +18,7 @@ from individus.forms.importation_photos import Formulaire, Formulaire_importatio
 
 def Importer_photos_individus(request):
     assert request.method == 'POST'
-    assert request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+    assert request.headers.get('x-requested-with') == 'XMLHttpRequest'
     form = Formulaire_importation(request.POST, request.FILES)
     if form.is_valid():
         uuid_lot = form.form_valid(request)
