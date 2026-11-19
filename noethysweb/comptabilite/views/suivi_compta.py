@@ -10,9 +10,10 @@ from django.db.models import Q, Sum
 from core.views.base import CustomView
 from core.models import ComptaVentilation, ComptaOperationBudgetaire, ComptaCategorieBudget, ComptaCategorie, CompteBancaire, Deduction, TypeDeduction, Reglement, Activite, Prestation, Famille, Ventilation
 from comptabilite.forms.suivi_compta import Formulaire
+from core.utils import utils_dates
+from comptabilite.utils import utils_rapprochement
+from comptabilite.utils.utils_compta import Arrondi as _arrondi
 from collections import defaultdict
-from collections import defaultdict
-import decimal
 
 
 class View(CustomView, TemplateView):
@@ -33,18 +34,28 @@ class View(CustomView, TemplateView):
         if not form.is_valid():
             return self.render_to_response(self.get_context_data(form_parametres=form))
 
-        liste_lignes, soldes_hors_bilan, liste_deductions, liste_reglements_encaissement = self.Get_resultats(parametres=form.cleaned_data)
+        liste_lignes, soldes_hors_bilan, liste_deductions, liste_reglements_encaissement, totaux = self.Get_resultats(parametres=form.cleaned_data)
         context = {
             "form_parametres": form,
             "liste_lignes": json.dumps(liste_lignes),
             "soldes_hors_bilan": soldes_hors_bilan,
             "liste_deductions": liste_deductions,
             "liste_reglements_encaissement": liste_reglements_encaissement,
+            "totaux": totaux,
         }
         return self.render_to_response(self.get_context_data(**context))
 
     def Get_resultats(self, parametres={}):
         comptes = parametres["comptes"]
+
+        # Période d'analyse (par défaut tout l'historique)
+        periode = parametres.get("periode") or ""
+        date_debut, date_fin = utils_dates.ConvertDateRangePicker(periode) if ";" in periode else (None, None)
+        condition_periode = Q()
+        if date_debut:
+            condition_periode &= Q(operation__date__gte=date_debut)
+        if date_fin:
+            condition_periode &= Q(operation__date__lte=date_fin)
 
         condition_structure = (Q(structure__in=self.request.user.structures.all()) | Q(structure__isnull=True)) & Q(
             bilan=True)
@@ -53,7 +64,7 @@ class View(CustomView, TemplateView):
         dict_categories = {categorie.pk: categorie for categorie in ComptaCategorie.objects.filter(condition_structure)}
 
         # Importation des ventilations
-        condition = Q(operation__compte__in=comptes) & Q(categorie__bilan=True)
+        condition = Q(operation__compte__in=comptes) & Q(categorie__bilan=True) & condition_periode
         ventilations_tresorerie = Counter({ventilation["categorie"]: ventilation["total"] for ventilation in
                                            ComptaVentilation.objects.values("categorie").filter(condition).annotate(
                                                total=Sum("montant"))})
@@ -92,45 +103,57 @@ class View(CustomView, TemplateView):
                 "pid": regroupements[categorie.type]["id"],
                 "regroupement": False,
                 "label": categorie.nom,
-                "realise": float(realise),
+                "realise": float(_arrondi(realise)),
             })
+
+        # --- CALCUL DU SOLDE GÉNÉRAL (en Decimal, avant conversion en float) ---
+        total_credit = regroupements.get("credit", {}).get("realise", decimal.Decimal(0))
+        total_debit = regroupements.get("debit", {}).get("realise", decimal.Decimal(0))
+        total_realise = total_credit - total_debit
 
         # --- FORMATTAGE DES LIGNES PARENTES POUR LE JSON ---
         for type_key, reg_line in regroupements.items():
-            reg_line["realise"] = float(reg_line["realise"])
-
-        # --- CALCUL ET AJOUT DE LA LIGNE DE SOLDE GÉNÉRAL ---
-        total_credit = regroupements.get("credit", {}).get("realise", 0.0)
-        total_debit = regroupements.get("debit", {}).get("realise", 0.0)
-        total_realise = total_credit - total_debit
+            reg_line["realise"] = float(_arrondi(reg_line["realise"]))
 
         lignes.append({
             "id": 99999998,
             "pid": 99999999,
             "regroupement": False,
             "label": "SOLDE GENERAL",
-            "realise": float(total_realise),
+            "realise": float(_arrondi(total_realise)),
         })
 
         # Soldes hors bilan
+        # Les catégories partagées (sans structure) doivent être incluses, sinon ce bloc reste vide
+        structures_comptes = [s for s in comptes.values_list("structure", flat=True) if s]
         categories_hors_bilan = ComptaCategorie.objects.filter(
-            structure__in=comptes.values_list('structure', flat=True),
+            Q(structure__in=structures_comptes) | Q(structure__isnull=True),
             bilan=False
-        )
+        ).order_by("type", "nom")
         soldes_hors_bilan = []
         for cat in categories_hors_bilan:
             solde = ComptaVentilation.objects.filter(
+                condition_periode,
                 operation__compte__in=comptes,
                 categorie=cat
-            ).aggregate(total=Sum("montant"))["total"] or decimal.Decimal(0)
-            soldes_hors_bilan.append((cat.nom, solde, cat.type))  # <-- tuple au lieu de string
+            ).aggregate(total=Sum("montant"))["total"]
+            # On n'affiche que les catégories réellement mouvementées sur la période
+            if solde:
+                soldes_hors_bilan.append((cat.nom, solde, cat.type))
 
         # --- Bloc déductions non remboursées ---######
 
+        # Restreint aux structures des comptes analysés, et à la période
+        structures_analysees = structures_comptes or list(
+            self.request.user.structures.values_list("pk", flat=True))
         deductions = Deduction.objects.filter(
-            label__structure__in=self.request.user.structures.all(),
+            label__structure__in=structures_analysees,
             remb=False
-        ).select_related("label", "famille").order_by("label__nom")
+        ).select_related("label", "famille", "prestation", "prestation__activite").order_by("label__nom")
+        # Un encours : on retient tout ce qui reste dû à la fin de la période,
+        # y compris les déductions antérieures, et non les seules de la période.
+        if date_fin:
+            deductions = deductions.filter(prestation__date__lte=date_fin)
 
         # On regroupe par TypeDeduction (label)
         deductions_grouped = defaultdict(list)
@@ -176,18 +199,21 @@ class View(CustomView, TemplateView):
 
 
 
-        # --- Nouveau bloc : récupère les ventilations avec encaissement=True ---
-        compte = comptes.first()
-        structure = compte.structure if compte else None
-
+        # --- Règlements encaissés par l'organisateur (chèques vacances, bons CAF...) ---
+        # Toutes les structures des comptes analysés, et non la première seulement
         liste_reglements_encaissement = []
 
-        if structure:
+        if structures_analysees:
+            conditions_reglements = Q(
+                reglement__mode__encaissement=True,
+                prestation__activite__structure__in=structures_analysees,
+            )
+            if date_debut:
+                conditions_reglements &= Q(reglement__date__gte=date_debut)
+            if date_fin:
+                conditions_reglements &= Q(reglement__date__lte=date_fin)
             ventilations = (
-                Ventilation.objects.filter(
-                    reglement__mode__encaissement=True,
-                    prestation__activite__structure=structure,
-                )
+                Ventilation.objects.filter(conditions_reglements)
                 .select_related(
                     "reglement",
                     "reglement__famille",
@@ -223,5 +249,23 @@ class View(CustomView, TemplateView):
                     "total": total
                 })
 
+        # --- Totaux de la page : résultat du projet et contrepoint bancaire ---
+        total_hors_bilan = sum((montant for _, montant, _ in soldes_hors_bilan), decimal.Decimal(0))
+        solde_bancaire = utils_rapprochement.Get_solde_bancaire(comptes, date_fin=date_fin)
+        # Le résultat ne couvre que la période : on le compare à la variation du solde
+        # bancaire sur cette même période, et non au solde cumulé depuis l'origine.
+        mouvements_bancaires = utils_rapprochement.Get_mouvements_bancaires(comptes, date_debut=date_debut, date_fin=date_fin)
+        totaux = {
+            "total_recettes": _arrondi(total_credit),
+            "total_depenses": _arrondi(total_debit),
+            "resultat_projet": _arrondi(total_realise),
+            "total_hors_bilan": _arrondi(total_hors_bilan),
+            "solde_bancaire": _arrondi(solde_bancaire),
+            "mouvements_bancaires": _arrondi(mouvements_bancaires),
+            "ecart_projet_banque": _arrondi(total_realise - mouvements_bancaires),
+            "date_debut": date_debut,
+            "date_fin": date_fin,
+        }
+
         # Retourne le tout avec les autres infos existantes
-        return lignes, soldes_hors_bilan, liste_deductions, liste_reglements_encaissement
+        return lignes, soldes_hors_bilan, liste_deductions, liste_reglements_encaissement, totaux

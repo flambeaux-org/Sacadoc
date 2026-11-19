@@ -21,6 +21,10 @@ def GetPermissionsPossibles(organisateur=None):
 
     #Personnalisé
     liste_permissions.append(("avances_regul", "Comptabilité | Régulariser les avances"))
+    # Pages contrôlées par permission mais absentes du menu : sans cette déclaration,
+    # leur permission n'apparaîtrait pas dans l'écran des droits et ne pourrait être accordée.
+    liste_permissions.append(("rapprochements_liste", "Comptabilité | Rapprochement bancaire"))
+    liste_permissions.append(("operations_budgetaires_liste", "Comptabilité | Liste des opérations budgétaires"))
 
     # Fiche famille
     for commande in LISTE_ONGLETS_FAMILLES:

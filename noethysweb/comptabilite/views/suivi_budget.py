@@ -10,6 +10,8 @@ from django.db.models import Q, Sum
 from core.views.base import CustomView
 from core.models import ComptaVentilation, ComptaOperationBudgetaire, ComptaCategorieBudget, ComptaCategorie, Reglement, Ventilation
 from comptabilite.forms.suivi_budget import Formulaire
+from comptabilite.utils import utils_rapprochement
+from comptabilite.utils.utils_compta import Arrondi as _arrondi
 
 
 class View(CustomView, TemplateView):
@@ -29,10 +31,11 @@ class View(CustomView, TemplateView):
         if not form.is_valid():
             return self.render_to_response(self.get_context_data(form_parametres=form))
 
-        liste_lignes = self.Get_resultats(parametres=form.cleaned_data)
+        liste_lignes, totaux = self.Get_resultats(parametres=form.cleaned_data)
         context = {
             "form_parametres": form,
             "liste_lignes": json.dumps(liste_lignes),
+            "totaux": totaux,
         }
         return self.render_to_response(self.get_context_data(**context))
 
@@ -61,16 +64,18 @@ class View(CustomView, TemplateView):
 
         dict_realise = {v["categorie"]: v["total"] for v in ventilations_data if v["categorie"]}
 
-        # --- NOUVEAU BLOC : Calcul de la ligne fictive des Règlements encaissement ---
-        compte = comptes.first()
-        structure = compte.structure if compte else None
+        # --- Règlements encaissés par l'organisateur (ligne fictive au crédit) ---
+        # Toutes les structures des comptes du budget, et non la première seulement.
+        # La structure du budget n'est pas retenue : elle sert au cloisonnement des
+        # droits, pas au périmètre d'analyse, qui suit les comptes comme le réalisé.
+        structures = [s for s in comptes.values_list("structure", flat=True) if s]
 
         total_reglements_encaissement = decimal.Decimal("0")
 
-        if structure:
+        if structures:
             somme_data = Ventilation.objects.filter(
                 reglement__mode__encaissement=True,
-                prestation__activite__structure=structure,
+                prestation__activite__structure__in=structures,
                 reglement__date__gte=budget.date_debut,
                 reglement__date__lte=budget.date_fin,
             ).aggregate(total=Sum("montant"))
@@ -184,4 +189,29 @@ class View(CustomView, TemplateView):
             "ecart": float(total_ecart)
         })
 
-        return lignes
+        # --- Totaux de la page : résultat du projet et contrepoint bancaire ---
+        credit = regroupements.get("credit", {})
+        debit = regroupements.get("debit", {})
+        solde_bancaire = utils_rapprochement.Get_solde_bancaire(comptes, date_fin=budget.date_fin)
+        # Le réalisé couvre la période du budget : on le compare à la variation
+        # du solde bancaire sur cette même période, pas au solde cumulé.
+        mouvements_bancaires = utils_rapprochement.Get_mouvements_bancaires(
+            comptes, date_debut=budget.date_debut, date_fin=budget.date_fin)
+        resultat_projet = decimal.Decimal(str(total_realise))
+        totaux = {
+            "nom_budget": budget.nom,
+            "date_debut": budget.date_debut,
+            "date_fin": budget.date_fin,
+            "total_recettes": _arrondi(credit.get("realise", 0)),
+            "total_depenses": _arrondi(debit.get("realise", 0)),
+            "recettes_budgetees": _arrondi(credit.get("budgete", 0)),
+            "depenses_budgetees": _arrondi(debit.get("budgete", 0)),
+            "resultat_projet": _arrondi(resultat_projet),
+            "resultat_budgete": _arrondi(total_budgete),
+            "ecart_resultat": _arrondi(decimal.Decimal(str(total_ecart))),
+            "solde_bancaire": _arrondi(solde_bancaire),
+            "mouvements_bancaires": _arrondi(mouvements_bancaires),
+            "ecart_projet_banque": _arrondi(resultat_projet - mouvements_bancaires),
+        }
+
+        return lignes, totaux

@@ -3,7 +3,8 @@
 #  Noethysweb, application de gestion multi-activités.
 #  Distribué sous licence GNU GPL.
 
-import json, time
+import json, time, logging
+logger = logging.getLogger(__name__)
 from django.http import JsonResponse
 from django.views.generic import TemplateView
 from core.views.base import CustomView
@@ -127,7 +128,7 @@ def Generer_pdf(request):
                 can.save()
                 writer.add_page(PdfReader(io.BytesIO(buffer_header.getvalue())).pages[0])
             except Exception as e:
-                print(f"Erreur traitement image {op.num_piece}: {e}")
+                logger.warning("Erreur traitement image %s : %s", op.num_piece, e)
 
         # Cas 2 : Le document est un PDF
         elif doc_name.endswith('.pdf'):
@@ -171,7 +172,7 @@ def Generer_pdf(request):
                         # Application du fond (En-tête + Cadre)
                         nouvelle_page.merge_page(header_page)
             except Exception as e:
-                print(f"Erreur traitement PDF {op.num_piece}: {e}")
+                logger.warning("Erreur traitement PDF %s : %s", op.num_piece, e)
 
     # --- ÉTAPE 3 : FINALISATION ET ENREGISTREMENT ---
     final_buffer = io.BytesIO()

@@ -74,14 +74,85 @@ FORMSET_CATEGORIES = inlineformset_factory(ComptaOperation, ComptaVentilation, f
                                             fields=["categorie", "montant"], extra=1, min_num=0,
                                             can_delete=True, validate_max=True, can_order=False)
 
-class Formulaire(FormulaireBase, ModelForm):
-    ventilation = forms.CharField(label="        ", required=False, widget=Ventilation_operation(attrs={}))
-    categorie_rapide = forms.ModelChoiceField(
-        queryset=ComptaCategorie.objects.none(),
-        required=False,
-        label="Catégorie"
-    )
+def Get_prochain_num_piece(idcompte, verrou=False):
+    """
+    Renvoie le prochain numéro de pièce disponible pour les dépenses d'un compte.
+    verrou : lecture verrouillante (select_for_update), à appeler dans une transaction.
+             Sans effet sous SQLite, qui n'accepte de toute façon qu'un écrivain à la fois.
+    """
+    operations = ComptaOperation.objects.filter(compte_id=idcompte, type="debit")
+    if verrou:
+        operations = operations.select_for_update()
+    numeros = operations.values_list("num_piece", flat=True)
+    return max((int(n.strip()) for n in numeros if n and n.strip().isdigit()), default=0) + 1
 
+
+#  Indicateur de ventilation : affiche en direct ce qu'il reste à répartir, et
+#  préremplit la ligne unique avec le montant de l'opération. Évite de découvrir
+#  l'erreur de répartition seulement après avoir cliqué sur Enregistrer.
+AIDE_VENTILATION = """
+<div id="aide_ventilation" class="alert" style="margin-top:10px;padding:8px 12px;"></div>
+<script>
+    function compta_lire_montant(champ) {
+        var valeur = ($(champ).val() || "").toString().replace(",", ".").replace(/\\s/g, "");
+        var nombre = parseFloat(valeur);
+        return isNaN(nombre) ? 0 : nombre;
+    }
+
+    function compta_lignes_ventilation() {
+        return $('input[name$="-montant"]').filter(function () {
+            var ligne = $(this).closest("tr");
+            if (ligne.is(":hidden")) { return false; }
+            return !ligne.find('input[name$="-DELETE"]').is(":checked");
+        });
+    }
+
+    function compta_maj_ventilation() {
+        var total = compta_lire_montant("#id_montant");
+        var somme = 0;
+        compta_lignes_ventilation().each(function () { somme += compta_lire_montant(this); });
+        var reste = Math.round((total - somme) * 100) / 100;
+
+        var bloc = $("#aide_ventilation");
+        bloc.removeClass("alert-success alert-warning alert-danger");
+        if (total === 0 && somme === 0) {
+            bloc.addClass("alert-warning").html("<i class='fa fa-info-circle'></i> Saisissez le montant de l'opération, puis répartissez-le entre les catégories.");
+        } else if (reste === 0) {
+            bloc.addClass("alert-success").html("<i class='fa fa-check'></i> Ventilation complète.");
+        } else if (reste > 0) {
+            bloc.addClass("alert-warning").html("<i class='fa fa-exclamation-triangle'></i> Reste à ventiler : <b>" + reste.toFixed(2) + "</b>");
+        } else {
+            bloc.addClass("alert-danger").html("<i class='fa fa-times'></i> Dépassement de <b>" + Math.abs(reste).toFixed(2) + "</b> par rapport au montant de l'opération.");
+        }
+    }
+
+    function compta_prered_remplir_ligne_unique() {
+        var lignes = compta_lignes_ventilation();
+        if (lignes.length !== 1) { return; }
+        var champ = lignes.first();
+        if (compta_lire_montant(champ) === 0) {
+            var total = compta_lire_montant("#id_montant");
+            if (total !== 0) { champ.val(total.toFixed(2)); }
+        }
+    }
+
+    // Appelé par le widget de formset à chaque ajout / suppression de ligne
+    function formset_apres_ajout(row) { compta_maj_ventilation(); }
+    function formset_apres_suppression(row) { compta_maj_ventilation(); }
+
+    $(document).ready(function () {
+        $(document).on("input change", "#id_montant", function () {
+            compta_prered_remplir_ligne_unique();
+            compta_maj_ventilation();
+        });
+        $(document).on("input change", 'input[name$="-montant"], input[name$="-DELETE"]', compta_maj_ventilation);
+        compta_maj_ventilation();
+    });
+</script>
+"""
+
+
+class Formulaire(FormulaireBase, ModelForm):
     deduction = forms.ModelChoiceField(
         queryset=TypeDeduction.objects.none(),
         required=False,
@@ -90,11 +161,14 @@ class Formulaire(FormulaireBase, ModelForm):
 
     class Meta:
         model = ComptaOperation
-        fields = "__all__"
+        #  Uniquement les champs réellement saisis dans ce formulaire.
+        #  Avec "__all__", les champs non affichés (pointage, verification, tiers,
+        #  ref_piece, observations...) étaient réinitialisés à chaque modification :
+        #  corriger un libellé décochait l'opération et cassait le rapprochement.
+        fields = ["compte", "type", "date", "libelle", "mode", "num_piece",
+                  "document", "avance", "montant", "observation"]
         widgets = {
             "date": DatePickerWidget(),
-            "observations": forms.Textarea(attrs={'rows': 3}),
-            "tiers": Select_avec_commandes_advanced(attrs={"id_form": "tiers_form", "module_form": "parametrage.forms.tiers", "nom_objet": "un tiers", "champ_nom": "nom"}),
             "mode": Select_avec_commandes_advanced(attrs={"id_form": "modes_reglements_form", "module_form": "parametrage.forms.modes_reglements", "nom_objet": "un mode de règlement", "champ_nom": "label"}),
             "avance": Select_avec_commandes_advanced(attrs={"id_form": "avance_form", "module_form": "parametrage.forms.avance", "nom_objet": "une personne", "champ_nom": "nom"}),
             "document": forms.ClearableFileInput(),
@@ -139,17 +213,10 @@ class Formulaire(FormulaireBase, ModelForm):
                 if self.instance.num_piece:
                     self.fields["num_piece"].widget.attrs["readonly"] = True
             else:
-                nums = (
-                    ComptaOperation.objects
-                    .filter(compte_id=idcompte, type="debit")
-                    .values_list("num_piece", flat=True)
-                )
-                max_num = max(
-                    (int(n.strip()) for n in nums if n and n.strip().isdigit()),
-                    default=0,
-                )
-                self.fields["num_piece"].initial = max_num + 1
+                # Valeur indicative : le numéro définitif est attribué à l'enregistrement
+                self.fields["num_piece"].initial = Get_prochain_num_piece(idcompte)
                 self.fields["num_piece"].widget.attrs["readonly"] = True
+                self.fields["num_piece"].help_text = "Attribué automatiquement à l'enregistrement."
 
         else:
             # Type recette → ne pas afficher le champ
@@ -163,22 +230,6 @@ class Formulaire(FormulaireBase, ModelForm):
 
         # Date
         self.fields["date"].initial = datetime.date.today()
-
-        # Tiers
-        self.fields["tiers"].queryset = ComptaTiers.objects.filter(Q(structure__in=self.request.user.structures.all()) | Q(structure__isnull=True)).order_by("nom")
-
-        # Ventilation
-        self.fields["ventilation"].widget.request = self.request
-        self.fields["ventilation"].widget.attrs.update({
-            "analytiques": json.dumps({analytique.pk: analytique.nom for analytique in ComptaAnalytique.objects.all()}),
-            "categories": json.dumps({categorie.pk: categorie.nom for categorie in ComptaCategorie.objects.all()}),
-        })
-        ventilations = ComptaVentilation.objects.select_related("analytique", "categorie").filter(operation=self.instance if self.instance else 0)
-        self.fields["ventilation"].initial = json.dumps([{"idventilation": v.pk, "date_budget": str(v.date_budget), "analytique": v.analytique_id, "categorie": v.categorie_id, "montant": str(v.montant)} for v in ventilations])
-
-        self.fields["categorie_rapide"].queryset = ComptaCategorie.objects.filter(
-            Q(type=type) & (Q(structure__in=self.request.user.structures.all()) | Q(structure__isnull=True))
-        ).order_by("nom")
 
         fields_general = []
 
@@ -216,6 +267,7 @@ class Formulaire(FormulaireBase, ModelForm):
                 "Ventilation",
                 Div(
                     Formset("formset_categories"),
+                    HTML(AIDE_VENTILATION),
                     style="margin-bottom:20px;"
                 ),
             ),
@@ -235,16 +287,6 @@ class Formulaire(FormulaireBase, ModelForm):
             self.add_error("montant", "Vous devez saisir un montant.")
             return cleaned_data  # inutile de continuer si pas de montant
 
-            # Formset invalide
-            if not formset.is_valid():
-                raise forms.ValidationError("Certaines lignes du formset sont invalides.")
-
-            # Récupère les montants des lignes valides
-            for f in formset.forms:
-                data = f.cleaned_data
-                if data and not data.get("DELETE", False):
-                    v_montant = data.get("montant") or 0
-                    ventilations.append(v_montant)
         # --- Si une déduction est sélectionnée, vérifier le montant ---
         if deduction:
             if montant != deduction.montant:

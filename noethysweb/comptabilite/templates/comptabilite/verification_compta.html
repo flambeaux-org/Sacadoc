@@ -1,0 +1,286 @@
+{% extends "core/crud/liste_in_box.html" %}
+{% load crispy_forms_tags %}
+{% load static %}
+{% load embed %}
+
+
+{% block contenu_page %}
+    {% embed 'core/box.html' %}
+        {% block box_titre %}{{ box_titre }}{% endblock %}
+        {% block box_introduction %}{% endblock %}
+        {% block box_contenu %}
+
+            {# Sélection du compte bancaire #}
+            <div class="input-group" style="margin-bottom:10px;">
+                <div class="input-group-prepend">
+                    <span class="input-group-text">{{ label_categorie }}</span>
+                </div>
+                <select id="choix_categorie" class="form-control">
+                    {% for code, label in liste_categories %}
+                        <option {% if code == categorie %}selected{% endif %} value="{% if not code %}{% url url_liste %}{% else %}{% url url_liste categorie=code %}{% endif %}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            {% if liste_categories %}
+
+                {# Paramètres de rapprochement : période + solde du relevé #}
+                <form method="post" class="form-inline" style="margin-bottom:12px;">
+                    {% csrf_token %}
+                    <div class="input-group margin-r-5" style="margin-bottom:5px;">
+                        <div class="input-group-prepend"><span class="input-group-text">Du</span></div>
+                        <input type="date" name="date_debut" class="form-control" value="{{ parametres.date_debut }}">
+                    </div>
+                    <div class="input-group margin-r-5" style="margin-bottom:5px;">
+                        <div class="input-group-prepend"><span class="input-group-text">au</span></div>
+                        <input type="date" name="date_fin" class="form-control" value="{{ parametres.date_fin }}">
+                    </div>
+                    <div class="input-group margin-r-5" style="margin-bottom:5px;">
+                        <div class="input-group-prepend"><span class="input-group-text">Solde du relevé</span></div>
+                        <input type="text" name="solde_releve" class="form-control" style="max-width:130px;"
+                               placeholder="ex : 1234,56" value="{{ parametres.solde_releve }}">
+                    </div>
+                    <button type="submit" class="btn btn-primary margin-r-5" style="margin-bottom:5px;">
+                        <i class="fa fa-refresh margin-r-5"></i> Appliquer
+                    </button>
+                    <button type="submit" name="action" value="reinitialiser" class="btn btn-default" style="margin-bottom:5px;">
+                        Tout afficher
+                    </button>
+                </form>
+
+                {# Point de départ du rapprochement (donnée du compte, commune à tous) #}
+                <form method="post" class="form-inline" style="margin-bottom:12px;">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="anouveau">
+                    <div class="input-group margin-r-5" style="margin-bottom:5px;">
+                        <div class="input-group-prepend"><span class="input-group-text">Point de départ : à-nouveau au</span></div>
+                        <input type="date" name="date_anouveau" class="form-control" value="{{ date_anouveau }}">
+                    </div>
+                    <div class="input-group margin-r-5" style="margin-bottom:5px;">
+                        <div class="input-group-prepend"><span class="input-group-text">Solde</span></div>
+                        <input type="text" name="solde_anouveau" class="form-control" style="max-width:130px;"
+                               placeholder="ex : 1234,56" value="{{ solde_anouveau }}">
+                    </div>
+                    <button type="submit" class="btn btn-default" style="margin-bottom:5px;">
+                        <i class="fa fa-flag-o margin-r-5"></i> Enregistrer le point de départ
+                    </button>
+                </form>
+                <p class="form-text">
+                    <small><i class="fa fa-info-circle"></i> Les opérations antérieures au point de départ sont
+                    considérées comme déjà rapprochées : inutile de reprendre tout l'historique.
+                    Cette valeur est commune à tous les utilisateurs du compte.</small>
+                </p>
+
+                {# Récapitulatif des soldes #}
+                <div id="div_totaux_verification" class="well" style="padding:10px;margin-bottom:12px;">
+                    {{ box_introduction|safe }}
+                </div>
+
+                {# État de la comptabilité : tableau de contrôles #}
+                {% if controles %}
+                    <div class="card {% if controles_etat_global == 'OK' %}card-success{% else %}card-danger{% endif %} card-outline" style="margin-bottom:12px;">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <i class="fa fa-list-alt margin-r-5"></i> État de la comptabilité
+                                {% if controles_nbre_erreurs %}
+                                    <span class="badge badge-danger margin-l-5">{{ controles_nbre_erreurs }} erreur{{ controles_nbre_erreurs|pluralize }}</span>
+                                {% endif %}
+                                {% if controles_nbre_avertissements %}
+                                    <span class="badge badge-warning margin-l-5">{{ controles_nbre_avertissements }} à vérifier</span>
+                                {% endif %}
+                                {% if controles_etat_global == 'OK' %}
+                                    <span class="badge badge-success margin-l-5">Tout est conforme</span>
+                                {% endif %}
+                            </h3>
+                            <div class="card-tools">
+                                <button type="button" class="btn btn-tool" data-card-widget="collapse"><i class="fa fa-minus"></i></button>
+                            </div>
+                        </div>
+                        <div class="card-body" style="padding:0;">
+                            <table class="table table-sm table-striped" style="margin-bottom:0;">
+                                <thead>
+                                    <tr>
+                                        <th style="width:40px;">N°</th>
+                                        <th>Contrôle</th>
+                                        <th class="text-right" style="width:120px;">Théorique</th>
+                                        <th class="text-right" style="width:120px;">Réel</th>
+                                        <th class="text-center" style="width:110px;">Vérification</th>
+                                        <th class="text-right" style="width:120px;">Différence</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for controle in controles %}
+                                        <tr>
+                                            <td>{{ controle.numero }}</td>
+                                            <td>
+                                                {{ controle.libelle }}
+                                                {% if controle.aide %}
+                                                    <br><small class="text-muted">{{ controle.aide }}</small>
+                                                {% endif %}
+                                                {% if controle.detail %}
+                                                    <br>
+                                                    <a href="#" class="small" data-toggle="collapse" data-target="#detail_controle_{{ controle.numero }}">
+                                                        <i class="fa fa-caret-down"></i> Voir les {{ controle.detail|length }} opération(s) concernée(s)
+                                                    </a>
+                                                    <div class="collapse" id="detail_controle_{{ controle.numero }}">
+                                                        <ul class="small" style="margin-top:5px;">
+                                                            {% for operation in controle.detail|slice:":50" %}
+                                                                <li>
+                                                                    {{ operation.date|date:"d/m/Y" }} —
+                                                                    <a href="{{ operation.url_modifier }}">{{ operation.libelle }}</a>
+                                                                    — {{ operation.montant }}
+                                                                    {% if operation.num_piece %}(pièce n°{{ operation.num_piece }}){% endif %}
+                                                                </li>
+                                                            {% endfor %}
+                                                            {% if controle.detail|length > 50 %}
+                                                                <li><i>… liste tronquée aux 50 premières sur {{ controle.detail|length }}.</i></li>
+                                                            {% endif %}
+                                                        </ul>
+                                                    </div>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-right">{{ controle.theorique_texte }}</td>
+                                            <td class="text-right">{{ controle.reel_texte }}</td>
+                                            <td class="text-center">
+                                                {% if controle.etat == 'OK' %}
+                                                    <span class="text-green"><b><i class="fa fa-check"></i> OK</b></span>
+                                                {% elif controle.etat == 'ERREUR' %}
+                                                    <span class="text-red"><b><i class="fa fa-times"></i> ERREUR</b></span>
+                                                {% elif controle.etat == 'AVERTISSEMENT' %}
+                                                    <span class="text-orange"><b><i class="fa fa-exclamation-triangle"></i> À VÉRIFIER</b></span>
+                                                {% else %}
+                                                    <span class="text-muted">—</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-right {% if controle.etat == 'ERREUR' %}text-red{% elif controle.etat == 'AVERTISSEMENT' %}text-orange{% endif %}">
+                                                <b>{{ controle.difference_texte }}</b>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                {% endif %}
+
+                {# Opérations qui ne passent pas sur le relevé bancaire #}
+                {% if operations_hors_releve %}
+                    <div class="card card-secondary card-outline collapsed-card" style="margin-bottom:12px;">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <i class="fa fa-ban margin-r-5"></i>
+                                Opérations hors relevé — {{ operations_hors_releve|length }} opération{{ operations_hors_releve|length|pluralize }}
+                                <small class="text-muted">(exclues du rapprochement)</small>
+                            </h3>
+                            <div class="card-tools">
+                                <button type="button" class="btn btn-tool" data-card-widget="collapse"><i class="fa fa-plus"></i></button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <p class="form-text" style="margin-top:0;">
+                                <small>Ces opérations ne transitent pas par le compte bancaire : avances payées
+                                personnellement (seule leur régularisation est un mouvement bancaire) et sommes
+                                encaissées par le Mouvement. Les inclure rendrait l'écart avec le relevé insoluble.</small>
+                            </p>
+                            <ul class="small">
+                                {% for operation in operations_hors_releve %}
+                                    <li>
+                                        {{ operation.date|date:"d/m/Y" }} —
+                                        <a href="{{ operation.url_modifier }}">{{ operation.libelle }}</a>
+                                        — {{ operation.get_type_display }} {{ operation.montant }}
+                                        {% if operation.avance %}<i class="text-muted">(avance de {{ operation.avance.nom }})</i>{% endif %}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <p>
+                    <button type="button" class="btn btn-default" id="bouton_verifier_page"><i class="fa fa-check-square-o margin-r-5"></i> Cocher les opérations affichées</button>
+                    <button type="button" class="btn btn-default" id="bouton_deverifier_page"><i class="fa fa-square-o margin-r-5"></i> Décocher les opérations affichées</button>
+                </p>
+                <p class="form-text">
+                    <small>
+                        <i class="fa fa-info-circle"></i> Les boutons ci-dessus n'agissent que sur les lignes actuellement affichées à l'écran.<br>
+                        <b>Vérifié</b> : l'opération a été retrouvée sur le relevé bancaire (c'est cette colonne qui alimente le solde vérifié).<br>
+                        <b>Pointé dir.</b> <i class="fa fa-check text-green"></i> : pointage du directeur au fil du camp, indépendant de la vérification bancaire.
+                    </small>
+                </p>
+            {% endif %}
+
+            <script>
+                function On_change_categorie() {
+                    window.location.href=$(this).val();
+                }
+
+                function Envoyer_verification(liste_id, etat, callback) {
+                    $.ajax({
+                        url: "{% url 'ajax_verifier_operation' %}",
+                        type: "POST",
+                        traditional: true,
+                        data: {
+                            'idoperation': liste_id,
+                            'verification': etat,
+                            'csrfmiddlewaretoken': $("[name=csrfmiddlewaretoken]").val()
+                        },
+                        success: function(response) {
+                            if (response.statut !== 'ok') {
+                                alert('Erreur : ' + response.message);
+                                if (callback) { callback(false); }
+                                return;
+                            }
+                            if (response.html_totaux) {
+                                $('#div_totaux_verification').html(response.html_totaux);
+                            }
+                            if (callback) { callback(true); }
+                        },
+                        error: function() {
+                            alert("Impossible d'enregistrer la vérification.");
+                            if (callback) { callback(false); }
+                        }
+                    });
+                }
+
+                $(document).ready(function() {
+                    $('#choix_categorie').change(On_change_categorie);
+
+                    // --- Vérification d'une opération ---
+                    // La délégation sur $(document) permet de détecter les coches même après un rechargement Ajax de la Datatable
+                    $(document).off('change', '.action-verification').on('change', '.action-verification', function() {
+                        var checkbox = $(this);
+                        var idop = checkbox.data('idoperation');
+                        var isChecked = checkbox.is(':checked');
+                        checkbox.prop('disabled', true);
+                        Envoyer_verification([idop], isChecked, function(ok) {
+                            if (!ok) { checkbox.prop('checked', !isChecked); }
+                            checkbox.prop('disabled', false);
+                        });
+                    });
+
+                    // --- Vérification groupée des lignes affichées ---
+                    function Verification_groupee(etat) {
+                        var checkboxes = $('.action-verification').filter(function() {
+                            return $(this).is(':checked') !== etat;
+                        });
+                        if (checkboxes.length === 0) { return; }
+                        var liste_id = checkboxes.map(function() { return $(this).data('idoperation'); }).get();
+                        checkboxes.prop('disabled', true);
+                        Envoyer_verification(liste_id, etat, function(ok) {
+                            if (ok) { checkboxes.prop('checked', etat); }
+                            checkboxes.prop('disabled', false);
+                        });
+                    }
+
+                    $('#bouton_verifier_page').click(function() { Verification_groupee(true); });
+                    $('#bouton_deverifier_page').click(function() { Verification_groupee(false); });
+                });
+            </script>
+
+            {% embed 'core/crud/liste.html' %}
+            {% endembed %}
+
+        {% endblock box_contenu %}
+        {% block box_conclusion %}{{ box_conclusion|safe }}{% endblock %}
+    {% endembed %}
+{% endblock contenu_page %}

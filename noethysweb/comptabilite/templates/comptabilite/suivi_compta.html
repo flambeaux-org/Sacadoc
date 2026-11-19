@@ -23,6 +23,54 @@
                 </div>
             </div>
 
+            {# Résultat de la page #}
+            {% if totaux %}
+                <div class="card card-primary card-outline">
+                    <div class="card-header with-border">
+                        <h3 class="card-title"><i class="fa fa-calculator margin-r-5"></i> Résultat</h3>
+                    </div>
+                    <div class="card-body" style="padding:10px;">
+                        <table class="table table-sm" style="margin-bottom:0;">
+                            <tr><td>Total des recettes</td><td class="text-right">{{ totaux.total_recettes }} €</td></tr>
+                            <tr><td>Total des dépenses</td><td class="text-right">{{ totaux.total_depenses }} €</td></tr>
+                            <tr class="bg-light">
+                                <td><b>Résultat du projet</b></td>
+                                <td class="text-right"><b>{{ totaux.resultat_projet }} €</b></td>
+                            </tr>
+                            {% if totaux.total_hors_bilan %}
+                                <tr><td class="text-muted">dont hors bilan (non compté)</td>
+                                    <td class="text-right text-muted">{{ totaux.total_hors_bilan }} €</td></tr>
+                            {% endif %}
+                            <tr><td colspan="2"><hr style="margin:4px 0;"></td></tr>
+                            <tr>
+                                <td>Solde bancaire des comptes{% if totaux.date_fin %}<br><small class="text-muted">au {{ totaux.date_fin|date:"d/m/Y" }}</small>{% endif %}</td>
+                                <td class="text-right">{{ totaux.solde_bancaire }} €</td>
+                            </tr>
+                            <tr>
+                                <td>Mouvements bancaires{% if totaux.date_debut or totaux.date_fin %}<br><small class="text-muted">sur la période</small>{% endif %}</td>
+                                <td class="text-right">{{ totaux.mouvements_bancaires }} €</td>
+                            </tr>
+                            <tr><td class="text-muted">Écart projet / banque<br><small>résultat − mouvements bancaires</small></td>
+                                <td class="text-right text-muted">{{ totaux.ecart_projet_banque }} €</td></tr>
+                        </table>
+                    </div>
+                </div>
+            {% endif %}
+
+            <p class="form-text">
+                <small>
+                    <i class="fa fa-info-circle"></i>
+                    <b>Résultat du projet</b> — périmètre complet : toutes les opérations des
+                    comptes sélectionnés, y compris ce qui ne transite pas par le compte
+                    bancaire (avances, sommes encaissées par le Mouvement).<br>
+                    <b>Solde bancaire</b> — périmètre bancaire : uniquement ce qui est réellement
+                    passé sur les comptes, depuis l'à-nouveau s'il est renseigné. C'est ce montant
+                    que rapproche la page <i>Vérification comptable</i>.<br>
+                    <b>Écart projet / banque</b> — compare le résultat aux mouvements bancaires
+                    de la même période : il correspond aux opérations hors banque.
+                </small>
+            </p>
+
         </div>
 
         <div class="col-md-9">

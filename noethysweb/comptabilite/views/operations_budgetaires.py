@@ -13,6 +13,7 @@ from comptabilite.forms.operations_budgetaires import Formulaire
 
 class Page(crud.Page):
     model = ComptaOperationBudgetaire
+    menu_code = "operations_budgetaires_liste"
     url_liste = "operations_budgetaires_liste"
     url_modifier = "operations_budgetaires_modifier"
     url_supprimer = "operations_budgetaires_supprimer"
@@ -64,7 +65,11 @@ class Page(crud.Page):
         """ Renvoie vers la liste après le formulaire """
         url = self.url_liste
         if "SaveAndNew" in self.request.POST:
-            url = self.url_ajouter
+            # url_ajouter n'existe pas : on repart sur le bon écran d'ajout selon le type
+            if getattr(self, "type", None) == "credit":
+                url = "operations_budgetaires_ajouter_credit"
+            else:
+                url = "operations_budgetaires_ajouter_debit"
         return reverse_lazy(url, kwargs={'categorie': self.Get_categorie()})
 
 

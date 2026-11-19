@@ -24,6 +24,29 @@
                 </div>
             </p>
 
+            {# Filtre de période, affiché uniquement si la vue le fournit #}
+            {% if filtre_periode %}
+                <form method="post" class="form-inline" style="margin-bottom:10px;">
+                    {% csrf_token %}
+                    <div class="input-group margin-r-5" style="margin-bottom:5px;">
+                        <div class="input-group-prepend"><span class="input-group-text">Du</span></div>
+                        <input type="date" name="date_debut" class="form-control" value="{{ periode.date_debut }}">
+                    </div>
+                    <div class="input-group margin-r-5" style="margin-bottom:5px;">
+                        <div class="input-group-prepend"><span class="input-group-text">au</span></div>
+                        <input type="date" name="date_fin" class="form-control" value="{{ periode.date_fin }}">
+                    </div>
+                    <button type="submit" class="btn btn-default margin-r-5" style="margin-bottom:5px;">
+                        <i class="fa fa-filter margin-r-5"></i> Filtrer
+                    </button>
+                    {% if periode.date_debut or periode.date_fin %}
+                        <button type="submit" name="action" value="reinitialiser" class="btn btn-link" style="margin-bottom:5px;">
+                            Tout afficher
+                        </button>
+                    {% endif %}
+                </form>
+            {% endif %}
+
             <script>
                 function On_change_categorie() {
                     window.location.href=$(this).val();
