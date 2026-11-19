@@ -8,13 +8,12 @@
 #  historique : chaque contrôle compare une valeur théorique à une valeur réelle
 #  et signale un écart.
 
-import decimal
+from collections import defaultdict
 from django.db.models import Q, Sum
 from core.models import ComptaOperation, ComptaVentilation, ComptaVirement
 from core.utils import utils_texte
 from comptabilite.utils import utils_rapprochement
-
-ZERO = decimal.Decimal("0.00")
+from comptabilite.utils.utils_compta import ZERO, Arrondi, Get_url_modifier
 
 #  Deux natures d'opérations n'ont pas de ventilation par construction, et ne doivent
 #  donc pas être signalées comme "non ventilées" :
@@ -25,8 +24,7 @@ ZERO = decimal.Decimal("0.00")
 _CONDITION_VENTILABLE = Q(virement__isnull=True) & Q(regul_avance=False)
 
 
-def _arrondi(valeur):
-    return (valeur or ZERO).quantize(decimal.Decimal("0.01"))
+_arrondi = Arrondi
 
 
 def _controle(numero, libelle, theorique=None, reel=None, aide="", detail=None,
@@ -78,10 +76,19 @@ def _controle(numero, libelle, theorique=None, reel=None, aide="", detail=None,
     }
 
 
-def Get_controles(idcompte, solde_releve=None):
-    """ Renvoie la liste des contrôles de cohérence d'un compte bancaire """
+def Get_controles(idcompte, solde_releve=None, perimetre=None):
+    """
+    Renvoie la liste des contrôles de cohérence d'un compte bancaire.
+    perimetre : résultat de utils_rapprochement.Get_perimetre(), s'il est déjà calculé.
+    """
     operations = ComptaOperation.objects.filter(compte_id=idcompte).select_related("compte", "avance")
     controles = []
+
+    # Total ventilé par opération, en une seule requête (et non une par opération)
+    ventile_par_operation = dict(
+        ComptaVentilation.objects.filter(operation__compte_id=idcompte)
+        .values("operation").annotate(total=Sum("montant")).values_list("operation", "total")
+    )
 
     # ------------------------------------------------------------------
     # 1. Ventilation des dépenses
@@ -93,7 +100,7 @@ def Get_controles(idcompte, solde_releve=None):
     ventile_debits = _arrondi(
         ComptaVentilation.objects.filter(operation__in=debits_ventilables).aggregate(t=Sum("montant"))["t"]
     )
-    detail_debits = [op for op in debits_ventilables if _total_ventile(op) != op.montant]
+    detail_debits = [op for op in debits_ventilables if ventile_par_operation.get(op.pk) != op.montant]
     controles.append(_controle(
         1, "Ventilation des dépenses",
         theorique=total_debits, reel=ventile_debits,
@@ -111,7 +118,7 @@ def Get_controles(idcompte, solde_releve=None):
     ventile_credits = _arrondi(
         ComptaVentilation.objects.filter(operation__in=credits_ventilables).aggregate(t=Sum("montant"))["t"]
     )
-    detail_credits = [op for op in credits_ventilables if _total_ventile(op) != op.montant]
+    detail_credits = [op for op in credits_ventilables if ventile_par_operation.get(op.pk) != op.montant]
     controles.append(_controle(
         2, "Ventilation des recettes",
         theorique=total_credits, reel=ventile_credits,
@@ -123,7 +130,8 @@ def Get_controles(idcompte, solde_releve=None):
     # 3. Solde vérifié / solde du relevé bancaire
     #    Excel : le solde banque n'avance que si la date de relevé est saisie
     # ------------------------------------------------------------------
-    perimetre = utils_rapprochement.Get_perimetre(idcompte)
+    if perimetre is None:
+        perimetre = utils_rapprochement.Get_perimetre(idcompte)
     solde_verifie = _arrondi(perimetre["solde_anouveau"] + _solde(perimetre["perimetre"].filter(verification=True)))
     if solde_releve is not None:
         controles.append(_controle(
@@ -153,7 +161,9 @@ def Get_controles(idcompte, solde_releve=None):
     # ------------------------------------------------------------------
     # 5. Avances non régularisées (Excel : contrôle 12)
     # ------------------------------------------------------------------
-    avances = operations.filter(avance__isnull=False, regul_avance=False, remb_avance=0)
+    # remb_avance est nullable : une avance à NULL n'est pas plus régularisée qu'à 0
+    avances = operations.filter(Q(remb_avance=0) | Q(remb_avance__isnull=True),
+                                avance__isnull=False, regul_avance=False)
     solde_avances = _solde(avances)
     controles.append(_controle(
         5, "Avances restant à régulariser",
@@ -165,13 +175,17 @@ def Get_controles(idcompte, solde_releve=None):
     # ------------------------------------------------------------------
     # 6. Équilibre des virements internes
     # ------------------------------------------------------------------
+    virements = list(ComptaVirement.objects.filter(Q(compte_debit_id=idcompte) | Q(compte_credit_id=idcompte)))
+    ops_par_virement = defaultdict(list)
+    for op in ComptaOperation.objects.filter(virement__in=virements).order_by("date", "pk"):
+        ops_par_virement[op.virement_id].append(op)
     virements_desequilibres = []
-    for virement in ComptaVirement.objects.filter(Q(compte_debit_id=idcompte) | Q(compte_credit_id=idcompte)):
-        ops = ComptaOperation.objects.filter(virement=virement)
-        debit = ops.filter(type="debit").aggregate(t=Sum("montant"))["t"] or ZERO
-        credit = ops.filter(type="credit").aggregate(t=Sum("montant"))["t"] or ZERO
+    for virement in virements:
+        ops = ops_par_virement[virement.pk]
+        debit = sum((op.montant for op in ops if op.type == "debit"), ZERO)
+        credit = sum((op.montant for op in ops if op.type == "credit"), ZERO)
         if debit != credit or debit != virement.montant:
-            virements_desequilibres += list(ops)
+            virements_desequilibres += ops
     controles.append(_controle(
         6, "Équilibre des virements internes",
         theorique=0, reel=len(virements_desequilibres), format="nombre",
@@ -210,12 +224,12 @@ def Get_controles(idcompte, solde_releve=None):
         detail=sans_mode,
     ))
 
+    # Lien vers l'écran de modification adapté (virement, régularisation ou opération)
+    for controle in controles:
+        for operation in controle["detail"]:
+            operation.url_modifier = Get_url_modifier(operation)
+
     return controles
-
-
-def _total_ventile(operation):
-    total = ComptaVentilation.objects.filter(operation=operation).aggregate(t=Sum("montant"))["t"]
-    return total if total is not None else None
 
 
 def _solde(queryset):

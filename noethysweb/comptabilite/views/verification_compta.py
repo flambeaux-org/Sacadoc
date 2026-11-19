@@ -3,18 +3,19 @@
 #  Noethysweb, application de gestion multi-activités.
 #  Distribué sous licence GNU GPL.
 
-import logging, datetime, decimal
+import logging, decimal
 logger = logging.getLogger(__name__)
 from django.urls import reverse
-from django.db.models import Q, Sum, Count, DecimalField, Case, When, F
+from django.db import transaction
+from django.db.models import Q
 from django.http import JsonResponse, HttpResponseRedirect
-from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_POST
 from core.views.mydatatableview import MyDatatable, columns, helpers
 from core.views import crud
 from core.models import ComptaOperation, ComptaVentilation, CompteBancaire
 from core.utils import utils_texte, utils_parametres
 from comptabilite.utils import utils_controles, utils_rapprochement
+from comptabilite.utils.utils_compta import Agreger, Convert_date, Convert_montant, Get_url_modifier  # noqa: F401
 
 CATEGORIE_PARAMETRES = "verification_compta"
 PARAMETRES_DEFAUT = {"date_debut": "", "date_fin": "", "solde_releve": ""}
@@ -36,44 +37,14 @@ def Set_parametres(utilisateur, idcompte, parametres):
                          utilisateur=utilisateur, valeur=parametres)
 
 
-def Convert_date(texte):
-    """ Convertit une date au format YYYY-MM-DD en date, ou None """
-    if not texte:
-        return None
-    try:
-        return datetime.datetime.strptime(texte, "%Y-%m-%d").date()
-    except (ValueError, TypeError):
-        return None
-
-
-def Convert_montant(texte):
-    """ Convertit un montant saisi (virgule ou point) en Decimal, ou None """
-    if texte in (None, ""):
-        return None
-    try:
-        return decimal.Decimal(str(texte).replace(",", ".").replace(" ", ""))
-    except decimal.InvalidOperation:
-        return None
-
-
-def Agreger(queryset):
-    """ Renvoie (total_debit, total_credit, solde) d'un queryset d'opérations """
-    stats = queryset.aggregate(
-        total_debit=Sum(Case(When(type="debit", then=F("montant")), output_field=DecimalField(), default=0)),
-        total_credit=Sum(Case(When(type="credit", then=F("montant")), output_field=DecimalField(), default=0)),
-    )
-    total_debit = stats["total_debit"] or decimal.Decimal(0)
-    total_credit = stats["total_credit"] or decimal.Decimal(0)
-    return total_debit, total_credit, total_credit - total_debit
-
-
-def Get_totaux_compte(idcompte, date_debut=None, date_fin=None, solde_releve=None):
+def Get_totaux_compte(idcompte, date_debut=None, date_fin=None, solde_releve=None, perimetre=None):
     """
     Renvoie tous les indicateurs de vérification d'un compte.
     Seules les opérations réellement passées en banque entrent dans le rapprochement,
     à partir de la date d'à-nouveau.
+    perimetre : résultat de utils_rapprochement.Get_perimetre(), s'il est déjà calculé.
     """
-    p = utils_rapprochement.Get_perimetre(idcompte)
+    p = perimetre if perimetre is not None else utils_rapprochement.Get_perimetre(idcompte)
     perimetre, hors_releve = p["perimetre"], p["hors_releve"]
     solde_anouveau = p["solde_anouveau"]
 
@@ -122,9 +93,9 @@ def Get_totaux_compte(idcompte, date_debut=None, date_fin=None, solde_releve=Non
     }
 
 
-def Get_html_totaux(idcompte, date_debut=None, date_fin=None, solde_releve=None):
+def Get_html_totaux(idcompte, date_debut=None, date_fin=None, solde_releve=None, perimetre=None):
     """ Renvoie le HTML du tableau récapitulatif d'un compte """
-    t = Get_totaux_compte(idcompte, date_debut, date_fin, solde_releve)
+    t = Get_totaux_compte(idcompte, date_debut, date_fin, solde_releve, perimetre=perimetre)
     fm = utils_texte.Formate_montant
 
     # Ligne d'écart avec le relevé
@@ -188,25 +159,38 @@ def Get_html_totaux(idcompte, date_debut=None, date_fin=None, solde_releve=None)
 @require_POST
 def Verifier_operation_ajax(request):
     """ Vue Ajax pour modifier le statut de vérification d'une ou plusieurs opérations """
+    # secure_ajax ne contrôle que la catégorie d'utilisateur : la permission de la page
+    # doit être vérifiée ici, comme le fait CustomView.test_func() pour la page elle-même.
+    if not request.user.has_perm("core.%s" % Page.menu_code):
+        return JsonResponse({"statut": "erreur", "message": "Vous n'avez pas accès à la vérification comptable"}, status=403)
+
     liste_idoperation = request.POST.getlist("idoperation")
     verification = request.POST.get("verification") == "true"
 
     if not liste_idoperation:
         return JsonResponse({"statut": "erreur", "message": "ID manquant"}, status=400)
+    try:
+        liste_idoperation = {int(idoperation) for idoperation in liste_idoperation}
+    except (TypeError, ValueError):
+        return JsonResponse({"statut": "erreur", "message": "ID invalide"}, status=400)
 
-    # Vérifie que l'utilisateur a bien accès aux comptes concernés
+    # Tout est contrôlé avant la moindre écriture : la requête est appliquée en entier ou pas du tout
+    operations = list(ComptaOperation.objects.filter(pk__in=liste_idoperation))
+    if len(operations) != len(liste_idoperation):
+        return JsonResponse({"statut": "erreur", "message": "Opération introuvable"}, status=404)
+
     condition_structure = Q(structure__in=request.user.structures.all()) | Q(structure__isnull=True)
-    comptes_autorises = [compte.pk for compte in CompteBancaire.objects.filter(condition_structure)]
+    comptes_autorises = set(CompteBancaire.objects.filter(condition_structure).values_list("pk", flat=True))
+    comptes = {operation.compte_id for operation in operations}
+    if not comptes <= comptes_autorises:
+        return JsonResponse({"statut": "erreur", "message": "Accès non autorisé à ce compte"}, status=403)
+    if len(comptes) > 1:
+        return JsonResponse({"statut": "erreur", "message": "Les opérations doivent appartenir au même compte"}, status=400)
 
-    idcompte = None
-    for idoperation in liste_idoperation:
-        operation = get_object_or_404(ComptaOperation, idoperation=idoperation)
-        if operation.compte_id not in comptes_autorises:
-            return JsonResponse({"statut": "erreur", "message": "Accès non autorisé à ce compte"}, status=403)
-        operation.verification = verification
-        operation.save(update_fields=["verification"])
-        idcompte = operation.compte_id
+    with transaction.atomic():
+        ComptaOperation.objects.filter(pk__in=liste_idoperation).update(verification=verification)
 
+    idcompte = comptes.pop()
     parametres = Get_parametres(request.user, idcompte)
     html_totaux = Get_html_totaux(
         idcompte,
@@ -313,11 +297,15 @@ class Liste(Page, crud.Liste):
             return context
 
         # Point de départ du rapprochement + opérations hors relevé
+        # Le périmètre est calculé une seule fois et partagé avec les totaux et les contrôles
         p = utils_rapprochement.Get_perimetre(idcompte)
         context["date_anouveau"] = p["date_anouveau"].strftime("%Y-%m-%d") if p["date_anouveau"] else ""
         context["solde_anouveau"] = p["solde_anouveau"]
-        context["operations_hors_releve"] = p["hors_releve"].select_related("avance").order_by("date")
-        _, _, context["solde_hors_releve"] = utils_rapprochement.Agreger(p["hors_releve"])
+        operations_hors_releve = list(p["hors_releve"].select_related("avance").order_by("date"))
+        for operation in operations_hors_releve:
+            operation.url_modifier = Get_url_modifier(operation)
+        context["operations_hors_releve"] = operations_hors_releve
+        _, _, context["solde_hors_releve"] = Agreger(p["hors_releve"])
 
         parametres = self.Get_parametres_compte()
         context["parametres"] = parametres
@@ -326,9 +314,10 @@ class Liste(Page, crud.Liste):
             date_debut=Convert_date(parametres["date_debut"]),
             date_fin=Convert_date(parametres["date_fin"]),
             solde_releve=Convert_montant(parametres["solde_releve"]),
+            perimetre=p,
         )
         # État de la comptabilité : tableau de contrôles (cf. classeur Excel historique)
-        controles = utils_controles.Get_controles(idcompte, solde_releve=Convert_montant(parametres["solde_releve"]))
+        controles = utils_controles.Get_controles(idcompte, solde_releve=Convert_montant(parametres["solde_releve"]), perimetre=p)
         nbre_ok, nbre_erreurs, nbre_avertissements, etat_global = utils_controles.Get_synthese(controles)
         context["controles"] = controles
         context["controles_nbre_ok"] = nbre_ok
@@ -391,13 +380,7 @@ class Liste(Page, crud.Liste):
             return None
 
         def Get_actions_speciales(self, instance, *args, **kwargs):
-            if instance.virement:
-                modifier_url = reverse("virements_modifier", args=[instance.virement_id])
-            elif instance.regul_avance:
-                modifier_url = reverse("regul_avances_modifier", args=[instance.pk])
-            else:
-                modifier_url = reverse("operations_tresorerie_modifier", args=[instance.compte_id, instance.pk])
-            html = [self.Create_bouton_modifier(url=modifier_url)]
+            html = [self.Create_bouton_modifier(url=Get_url_modifier(instance))]
             if instance.document:
                 html.append(self.Create_bouton_ouvrir(url=instance.document.url))
             return self.Create_boutons_actions(html)

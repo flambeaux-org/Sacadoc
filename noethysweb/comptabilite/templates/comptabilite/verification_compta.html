@@ -127,7 +127,7 @@
                                                             {% for operation in controle.detail|slice:":50" %}
                                                                 <li>
                                                                     {{ operation.date|date:"d/m/Y" }} —
-                                                                    <a href="{% url 'operations_tresorerie_modifier' operation.compte_id operation.pk %}">{{ operation.libelle }}</a>
+                                                                    <a href="{{ operation.url_modifier }}">{{ operation.libelle }}</a>
                                                                     — {{ operation.montant }}
                                                                     {% if operation.num_piece %}(pièce n°{{ operation.num_piece }}){% endif %}
                                                                 </li>
@@ -186,7 +186,7 @@
                                 {% for operation in operations_hors_releve %}
                                     <li>
                                         {{ operation.date|date:"d/m/Y" }} —
-                                        <a href="{% url 'operations_tresorerie_modifier' operation.compte_id operation.pk %}">{{ operation.libelle }}</a>
+                                        <a href="{{ operation.url_modifier }}">{{ operation.libelle }}</a>
                                         — {{ operation.get_type_display }} {{ operation.montant }}
                                         {% if operation.avance %}<i class="text-muted">(avance de {{ operation.avance.nom }})</i>{% endif %}
                                     </li>
