@@ -14,4 +14,7 @@ urlpatterns = [
 
     # Table des matières
     path('aide/', aide.Aide.as_view(menu_code="aide_toc"), name='aide_toc'),
+    
+    # API pour le chatbot
+    path('aide/api/videos/', aide.get_videos_json, name='aide_api_videos'),
 ]

@@ -111,6 +111,9 @@
     <script type="text/javascript" src="{% static 'lib/jquery-slimscroll/jquery.slimscroll.min.js' %}"></script>
 
     <script>
+        // Passer les vidéos au chatbot
+        window.AIDE_VIDEOS = {{ videos_json|safe }};
+        
         $(document).ready(function() {
             // Active la slimscroll sur les petits cadres
             $('.info-box-number').slimScroll({
