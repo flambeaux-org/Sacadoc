@@ -5,6 +5,7 @@
 
 from django.urls import reverse_lazy
 from core.views import crud
+from django.shortcuts import get_object_or_404
 from core.models import Famille
 from fiche_famille.forms.famille_abo_recus_email import Formulaire
 from fiche_famille.views.famille import Onglet
@@ -26,7 +27,7 @@ class Modifier(Onglet, crud.Modifier):
         return reverse_lazy("famille_reglements_liste", kwargs={'idfamille': self.kwargs.get('idfamille', None)})
 
     def get_object(self):
-        return Famille.objects.get(pk=self.kwargs['idfamille'])
+        return get_object_or_404(Famille, pk=self.kwargs['idfamille'])
 
     def get_form_kwargs(self, **kwargs):
         """ Envoie l'idindividu au formulaire """
