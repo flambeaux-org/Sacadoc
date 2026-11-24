@@ -4,6 +4,7 @@
 #  Distribué sous licence GNU GPL.
 
 from django.views.generic.detail import DetailView
+from django.shortcuts import get_object_or_404
 from core.models import Famille, ModeleSMS, SMS, DestinataireSMS
 from fiche_famille.views.famille import Onglet
 from outils.forms.editeur_sms_express import Formulaire
@@ -22,7 +23,7 @@ class Ajouter(Onglet, DetailView):
         return context
 
     def get_object(self):
-        return Famille.objects.get(pk=self.kwargs['idfamille'])
+        return get_object_or_404(Famille, pk=self.kwargs['idfamille'])
 
     def Get_nouveau_sms(self):
         famille = self.object

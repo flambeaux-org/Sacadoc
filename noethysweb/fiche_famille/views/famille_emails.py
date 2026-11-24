@@ -5,6 +5,7 @@
 
 from django.db.models import Q
 from django.views.generic.detail import DetailView
+from django.shortcuts import get_object_or_404
 from core.models import Famille, ModeleEmail, Mail, SignatureEmail, Destinataire
 from fiche_famille.views.famille import Onglet
 from outils.forms.editeur_emails_express import Formulaire
@@ -24,7 +25,7 @@ class Ajouter(Onglet, DetailView):
         return context
 
     def get_object(self):
-        return Famille.objects.get(pk=self.kwargs['idfamille'])
+        return get_object_or_404(Famille, pk=self.kwargs['idfamille'])
 
     def Get_nouveau_mail(self):
         famille = self.object

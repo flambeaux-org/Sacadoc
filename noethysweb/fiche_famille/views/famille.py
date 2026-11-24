@@ -13,6 +13,7 @@ from django.views.generic.detail import DetailView
 from core.views.base import CustomView
 from core.views.mydatatableview import MyDatatable, columns, helpers
 from core.views import crud
+from django.shortcuts import get_object_or_404
 from core.models import Famille, Note, Rattachement, CATEGORIES_RATTACHEMENT, Prestation, Reglement, PortailMessage, Inscription, Individu, Activite, Structure, Ventilation
 from core.utils import utils_texte
 from individus.utils import utils_pieces_manquantes
@@ -180,7 +181,7 @@ class Supprimer_famille(Page, crud.Supprimer):
     form_class = Formulaire
 
     def get_object(self):
-        return Famille.objects.get(pk=self.kwargs['idfamille'])
+        return get_object_or_404(Famille, pk=self.kwargs['idfamille'])
 
 
 
@@ -194,7 +195,7 @@ class Onglet(CustomView):
         context = super(Onglet, self).get_context_data(**kwargs)
         context['page_titre'] = "Fiche famille"
         context['liste_onglets'] = [dict_onglet for dict_onglet in self.liste_onglets if self.request.user.has_perm("core.famille_%s" % dict_onglet["code"])]
-        context['famille'] = Famille.objects.get(pk=self.kwargs['idfamille'])
+        context['famille'] = get_object_or_404(Famille, pk=self.kwargs['idfamille'])
         context['idfamille'] = self.kwargs['idfamille']
         context['categories'] = CATEGORIES_RATTACHEMENT
         context['rattachements'] = Rattachement.objects.prefetch_related('individu').filter(famille_id=self.kwargs['idfamille']).order_by("individu__civilite")
@@ -294,4 +295,4 @@ class Resume(Onglet, DetailView):
         return context
 
     def get_object(self):
-        return Famille.objects.get(pk=self.kwargs['idfamille'])
+        return get_object_or_404(Famille, pk=self.kwargs['idfamille'])
