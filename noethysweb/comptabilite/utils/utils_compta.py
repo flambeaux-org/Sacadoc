@@ -125,6 +125,49 @@ def Get_reglements_encaissement(structures=None, date_debut=None, date_fin=None)
     return resultat
 
 
+def Get_resultat_projet(comptes=None, structures=None, date_debut=None, date_fin=None):
+    """
+    Résultat du projet pour une sélection de comptes, sur une période.
+
+    Même périmètre que le Bilan financier : ventilations des catégories au bilan,
+    auxquelles s'ajoutent les règlements encaissés par l'organisateur, qui ne
+    transitent pas par les comptes mais constituent bien une recette.
+    Renvoie (total_credit, total_debit, total_encaissement, resultat).
+    """
+    from core.models import ComptaVentilation
+
+    conditions = Q(operation__compte__in=comptes) & Q(categorie__bilan=True)
+    if date_debut:
+        conditions &= Q(operation__date__gte=date_debut)
+    if date_fin:
+        conditions &= Q(operation__date__lte=date_fin)
+
+    totaux = ComptaVentilation.objects.filter(conditions).values("categorie__type").annotate(total=Sum("montant"))
+    par_type = {ligne["categorie__type"]: ligne["total"] or ZERO for ligne in totaux}
+    total_credit = par_type.get("credit", ZERO)
+    total_debit = par_type.get("debit", ZERO)
+
+    total_encaissement = sum(
+        (bloc["total"] for bloc in Get_reglements_encaissement(
+            structures=structures, date_debut=date_debut, date_fin=date_fin)),
+        ZERO)
+    total_credit += total_encaissement
+
+    return Arrondi(total_credit), Arrondi(total_debit), Arrondi(total_encaissement), Arrondi(total_credit - total_debit)
+
+
+def Get_total_categorie(categorie, comptes=None, date_debut=None, date_fin=None):
+    """ Total ventilé sur une catégorie, pour une sélection de comptes et une période """
+    from core.models import ComptaVentilation
+
+    conditions = Q(operation__compte__in=comptes) & Q(categorie=categorie)
+    if date_debut:
+        conditions &= Q(operation__date__gte=date_debut)
+    if date_fin:
+        conditions &= Q(operation__date__lte=date_fin)
+    return Arrondi(ComptaVentilation.objects.filter(conditions).aggregate(total=Sum("montant"))["total"] or ZERO)
+
+
 def Get_url_modifier(operation, retour=None):
     """
     Renvoie l'écran de modification adapté à une opération de trésorerie.

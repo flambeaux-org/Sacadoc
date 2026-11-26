@@ -1,0 +1,118 @@
+{% extends "core/page.html" %}
+{% load crispy_forms_tags %}
+{% load static %}
+{% load embed %}
+
+{% block contenu_page %}
+
+<div class="row">
+
+    <!-- ===================== PARAMÈTRES ===================== -->
+    <div class="col-md-3">
+        <div class="card card-default">
+            <div class="card-header with-border">
+                <h3 class="card-title"><i class="fa fa-gear margin-r-5"></i> Paramètres</h3>
+                <div class="card-tools">
+                    <button type="button" class="btn btn-tool" data-card-widget="collapse" title="Réduire"><i class="fa fa-minus"></i></button>
+                </div>
+            </div>
+            <div class="card-body">
+                <button type="submit" form="form_parametres" class="btn btn-primary btn-block mb-3" name="type_submit" title="Actualiser les résultats">
+                    <i class="fa fa-refresh margin-r-5"></i> Actualiser les résultats
+                </button>
+                {% crispy form_parametres %}
+            </div>
+        </div>
+
+        <p class="form-text">
+            <small>
+                <i class="fa fa-info-circle"></i>
+                Les montants des catégories de <b>dépense</b> sont affichés en négatif, afin que
+                chaque colonne s'additionne.<br>
+                Chaque colonne agrège <b>tous les comptes</b> de la structure (caisse, compte courant...).<br>
+                Le <b>résultat du projet</b> reprend le périmètre du <i>Bilan financier</i> :
+                catégories au bilan, règlements encaissés par l'organisateur inclus. Il ne se
+                limite donc pas aux catégories détaillées ci-dessus.
+            </small>
+        </p>
+    </div>
+
+    <!-- ===================== TABLEAU ===================== -->
+    <div class="col-md-9">
+        <div class="card card-default">
+            <div class="card-header with-border">
+                <h3 class="card-title">
+                    <i class="fa fa-table margin-r-5"></i> Bilan
+                    {% if date_debut %}<small class="text-muted">— du {{ date_debut|date:"d/m/Y" }} au {{ date_fin|date:"d/m/Y" }}</small>{% endif %}
+                </h3>
+            </div>
+            <div class="card-body">
+
+                {% if not colonnes %}
+                    <p class="text-muted mb-0">
+                        Sélectionnez une ou plusieurs structures puis cliquez sur <b>Actualiser les résultats</b>.
+                    </p>
+                {% else %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered" style="margin-bottom:0;">
+                            <thead>
+                                <tr>
+                                    <th style="min-width:220px;">Catégorie</th>
+                                    {% for colonne in colonnes %}
+                                        <th class="text-right">{{ colonne.nom }}<br><small class="text-muted font-weight-normal">{{ colonne.libelle_comptes }}</small></th>
+                                    {% endfor %}
+                                    {% if nbre_colonnes > 1 %}<th class="text-right bg-light">TOTAL</th>{% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ligne in lignes_categories %}
+                                    <tr>
+                                        <td>
+                                            {{ ligne.label }}
+                                            <small class="text-muted">({{ ligne.type }})</small>
+                                            {% if ligne.orga %}<span class="badge badge-secondary">orga</span>{% endif %}
+                                        </td>
+                                        {% for montant in ligne.montants %}
+                                            <td class="text-right">{{ montant }} €</td>
+                                        {% endfor %}
+                                        {% if nbre_colonnes > 1 %}<td class="text-right bg-light">{{ ligne.total }} €</td>{% endif %}
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="{{ colonnes|length|add:2 }}" class="text-muted">
+                                            Aucune catégorie détaillée sélectionnée.
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+
+                                {% if lignes_categories %}
+                                    <tr class="bg-light">
+                                        <td><b>Total des catégories sélectionnées</b></td>
+                                        {% for montant in total_categories.montants %}
+                                            <td class="text-right"><b>{{ montant }} €</b></td>
+                                        {% endfor %}
+                                        {% if nbre_colonnes > 1 %}<td class="text-right"><b>{{ total_categories.total }} €</b></td>{% endif %}
+                                    </tr>
+                                {% endif %}
+
+                                <tr><td colspan="{{ colonnes|length|add:2 }}"><hr style="margin:4px 0;"></td></tr>
+
+                                <tr class="bg-light">
+                                    <td><b>Résultat du projet</b></td>
+                                    {% for montant in ligne_resultat.montants %}
+                                        <td class="text-right"><b>{{ montant }} €</b></td>
+                                    {% endfor %}
+                                    {% if nbre_colonnes > 1 %}<td class="text-right"><b>{{ ligne_resultat.total }} €</b></td>{% endif %}
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                {% endif %}
+
+            </div>
+        </div>
+    </div>
+
+</div>
+
+{% endblock contenu_page %}

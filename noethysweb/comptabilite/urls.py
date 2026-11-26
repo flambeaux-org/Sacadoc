@@ -8,7 +8,7 @@ from core.views import toc
 from core.decorators import secure_ajax
 from comptabilite.views import operations_tresorerie, operations_budgetaires, liste_comptes, liste_virements, suivi_budget, suivi_tresorerie, \
                                 rapprochements, rapprochements_selection, suivi_compta, edition_justifs, avances_regul, correction_compte, liste_ventilation, \
-                                verification_compta, export_compta
+                                verification_compta, export_compta, bilan_organisateur
 
 
 urlpatterns = [
@@ -60,6 +60,7 @@ urlpatterns = [
     path('comptabilite/suivi_tresorerie', suivi_tresorerie.View.as_view(), name='suivi_tresorerie'),
     path('comptabilite/export_justifs', edition_justifs.View.as_view(), name='edition_justifs'),
     path('comptabilite/export_compta', export_compta.View.as_view(), name='export_compta'),
+    path('comptabilite/bilan_organisateur', bilan_organisateur.View.as_view(), name='bilan_organisateur'),
     path('comptabilite/correction_compte', correction_compte.View.as_view(), name='correction_compte'),
 
     path('comptabilite/suivi_tresorerie/<int:categorie>', suivi_tresorerie.View.as_view(), name='suivi_tresorerie'),
