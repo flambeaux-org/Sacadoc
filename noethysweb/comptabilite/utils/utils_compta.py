@@ -55,6 +55,23 @@ def Agreger(queryset):
     return total_debit, total_credit, total_credit - total_debit
 
 
+def Cle_tri_num_piece(operation):
+    """
+    Tri des numéros de pièce dans l'ordre humain : 1, 2, 10 et non 1, 10, 2.
+
+    Le numéro est stocké en texte, car il peut être alphanumérique selon le mode de
+    règlement : un tri SQL le classe donc caractère par caractère. Les numéros purement
+    numériques passent d'abord, par valeur croissante ; les autres suivent, par ordre
+    alphabétique. Les opérations sans numéro ferment la marche.
+    """
+    numero = (operation.num_piece or "").strip()
+    if not numero:
+        return (2, 0, "")
+    if numero.isdigit():
+        return (0, int(numero), "")
+    return (1, 0, numero.lower())
+
+
 def Cle_tri_categorie(categorie):
     """
     Ordre d'affichage des catégories dans les tableaux d'analyse.
@@ -123,6 +140,34 @@ def Get_reglements_encaissement(structures=None, date_debut=None, date_fin=None)
             "total": sum((r["montant"] for r in liste), ZERO),
         })
     return resultat
+
+
+def Get_montant_non_ventile(comptes=None, type_operation=None, date_debut=None, date_fin=None):
+    """
+    Part des opérations qui n'est ventilée sur aucune catégorie, par type.
+
+    Les totaux des rapports sont bâtis sur les ventilations : une opération saisie mais
+    non ventilée disparaîtrait donc des résultats alors que l'argent est bien passé sur
+    le compte. On mesure ici ce reliquat pour pouvoir l'afficher et le compter.
+
+    Les virements internes et les régularisations d'avance sont exclus : ils n'ont pas
+    de ventilation par construction, ce ne sont ni des dépenses ni des recettes.
+    """
+    from core.models import ComptaOperation, ComptaVentilation
+
+    conditions = Q(compte__in=comptes) & Q(virement__isnull=True) & Q(regul_avance=False)
+    if type_operation:
+        conditions &= Q(type=type_operation)
+    if date_debut:
+        conditions &= Q(date__gte=date_debut)
+    if date_fin:
+        conditions &= Q(date__lte=date_fin)
+
+    operations = ComptaOperation.objects.filter(conditions)
+    total_operations = operations.aggregate(total=Sum("montant"))["total"] or ZERO
+    total_ventile = ComptaVentilation.objects.filter(
+        operation__in=operations).aggregate(total=Sum("montant"))["total"] or ZERO
+    return Arrondi(total_operations) - Arrondi(total_ventile)
 
 
 def Get_resultat_projet(comptes=None, structures=None, date_debut=None, date_fin=None):

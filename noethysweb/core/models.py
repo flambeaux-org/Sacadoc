@@ -573,7 +573,7 @@ class ModeReglement(models.Model):
     type_choix = [("banque", "Banque"), ("caisse", "Caisse")]
     type_comptable = models.CharField(verbose_name="Type comptable", max_length=100, choices=type_choix, default="banque", blank=True, null=True)
     code_compta = models.CharField(verbose_name="Code comptable", max_length=200, blank=True, null=True)
-    encaissement = models.BooleanField(verbose_name="Encaissé par l'organisateur", default=False, help_text="(n'est pas inclus dans la compta automatiquement)")
+    encaissement = models.BooleanField(verbose_name="Encaissé par l'organisateur", default=False, help_text="Ne passe pas par les comptes bancaires et ne se saisit pas en comptabilité, mais compté en recettes dans le Bilan financier et le Suivi du budget.")
 
     class Meta:
         db_table = 'modes_reglements'

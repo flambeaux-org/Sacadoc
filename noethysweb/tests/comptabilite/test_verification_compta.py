@@ -912,3 +912,48 @@ class TestDeductionsOperation(ComptaFictiveMixin, TestCase):
         self.assertNotIn('name="deductions"', html)
         html_credit = self.client.get(self.url_ajout).content.decode("utf-8")
         self.assertIn('name="deductions"', html_credit)
+
+
+class TestTriNumeroPiece(ComptaFictiveMixin, TestCase):
+    """ Les justificatifs doivent se suivre dans l'ordre humain des numéros de pièce """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.creer_compta()
+
+    def operations(self, numeros):
+        from core.models import ComptaOperation
+        return [ComptaOperation(num_piece=n) for n in numeros]
+
+    def tri(self, numeros):
+        from comptabilite.utils.utils_compta import Cle_tri_num_piece
+        return [o.num_piece for o in sorted(self.operations(numeros), key=Cle_tri_num_piece)]
+
+    def test_ordre_numerique_et_non_alphabetique(self):
+        """ Régression : le tri SQL donnait 1, 10, 11, 2, 20, 21 """
+        desordre = ["1", "10", "11", "2", "20", "21", "3", "100", "9"]
+        self.assertEqual(self.tri(desordre),
+                         ["1", "2", "3", "9", "10", "11", "20", "21", "100"])
+
+    def test_numeros_alphanumeriques_apres_les_numeriques(self):
+        """ Certains modes de règlement produisent des numéros alphanumériques """
+        melange = ["10", "cs_test_b", "2", "cs_test_a", "1556"]
+        self.assertEqual(self.tri(melange), ["2", "10", "1556", "cs_test_a", "cs_test_b"])
+
+    def test_sans_numero_en_dernier(self):
+        self.assertEqual(self.tri(["2", None, "1", ""]), ["1", "2", None, ""])
+
+    def test_la_vue_utilise_ce_tri(self):
+        """ Le recueil PDF doit appliquer le tri, et non l'ordre de la base """
+        from core.models import ComptaOperation
+        from comptabilite.utils.utils_compta import Cle_tri_num_piece
+        for numero in ["1", "10", "11", "2"]:
+            ComptaOperation.objects.create(
+                compte=self.compte, type="debit", date=datetime.date(2026, 4, 1),
+                montant=D("5.00"), libelle="Piece %s" % numero, mode=self.mode,
+                num_piece=numero, document="justif_%s.pdf" % numero)
+        qs = ComptaOperation.objects.filter(compte=self.compte, libelle__startswith="Piece ").exclude(document="")
+        ordonnees = sorted(qs, key=Cle_tri_num_piece)
+        self.assertEqual([o.num_piece for o in ordonnees], ["1", "2", "10", "11"])
+        # L'ordre brut de la base est bien celui que l'on corrige
+        self.assertEqual([o.num_piece for o in qs.order_by("num_piece")], ["1", "10", "11", "2"])

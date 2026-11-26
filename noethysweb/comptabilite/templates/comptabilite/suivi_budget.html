@@ -47,6 +47,10 @@
                                 <td class="text-right text-muted">{{ totaux.resultat_budgete }} €</td></tr>
                             <tr><td class="text-muted">Écart au budget</td>
                                 <td class="text-right text-muted" colspan="2">{{ totaux.ecart_resultat }} €</td></tr>
+                            {% if totaux.total_hors_bilan %}
+                                <tr><td class="text-muted">dont hors bilan (non compté)</td>
+                                    <td class="text-right text-muted" colspan="2">{{ totaux.total_hors_bilan }} €</td></tr>
+                            {% endif %}
                             {% if totaux.total_encaissement %}
                                 <tr><td class="text-muted">dont {{ totaux.label_encaissement }}<br><small>hors comptes bancaires</small></td>
                                     <td class="text-right text-muted" colspan="2">{{ totaux.total_encaissement }} €</td></tr>

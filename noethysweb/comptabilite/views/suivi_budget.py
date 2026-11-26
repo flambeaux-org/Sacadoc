@@ -42,26 +42,36 @@ class View(CustomView, TemplateView):
         budget = parametres["budget"]
         comptes = budget.compte.all()
 
-        # 1. BASE DE DÉPART : On récupère TOUTES les catégories comptables
-        structures_utilisateurs = self.request.user.structures.all()
-        condition_categories = Q(structure__in=structures_utilisateurs) | Q(structure__isnull=True)
-        toutes_les_categories = ComptaCategorie.objects.filter(condition_categories)
-
-        # 2. DICTIONNAIRE DU BUDGET : Montants par ID de catégorie pour CE budget
+        # 1. DICTIONNAIRE DU BUDGET : Montants par ID de catégorie pour CE budget
         categories_budget = ComptaCategorieBudget.objects.filter(budget=budget)
         dict_budgete = {cb.categorie_id: cb.montant for cb in categories_budget}
 
-        # 3. DICTIONNAIRE DU RÉALISÉ : Ventilations cumulées par ID de catégorie
+        # 2. DICTIONNAIRE DU RÉALISÉ : Ventilations cumulées par ID de catégorie
         condition_realise = (
                 Q(operation__compte__in=comptes) &
                 Q(operation__date__gte=budget.date_debut) &
                 Q(operation__date__lte=budget.date_fin)
         )
-        ventilations_data = ComptaVentilation.objects.filter(condition_realise) \
+        # Les catégories hors bilan restent en dehors du résultat, comme au Suivi des
+        # finances : la case "Compte intégré au bilan" doit avoir le même effet partout.
+        # Leur montant est calculé à part, pour être affiché sans être compté.
+        ventilations_data = ComptaVentilation.objects.filter(condition_realise, categorie__bilan=True) \
             .values("categorie") \
             .annotate(total=Sum("montant"))
 
         dict_realise = {v["categorie"]: v["total"] for v in ventilations_data if v["categorie"]}
+
+        total_hors_bilan = ComptaVentilation.objects.filter(
+            condition_realise, categorie__bilan=False).aggregate(total=Sum("montant"))["total"] or decimal.Decimal(0)
+
+        # 3. CATÉGORIES AFFICHÉES : celles visibles par l'utilisateur, auxquelles on ajoute
+        # celles réellement mouvementées ou budgétées. Sans cela, une catégorie rattachée à
+        # une autre structure disparaissait du tableau ET de ses totaux, alors que l'argent
+        # est bien passé sur les comptes du budget.
+        condition_categories = Q(structure__in=self.request.user.structures.all()) | Q(structure__isnull=True)
+        condition_utilisee = Q(pk__in=set(dict_realise) | set(dict_budgete))
+        toutes_les_categories = ComptaCategorie.objects.filter(
+            (condition_categories | condition_utilisee) & Q(bilan=True))
 
         # --- Règlements encaissés par l'organisateur (chèques vacances, bons CAF...) ---
         # Toutes les structures des comptes du budget, et non la première seulement.
@@ -157,6 +167,28 @@ class View(CustomView, TemplateView):
                 "ecart": float(_arrondi(montant)),
             }, regroupement)
 
+        # Aucune opération des comptes du budget ne doit disparaître des totaux : ce qui
+        # n'est ventilé sur aucune catégorie est isolé dans une ligne explicite, comme au
+        # Suivi des finances, pour que les deux pages restent comparables à période égale.
+        for type_operation, label in (("credit", "Crédit"), ("debit", "Débit")):
+            non_ventile = utils_compta.Get_montant_non_ventile(
+                comptes=comptes, type_operation=type_operation,
+                date_debut=budget.date_debut, date_fin=budget.date_fin)
+            if not non_ventile:
+                continue
+            regroupement = Get_regroupement(type_operation, label)
+            regroupement["realise"] += non_ventile
+            Ajouter_en_fin_de_groupe({
+                "id": 4000000 + (0 if type_operation == "credit" else 1),
+                "pid": regroupement["id"],
+                "regroupement": False,
+                "label": "Opérations non ventilées",
+                "realise": float(_arrondi(non_ventile)),
+                "budgete": 0.0,
+                "pourcentage": None,
+                "ecart": float(_arrondi(Get_ecart(type_operation, non_ventile, decimal.Decimal(0)))),
+            }, regroupement)
+
         # --- TOTAUX (en Decimal, avant conversion en float pour le JSON) ---
         total_credit = regroupements.get("credit", {}).get("realise", decimal.Decimal(0))
         total_debit = regroupements.get("debit", {}).get("realise", decimal.Decimal(0))
@@ -202,6 +234,7 @@ class View(CustomView, TemplateView):
             "resultat_projet": _arrondi(total_realise),
             "resultat_budgete": _arrondi(total_budgete),
             "ecart_resultat": _arrondi(total_ecart),
+            "total_hors_bilan": _arrondi(total_hors_bilan),
             "solde_bancaire": _arrondi(solde_bancaire),
             "mouvements_bancaires": _arrondi(mouvements_bancaires),
             # Comme au Bilan financier : ces recettes comptent dans le résultat mais ne

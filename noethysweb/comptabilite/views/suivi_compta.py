@@ -8,7 +8,7 @@ from collections import Counter
 from django.views.generic import TemplateView
 from django.db.models import Q, Sum
 from core.views.base import CustomView
-from core.models import ComptaVentilation, ComptaCategorie, Deduction
+from core.models import ComptaVentilation, ComptaCategorie, CompteBancaire, Deduction
 from comptabilite.forms.suivi_compta import Formulaire
 from core.utils import utils_dates
 from comptabilite.utils import utils_rapprochement, utils_compta
@@ -46,7 +46,10 @@ class View(CustomView, TemplateView):
         return self.render_to_response(self.get_context_data(**context))
 
     def Get_resultats(self, parametres={}):
-        comptes = parametres["comptes"]
+        # L'analyse porte sur des structures : on prend tous leurs comptes. Un compte sans
+        # structure n'entre dans aucune analyse, son périmètre étant indéterminé.
+        structures_analysees = [structure.pk for structure in parametres["structures"]]
+        comptes = CompteBancaire.objects.filter(structure__in=structures_analysees)
 
         # Période d'analyse (par défaut tout l'historique)
         periode = parametres.get("periode") or ""
@@ -57,27 +60,27 @@ class View(CustomView, TemplateView):
         if date_fin:
             condition_periode &= Q(operation__date__lte=date_fin)
 
-        # Structures concernées (utilisées par plusieurs blocs ci-dessous)
-        structures_comptes = [s for s in comptes.values_list("structure", flat=True) if s]
-        structures_analysees = structures_comptes or list(
-            self.request.user.structures.values_list("pk", flat=True))
-
         # Règlements encaissés par l'organisateur (chèques vacances, bons CAF...).
         # Calculés avant la construction des lignes car ils alimentent les recettes du bilan.
         liste_reglements_encaissement = utils_compta.Get_reglements_encaissement(
             structures=structures_analysees, date_debut=date_debut, date_fin=date_fin)
-
-        condition_structure = (Q(structure__in=self.request.user.structures.all()) | Q(structure__isnull=True)) & Q(
-            bilan=True)
-
-        # Importation des catégories
-        dict_categories = {categorie.pk: categorie for categorie in ComptaCategorie.objects.filter(condition_structure)}
 
         # Importation des ventilations
         condition = Q(operation__compte__in=comptes) & Q(categorie__bilan=True) & condition_periode
         ventilations_tresorerie = Counter({ventilation["categorie"]: ventilation["total"] for ventilation in
                                            ComptaVentilation.objects.values("categorie").filter(condition).annotate(
                                                total=Sum("montant"))})
+
+        # Importation des catégories : celles visibles par l'utilisateur, auxquelles on
+        # ajoute celles réellement mouvementées sur les comptes analysés. Sans cela, une
+        # catégorie rattachée à une autre structure disparaissait du tableau ET de ses
+        # totaux : l'argent était bien sur le compte mais n'était compté nulle part.
+        condition_structure = (Q(structure__in=self.request.user.structures.all()) | Q(structure__isnull=True)) & Q(
+            bilan=True)
+        condition_mouvementee = Q(pk__in=[idcategorie for idcategorie in ventilations_tresorerie if idcategorie]) & Q(bilan=True)
+        dict_categories = {categorie.pk: categorie
+                           for categorie in ComptaCategorie.objects.filter(condition_structure | condition_mouvementee)}
+
         dict_realise = {dict_categories[idcategorie]: montant for idcategorie, montant in
                         dict(ventilations_tresorerie).items() if idcategorie in dict_categories}
 
@@ -152,6 +155,27 @@ class View(CustomView, TemplateView):
                 "realise": float(_arrondi(montant)),
             }, regroupement)
 
+        # Aucune opération de la structure ne doit disparaître des totaux. Ce qui n'est
+        # ventilé nulle part (ni au bilan, ni hors bilan) est isolé dans une ligne
+        # explicite plutôt que d'être silencieusement ignoré. Les virements internes et
+        # les régularisations d'avance n'ont pas de ventilation par construction.
+        total_non_ventile = decimal.Decimal(0)
+        for type_operation, label in (("credit", "Crédit"), ("debit", "Débit")):
+            non_ventile = utils_compta.Get_montant_non_ventile(
+                comptes=comptes, type_operation=type_operation, date_debut=date_debut, date_fin=date_fin)
+            if not non_ventile:
+                continue
+            regroupement = Get_regroupement(type_operation, label)
+            regroupement["realise"] += non_ventile
+            total_non_ventile += non_ventile
+            Ajouter_en_fin_de_groupe({
+                "id": 4000000 + (0 if type_operation == "credit" else 1),
+                "pid": regroupement["id"],
+                "regroupement": False,
+                "label": "Opérations non ventilées",
+                "realise": float(_arrondi(non_ventile)),
+            }, regroupement)
+
         # --- CALCUL DU SOLDE GÉNÉRAL (en Decimal, avant conversion en float) ---
         total_credit = regroupements.get("credit", {}).get("realise", decimal.Decimal(0))
         total_debit = regroupements.get("debit", {}).get("realise", decimal.Decimal(0))
@@ -172,7 +196,7 @@ class View(CustomView, TemplateView):
         # Soldes hors bilan
         # Les catégories partagées (sans structure) doivent être incluses, sinon ce bloc reste vide
         categories_hors_bilan = ComptaCategorie.objects.filter(
-            Q(structure__in=structures_comptes) | Q(structure__isnull=True),
+            Q(structure__in=structures_analysees) | Q(structure__isnull=True),
             bilan=False
         ).order_by("type", "nom")
         soldes_hors_bilan = []

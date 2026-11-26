@@ -9,6 +9,7 @@ from django.http import JsonResponse
 from django.views.generic import TemplateView
 from core.views.base import CustomView
 from core.utils import utils_dates
+from comptabilite.utils import utils_compta
 from comptabilite.forms.edition_justifs import Formulaire
 import io
 from datetime import datetime
@@ -52,7 +53,11 @@ def Generer_pdf(request):
         date__gte=date_debut,
         date__lte=date_fin,
         document__isnull=False
-    ).exclude(document='').order_by('num_piece')
+    ).exclude(document='')
+
+    # Le numéro de pièce est un texte : un tri SQL donnerait 1, 10, 11, 2...
+    # On trie donc en Python, par valeur numérique.
+    operations = sorted(operations, key=utils_compta.Cle_tri_num_piece)
 
     if not operations:
         return JsonResponse({"erreur": "Aucun document trouvé pour cette période."}, status=404)

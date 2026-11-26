@@ -6,6 +6,7 @@ Cohérence du Bilan financier et du Suivi du budget sur une comptabilité fictiv
 import datetime
 import decimal
 
+from django.db.models import Sum
 from django.test import TestCase, RequestFactory
 
 from core.models import (ComptaAnalytique, ComptaBudget, ComptaCategorie, ComptaCategorieBudget,
@@ -63,6 +64,28 @@ class RapportsMixin:
         ComptaCategorieBudget.objects.create(budget=cls.budget, categorie=cls.cat_dep, montant=D("500.00"))
         ComptaCategorieBudget.objects.create(budget=cls.budget, categorie=cls.cat_rec, montant=D("1000.00"))
 
+    def creer_categorie_structure_etrangere(self):
+        """ Catégorie d'une structure non rattachée à l'utilisateur, mais mouvementée
+            sur un compte qu'il analyse : son montant doit rester compté. """
+        etrangere = Structure.objects.create(nom="Structure non rattachee", actif=True)
+        categorie = ComptaCategorie.objects.create(
+            nom="Evenements regionaux", type="debit", structure=etrangere)
+        operation = ComptaOperation.objects.create(
+            compte=self.compte, type="debit", date=datetime.date(2026, 6, 20),
+            montant=D("93.00"), libelle="Facture regionale", mode=self.mode)
+        ComptaVentilation.objects.create(
+            operation=operation, categorie=categorie, analytique=self.analytique,
+            montant=D("93.00"), date_budget=operation.date)
+        self.assertFalse(self.utilisateur.structures.filter(pk=etrangere.pk).exists())
+        return categorie
+
+    def creer_operation_non_ventilee(self, montant="17.00", type_op="credit"):
+        """ Opération saisie mais ventilée sur aucune catégorie : son montant est bien
+            passé sur le compte, il ne doit pas disparaître des totaux. """
+        return ComptaOperation.objects.create(
+            compte=self.compte, type=type_op, date=datetime.date(2026, 7, 1),
+            montant=D(montant), libelle="Non ventilee", mode=self.mode)
+
     def requete(self):
         requete = RequestFactory().post("/")
         requete.user = self.utilisateur
@@ -97,12 +120,12 @@ class TestBilanFinancier(RapportsMixin, TestCase):
     def setUpTestData(cls):
         cls.creer_donnees()
 
-    def resultats(self, periode="1900-01-01;2030-12-31", comptes=None):
+    def resultats(self, periode="1900-01-01;2030-12-31", structures=None):
         from comptabilite.views import suivi_compta
         vue = suivi_compta.View()
         vue.request = self.requete()
-        comptes = comptes if comptes is not None else CompteBancaire.objects.filter(pk=self.compte.pk)
-        return vue.Get_resultats({"comptes": comptes, "periode": periode})
+        structures = structures if structures is not None else Structure.objects.filter(pk=self.structure.pk)
+        return vue.Get_resultats({"structures": structures, "periode": periode})
 
     def totaux(self, lignes):
         return {l["label"]: l["realise"] for l in lignes if l.get("regroupement")}
@@ -133,6 +156,69 @@ class TestBilanFinancier(RapportsMixin, TestCase):
         self.assertEqual(groupes["Débit"][-1], "AAA Cotisation Mouvement")
         self.assertGreater(len(groupes["Crédit"]), 1)
         self.assertGreater(len(groupes["Débit"]), 1)
+
+    def test_analyse_tous_les_comptes_de_la_structure(self):
+        """ Caisse et compte courant d'une structure sont analysés ensemble """
+        caisse = CompteBancaire.objects.create(nom="Caisse Rapport", structure=self.structure)
+        operation = ComptaOperation.objects.create(
+            compte=caisse, type="credit", date=datetime.date(2026, 5, 4),
+            montant=D("60.00"), libelle="Especes", mode=self.mode)
+        ComptaVentilation.objects.create(
+            operation=operation, categorie=self.cat_rec, analytique=self.analytique,
+            montant=D("60.00"), date_budget=operation.date)
+        lignes, _, _, _, _ = self.resultats(periode="2026-01-01;2026-12-31")
+        # 90 sur le compte courant + 60 sur la caisse
+        self.assertEqual(self.totaux(lignes)["Crédit"], 150.0)
+
+    def test_perimetre_independant_de_l_utilisateur(self):
+        """ Régression : le périmètre se repliait sur TOUTES les structures de
+            l'utilisateur, le résultat dépendait donc de qui était connecté. """
+        resultat_complet = self.solde(self.resultats()[0])
+
+        restreint = Utilisateur.objects.create_user(
+            username="restreint", password="motdepasse", categorie="utilisateur", is_staff=True)
+        restreint.structures.add(self.structure)
+
+        from comptabilite.views import suivi_compta
+        vue = suivi_compta.View()
+        requete = RequestFactory().post("/")
+        requete.user = restreint
+        vue.request = requete
+        lignes = vue.Get_resultats({
+            "structures": Structure.objects.filter(pk=self.structure.pk),
+            "periode": "1900-01-01;2030-12-31"})[0]
+        self.assertEqual(self.solde(lignes), resultat_complet)
+
+    def test_categorie_d_une_structure_non_rattachee_reste_comptee(self):
+        """ Régression : son montant disparaissait du tableau ET des totaux """
+        categorie = self.creer_categorie_structure_etrangere()
+        lignes, _, _, _, _ = self.resultats(periode="2026-01-01;2026-12-31")
+        libelles = [l["label"] for l in lignes]
+        self.assertIn(categorie.nom, libelles)
+        self.assertEqual(self.totaux(lignes)["Débit"], 133.0)   # 40 + 93
+
+    def test_operation_non_ventilee_comptee_et_signalee(self):
+        """ Régression : une opération sans ventilation disparaissait des totaux """
+        self.creer_operation_non_ventilee(montant="17.00")
+        lignes, _, _, _, _ = self.resultats(periode="2026-01-01;2026-12-31")
+        libelles = [l["label"] for l in lignes]
+        self.assertIn("Opérations non ventilées", libelles)
+        ligne = [l for l in lignes if l["label"] == "Opérations non ventilées"][0]
+        self.assertEqual(ligne["realise"], 17.0)
+        self.assertEqual(self.totaux(lignes)["Crédit"], 107.0)   # 90 + 17
+
+    def test_aucune_operation_perdue(self):
+        """ Toute opération est comptée : soit dans les totaux, soit dans le bloc hors bilan.
+            Rien ne doit se perdre entre les deux. """
+        self.creer_operation_non_ventilee(montant="17.00")
+        lignes, hors_bilan, _, _, totaux = self.resultats(periode="2026-01-01;2026-12-31")
+        reel = ComptaOperation.objects.filter(
+            compte=self.compte, type="credit", virement__isnull=True, regul_avance=False,
+            date__gte=datetime.date(2026, 1, 1), date__lte=datetime.date(2026, 12, 31)
+        ).aggregate(t=Sum("montant"))["t"]
+        total_hors_bilan = sum((montant for _, montant, _ in hors_bilan), D("0"))
+        compte_quelque_part = totaux["total_recettes"] - totaux["total_encaissement"] + total_hors_bilan
+        self.assertEqual(compte_quelque_part, reel)
 
     def test_categorie_hors_bilan_exclue_du_solde(self):
         lignes, _, _, _, _ = self.resultats()
@@ -169,7 +255,7 @@ class TestBilanFinancier(RapportsMixin, TestCase):
 
     def test_compte_sans_operation(self):
         lignes, hors_bilan, _, _, _ = self.resultats(
-            comptes=CompteBancaire.objects.filter(pk=self.compte_voisin.pk))
+            structures=Structure.objects.filter(pk=self.autre_structure.pk))
         self.assertEqual(self.solde(lignes), 0.0)
         self.assertEqual(hors_bilan, [])
 
@@ -180,11 +266,14 @@ class TestSuiviBudget(RapportsMixin, TestCase):
     def setUpTestData(cls):
         cls.creer_donnees()
 
-    def resultats(self):
+    def vue(self):
         from comptabilite.views import suivi_budget
         vue = suivi_budget.View()
         vue.request = self.requete()
-        return vue.Get_resultats({"budget": self.budget})[0]
+        return vue
+
+    def resultats(self):
+        return self.vue().Get_resultats({"budget": self.budget})[0]
 
     def lignes_par_label(self, lignes):
         return {l["label"]: l for l in lignes}
@@ -232,10 +321,9 @@ class TestSuiviBudget(RapportsMixin, TestCase):
 
     def test_solde_general(self):
         lignes = self.lignes_par_label(self.resultats())
-        # 90 de recettes + 25 hors bilan - 40 de dépenses.
-        # Le Suivi du budget intègre les catégories hors bilan, contrairement au
-        # Bilan financier qui les isole : différence de périmètre assumée.
-        self.assertEqual(lignes["SOLDE GENERAL"]["realise"], 75.0)
+        # 90 de recettes - 40 de dépenses. Les 25 de la catégorie hors bilan restent
+        # en dehors du résultat, comme au Suivi des finances.
+        self.assertEqual(lignes["SOLDE GENERAL"]["realise"], 50.0)
         self.assertEqual(lignes["SOLDE GENERAL"]["budgete"], 500.0)
 
     def test_categories_orga_classees_en_fin_de_groupe(self):
@@ -247,9 +335,42 @@ class TestSuiviBudget(RapportsMixin, TestCase):
         self.assertGreater(len(groupes["Crédit"]), 1)
         self.assertGreater(len(groupes["Débit"]), 1)
 
-    def test_categorie_hors_bilan_presente_dans_le_budget(self):
+    def test_categorie_d_une_structure_non_rattachee_reste_comptee(self):
+        """ Régression : 93 € de dépenses manquaient au Suivi du budget """
+        categorie = self.creer_categorie_structure_etrangere()
         lignes = self.lignes_par_label(self.resultats())
-        self.assertIn("Recettes pour le Mouvement", lignes)
+        self.assertIn(categorie.nom, lignes)
+        self.assertEqual(lignes[categorie.nom]["realise"], 93.0)
+
+    def test_operation_non_ventilee_comptee(self):
+        """ Le Suivi du budget ne doit pas perdre d'opération non plus """
+        self.creer_operation_non_ventilee(montant="17.00")
+        lignes = self.lignes_par_label(self.resultats())
+        self.assertIn("Opérations non ventilées", lignes)
+        self.assertEqual(lignes["Opérations non ventilées"]["realise"], 17.0)
+
+    def test_meme_resultat_que_le_suivi_des_finances(self):
+        """ A période et comptes égaux, les deux pages doivent donner le même résultat """
+        from comptabilite.views import suivi_compta
+        self.creer_operation_non_ventilee(montant="17.00")
+        lignes_budget = self.lignes_par_label(self.resultats())
+
+        vue = suivi_compta.View()
+        vue.request = self.requete()
+        totaux = vue.Get_resultats({
+            "structures": Structure.objects.filter(pk=self.structure.pk),
+            "periode": "%s;%s" % (self.budget.date_debut, self.budget.date_fin)})[4]
+
+        self.assertEqual(lignes_budget["SOLDE GENERAL"]["realise"], float(totaux["resultat_projet"]))
+
+    def test_categorie_hors_bilan_exclue_du_budget(self):
+        """ La case "Compte intégré au bilan" a le même effet sur les deux pages """
+        lignes = self.lignes_par_label(self.resultats())
+        self.assertNotIn("Recettes pour le Mouvement", lignes)
+
+    def test_hors_bilan_affiche_sans_etre_compte(self):
+        totaux = self.vue().Get_resultats({"budget": self.budget})[1]
+        self.assertEqual(totaux["total_hors_bilan"], D("25.00"))
 
     def test_encaissements_limites_aux_structures_des_comptes(self):
         """ Régression : seule la structure du premier compte était prise en compte.
@@ -299,7 +420,7 @@ class TestTotauxRapports(RapportsMixin, TestCase):
         vue = suivi_compta.View()
         vue.request = self.requete()
         return vue.Get_resultats({
-            "comptes": CompteBancaire.objects.filter(pk=self.compte.pk), "periode": periode})[4]
+            "structures": Structure.objects.filter(pk=self.structure.pk), "periode": periode})[4]
 
     def totaux_budget(self):
         from comptabilite.views import suivi_budget
@@ -350,8 +471,10 @@ class TestTotauxRapports(RapportsMixin, TestCase):
         # L'écart compare le réalisé du budget aux mouvements bancaires de la même période
         self.assertEqual(t["mouvements_bancaires"], D("75.00"))
         self.assertEqual(t["ecart_projet_banque"], t["resultat_projet"] - t["mouvements_bancaires"])
-        # Le budget compte aussi la catégorie hors bilan : seul l'écart de l'avance (30) subsiste
-        self.assertEqual(t["ecart_projet_banque"], D("-30.00"))
+        # Même périmètre que le Bilan financier : le hors bilan est exclu des deux,
+        # l'écart est donc identique sur les deux pages.
+        self.assertEqual(t["ecart_projet_banque"], D("-55.00"))
+        self.assertEqual(t["ecart_projet_banque"], self.totaux_bilan()["ecart_projet_banque"])
 
 
 class TestBilanOrganisateur(RapportsMixin, TestCase):
@@ -416,7 +539,7 @@ class TestBilanOrganisateur(RapportsMixin, TestCase):
         vue_bilan = suivi_compta.View()
         vue_bilan.request = self.requete()
         totaux = vue_bilan.Get_resultats({
-            "comptes": CompteBancaire.objects.filter(structure=self.structure),
+            "structures": Structure.objects.filter(pk=self.structure.pk),
             "periode": "2026-01-01;2026-12-31"})[4]
 
         self.assertEqual(contexte["ligne_resultat"]["montants"][0], totaux["resultat_projet"])
