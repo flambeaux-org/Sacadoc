@@ -303,7 +303,7 @@ class Liste(Page, crud.Liste):
         context["solde_anouveau"] = p["solde_anouveau"]
         operations_hors_releve = list(p["hors_releve"].select_related("avance").order_by("date"))
         for operation in operations_hors_releve:
-            operation.url_modifier = Get_url_modifier(operation)
+            operation.url_modifier = Get_url_modifier(operation, retour=self.request.get_full_path())
         context["operations_hors_releve"] = operations_hors_releve
         _, _, context["solde_hors_releve"] = Agreger(p["hors_releve"])
 
@@ -317,7 +317,8 @@ class Liste(Page, crud.Liste):
             perimetre=p,
         )
         # État de la comptabilité : tableau de contrôles (cf. classeur Excel historique)
-        controles = utils_controles.Get_controles(idcompte, solde_releve=Convert_montant(parametres["solde_releve"]), perimetre=p)
+        controles = utils_controles.Get_controles(idcompte, solde_releve=Convert_montant(parametres["solde_releve"]),
+                                                  perimetre=p, retour=self.request.get_full_path())
         nbre_ok, nbre_erreurs, nbre_avertissements, etat_global = utils_controles.Get_synthese(controles)
         context["controles"] = controles
         context["controles_nbre_ok"] = nbre_ok
@@ -380,7 +381,11 @@ class Liste(Page, crud.Liste):
             return None
 
         def Get_actions_speciales(self, instance, *args, **kwargs):
-            html = [self.Create_bouton_modifier(url=Get_url_modifier(instance))]
+            # On repart vers la page de vérification après l'enregistrement, pas vers
+            # la liste des opérations de trésorerie
+            vue = kwargs.get("view")
+            retour = vue.request.get_full_path() if vue else None
+            html = [self.Create_bouton_modifier(url=Get_url_modifier(instance, retour=retour))]
             if instance.document:
                 html.append(self.Create_bouton_ouvrir(url=instance.document.url))
             return self.Create_boutons_actions(html)

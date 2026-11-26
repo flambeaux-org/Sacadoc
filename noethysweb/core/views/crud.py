@@ -15,10 +15,32 @@ from django.db.models import Q, Count, ProtectedError
 from django.contrib.admin.utils import NestedObjects
 from django.contrib import messages
 from django.http import HttpResponseRedirect, HttpResponse
+from django.utils.http import url_has_allowed_host_and_scheme
 from core.views.base import CustomView
 from core.views.mydatatableview import MyDatatableView, MyMultipleDatatableView
 from core.utils import utils_texte, utils_historique
 from core.models import FiltreListe, Consommation, Inscription, Scolarite, Individu, LISTE_ETATS_CONSO
+
+
+def Get_url_next(request):
+    """
+    Renvoie la page d'où vient l'utilisateur, pour y retourner après l'enregistrement.
+
+    L'URL est cherchée dans le POST puis dans la querystring : le formulaire d'édition
+    n'a pas d'attribut action, il repose donc sur la querystring de la page courante.
+    Une URL externe est ignorée : un "next" venu de l'extérieur permettrait de
+    rediriger l'utilisateur hors de l'application après une action authentifiée.
+    """
+    if not request:
+        return None
+    url = request.POST.get("next") or request.GET.get("next")
+    if not url:
+        return None
+    if not url_has_allowed_host_and_scheme(url, allowed_hosts={request.get_host()},
+                                           require_https=request.is_secure()):
+        logger.warning("Redirection 'next' refusée car externe : %s", url)
+        return None
+    return url
 
 
 class Page(CustomView):
@@ -272,7 +294,7 @@ class BaseView():
     def get_success_url(self):
         if "SaveAndNew" in self.request.POST:
             return reverse_lazy(self.url_ajouter)
-        next = self.request.POST.get('next')
+        next = Get_url_next(self.request)
         if next:
             return next
         return reverse_lazy(self.url_liste)

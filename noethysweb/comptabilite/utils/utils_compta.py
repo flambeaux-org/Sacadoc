@@ -10,6 +10,7 @@ from collections import defaultdict
 
 from django.db.models import Case, DecimalField, F, Q, Sum, When
 from django.urls import reverse
+from django.utils.http import urlencode
 
 ZERO = decimal.Decimal("0.00")
 
@@ -124,14 +125,22 @@ def Get_reglements_encaissement(structures=None, date_debut=None, date_fin=None)
     return resultat
 
 
-def Get_url_modifier(operation):
+def Get_url_modifier(operation, retour=None):
     """
     Renvoie l'écran de modification adapté à une opération de trésorerie.
     Un virement ou une régularisation d'avance doit être modifié depuis son propre
     écran : éditer une seule de ses opérations romprait l'équilibre de l'ensemble.
+
+    "retour" est l'adresse de la page appelante : elle est transmise en paramètre
+    "next" pour que l'enregistrement y ramène l'utilisateur au lieu de le renvoyer
+    systématiquement vers la liste des opérations de trésorerie.
     """
     if operation.virement_id:
-        return reverse("virements_modifier", args=[operation.virement_id])
-    if operation.regul_avance:
-        return reverse("regul_avances_modifier", args=[operation.pk])
-    return reverse("operations_tresorerie_modifier", args=[operation.compte_id, operation.pk])
+        url = reverse("virements_modifier", args=[operation.virement_id])
+    elif operation.regul_avance:
+        url = reverse("regul_avances_modifier", args=[operation.pk])
+    else:
+        url = reverse("operations_tresorerie_modifier", args=[operation.compte_id, operation.pk])
+    if retour:
+        url = "%s?%s" % (url, urlencode({"next": retour}))
+    return url

@@ -126,14 +126,25 @@ AIDE_VENTILATION = """
         }
     }
 
+    // Marque les lignes que ce script a lui-même pré-remplies, pour pouvoir les
+    // mettre à jour à chaque frappe sans jamais écraser une saisie manuelle.
+    var COMPTA_AUTO = "comptaAutoRempli";
+
     function compta_prered_remplir_ligne_unique() {
         var lignes = compta_lignes_ventilation();
+        // Report uniquement quand la ventilation tient sur une seule catégorie :
+        // au-delà, c'est à l'utilisateur de répartir.
         if (lignes.length !== 1) { return; }
         var champ = lignes.first();
-        if (compta_lire_montant(champ) === 0) {
-            var total = compta_lire_montant("#id_montant");
-            if (total !== 0) { champ.val(total.toFixed(2)); }
+        // Une ligne déjà renseignée à la main n'est jamais écrasée.
+        if (compta_lire_montant(champ) !== 0 && champ.data(COMPTA_AUTO) !== true) { return; }
+        var total = compta_lire_montant("#id_montant");
+        if (total === 0) {
+            if (champ.data(COMPTA_AUTO) === true) { champ.val(""); }
+            return;
         }
+        champ.val(total.toFixed(2));
+        champ.data(COMPTA_AUTO, true);
     }
 
     // Appelé par le widget de formset à chaque ajout / suppression de ligne
@@ -144,6 +155,10 @@ AIDE_VENTILATION = """
         $(document).on("input change", "#id_montant", function () {
             compta_prered_remplir_ligne_unique();
             compta_maj_ventilation();
+        });
+        // Dès que l'utilisateur saisit lui-même une ligne, le report automatique s'arrête
+        $(document).on("input change", 'input[name$="-montant"]', function () {
+            $(this).data(COMPTA_AUTO, false);
         });
         $(document).on("input change", 'input[name$="-montant"], input[name$="-DELETE"]', compta_maj_ventilation);
         compta_maj_ventilation();

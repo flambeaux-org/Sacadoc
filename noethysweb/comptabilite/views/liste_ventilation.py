@@ -11,6 +11,7 @@ from core.views.base import CustomView
 from core.models import ComptaVentilation, ComptaOperationBudgetaire, ComptaCategorieBudget, ComptaCategorie, Reglement, Ventilation
 from comptabilite.forms.liste_ventilation import Formulaire
 from django.urls import reverse
+from django.utils.http import urlencode
 
 class View(CustomView, TemplateView):
     menu_code = "liste_ventilation"
@@ -64,9 +65,10 @@ class View(CustomView, TemplateView):
                     id_operation = v.operation.idoperation
 
                     # Génération de l'URL avec les deux paramètres positionnels : <int:categorie> et <int:pk>
-                    url_modifier = reverse(
-                        'operations_tresorerie_modifier',
-                        args=[id_compte, id_operation]
+                    # "next" ramène ici après l'enregistrement, au lieu de la liste des opérations
+                    url_modifier = "%s?%s" % (
+                        reverse('operations_tresorerie_modifier', args=[id_compte, id_operation]),
+                        urlencode({"next": self.request.get_full_path()}),
                     )
 
             lignes.append({

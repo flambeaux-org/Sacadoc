@@ -76,7 +76,7 @@ def _controle(numero, libelle, theorique=None, reel=None, aide="", detail=None,
     }
 
 
-def Get_controles(idcompte, solde_releve=None, perimetre=None):
+def Get_controles(idcompte, solde_releve=None, perimetre=None, retour=None):
     """
     Renvoie la liste des contrôles de cohérence d'un compte bancaire.
     perimetre : résultat de utils_rapprochement.Get_perimetre(), s'il est déjà calculé.
@@ -224,10 +224,11 @@ def Get_controles(idcompte, solde_releve=None, perimetre=None):
         detail=sans_mode,
     ))
 
-    # Lien vers l'écran de modification adapté (virement, régularisation ou opération)
+    # Lien vers l'écran de modification adapté (virement, régularisation ou opération),
+    # en gardant la trace de la page appelante pour y revenir après l'enregistrement
     for controle in controles:
         for operation in controle["detail"]:
-            operation.url_modifier = Get_url_modifier(operation)
+            operation.url_modifier = Get_url_modifier(operation, retour=retour)
 
     return controles
 

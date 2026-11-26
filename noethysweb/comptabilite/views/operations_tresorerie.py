@@ -256,16 +256,22 @@ class Page(crud.Page):
         return form_kwargs
 
     def get_success_url(self):
-        """ Renvoie vers la liste après le formulaire """
+        """ Renvoie vers la page d'origine si elle est connue, sinon vers la liste """
         if "SaveAndNew" in self.request.POST:
             # Redirection selon le type d'opération
             if getattr(self, "type", None) == "debit":
                 url = self.url_ajouter_debit
             else:
                 url = self.url_ajouter_credit
-        else:
-            url = self.url_liste
-        return reverse_lazy(url, kwargs={'categorie': self.Get_categorie()})
+            return reverse_lazy(url, kwargs={'categorie': self.Get_categorie()})
+
+        # Retour à l'écran d'où provient la modification (Vérification comptable,
+        # Opérations par catégorie...) : sans cela on retombe toujours sur la liste
+        # des opérations de trésorerie, qui n'est pas forcément le point de départ.
+        next = crud.Get_url_next(self.request)
+        if next:
+            return next
+        return reverse_lazy(self.url_liste, kwargs={'categorie': self.Get_categorie()})
 
     def form_valid(self, form):
         from decimal import Decimal
