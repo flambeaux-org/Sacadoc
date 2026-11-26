@@ -14,7 +14,7 @@ from django.template.context_processors import csrf
 from crispy_forms.utils import render_crispy_form
 from core.views.mydatatableview import MyDatatable, columns, helpers
 from core.views import crud
-from core.models import ComptaOperation, CompteBancaire, ComptaVentilation, ComptaCategorie, ComptaAvance, ComptaAnalytique, Structure
+from core.models import ComptaOperation, CompteBancaire, ComptaVentilation, ComptaCategorie, ComptaAvance, ComptaAnalytique, Structure, Deduction
 from core.utils import utils_dates, utils_parametres, utils_texte
 from comptabilite.forms.operations_tresorerie import Formulaire, FORMSET_CATEGORIES, Get_prochain_num_piece
 from comptabilite.forms.ventilation_tresorerie import Formulaire as Formulaire_ventilation
@@ -352,17 +352,21 @@ class Page(crud.Page):
                 CompteBancaire.objects.select_for_update().filter(pk=self.object.compte_id).first()
                 self.object.num_piece = str(Get_prochain_num_piece(self.object.compte_id, verrou=True))
 
-            # --- Si une déduction est sélectionnée ---
-            deduction = form.cleaned_data.get("deduction")
-            if deduction:
-                # 1️⃣ On marque la déduction comme remboursée
-                deduction.remb = True
-                deduction.save(update_fields=["remb"])
+            # --- Déductions soldées par cette opération (une ou plusieurs) ---
+            deductions = list(form.cleaned_data.get("deductions") or [])
+            if deductions:
+                # 1️⃣ On marque les déductions comme remboursées
+                Deduction.objects.filter(pk__in=[d.pk for d in deductions]).update(remb=True)
 
-                # 2️⃣ On modifie le libellé de l'opération pour ajouter "(Déduction XX€)"
-                montant_deduction = deduction.montant
-                famille_nom = deduction.famille.nom
-                self.object.libelle = f"{self.object.libelle} (Famille : {famille_nom})"
+                # 2️⃣ On rappelle les familles concernées dans le libellé de l'opération.
+                #    Une même famille peut avoir plusieurs déductions : on ne la cite qu'une fois.
+                noms = []
+                for deduction in deductions:
+                    nom = deduction.famille.nom if deduction.famille else "Famille inconnue"
+                    if nom not in noms:
+                        noms.append(nom)
+                etiquette = "Famille" if len(noms) == 1 else "Familles"
+                self.object.libelle = "%s (%s : %s)" % (self.object.libelle, etiquette, ", ".join(noms))
 
             # --- Sauvegarde définitive ---
             self.object.save()

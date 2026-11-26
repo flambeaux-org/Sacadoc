@@ -803,3 +803,112 @@ class TestFiltrePeriodeTresorerie(ComptaFictiveMixin, TestCase):
         reponse = self.client.get(reverse("operations_budgetaires_liste",
                                           kwargs={"categorie": self.compte.pk}))
         self.assertNotIn("filtre_periode", reponse.context or {})
+
+
+class TestDeductionsOperation(ComptaFictiveMixin, TestCase):
+    """ Une recette peut solder plusieurs déductions en une seule opération """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.creer_compta()
+        cls.creer_utilisateurs()
+        # Le type de déduction doit être remboursable pour être proposé à la saisie
+        cls.type_deduction = TypeDeduction.objects.create(
+            nom="Fond d'aide", structure=cls.structure, remb=True)
+
+    def setUp(self):
+        self.client.force_login(self.comptable)
+        self.url_ajout = reverse("operations_tresorerie_ajouter_credit",
+                                 kwargs={"categorie": self.compte.pk})
+
+    def creer_deduction(self, nom_famille, montant):
+        famille = Famille.objects.create(nom=nom_famille)
+        prestation = Prestation.objects.create(date=datetime.date(2026, 3, 1), label="Sejour",
+                                               famille=famille, montant=D("500.00"))
+        return Deduction.objects.create(
+            prestation=prestation, famille=famille, label=self.type_deduction,
+            date=datetime.date(2026, 3, 2), montant=D(montant), remb=False)
+
+    def donnees(self, montant, deductions=(), libelle="Remboursement"):
+        return {
+            "compte": self.compte.pk, "type": "credit", "date": "01/04/2026",
+            "libelle": libelle, "mode": self.mode.pk, "montant": montant, "observation": "",
+            "deductions": [d.pk for d in deductions],
+            "comptaventilation_set-TOTAL_FORMS": "1", "comptaventilation_set-INITIAL_FORMS": "0",
+            "comptaventilation_set-MIN_NUM_FORMS": "0", "comptaventilation_set-MAX_NUM_FORMS": "1000",
+            "comptaventilation_set-0-categorie": self.cat_rec.pk,
+            "comptaventilation_set-0-montant": montant,
+        }
+
+    def test_plusieurs_deductions_soldees_en_une_operation(self):
+        a = self.creer_deduction("MARTIN", "30.00")
+        b = self.creer_deduction("DURAND", "20.00")
+        reponse = self.client.post(self.url_ajout, self.donnees("50.00", [a, b], libelle="RembMulti"))
+        self.assertEqual(reponse.status_code, 302)
+        a.refresh_from_db(); b.refresh_from_db()
+        self.assertTrue(a.remb)
+        self.assertTrue(b.remb)
+        operation = ComptaOperation.objects.get(libelle__startswith="RembMulti")
+        self.assertIn("MARTIN", operation.libelle)
+        self.assertIn("DURAND", operation.libelle)
+        self.assertIn("Familles", operation.libelle)
+
+    def test_montant_doit_egaler_le_total_des_deductions(self):
+        a = self.creer_deduction("MARTIN", "30.00")
+        b = self.creer_deduction("DURAND", "20.00")
+        reponse = self.client.post(self.url_ajout, self.donnees("40.00", [a, b], libelle="RembFaux"))
+        self.assertEqual(reponse.status_code, 200)   # formulaire réaffiché
+        a.refresh_from_db(); b.refresh_from_db()
+        self.assertFalse(a.remb)
+        self.assertFalse(b.remb)
+        self.assertFalse(ComptaOperation.objects.filter(libelle__startswith="RembFaux").exists())
+
+    def test_une_seule_deduction_libelle_au_singulier(self):
+        a = self.creer_deduction("MARTIN", "30.00")
+        self.client.post(self.url_ajout, self.donnees("30.00", [a], libelle="RembSolo"))
+        operation = ComptaOperation.objects.get(libelle__startswith="RembSolo")
+        self.assertIn("(Famille : MARTIN)", operation.libelle)
+
+    def test_famille_citee_une_seule_fois(self):
+        """ Deux déductions d'une même famille ne doivent pas dupliquer son nom """
+        famille = Famille.objects.create(nom="MARTIN")
+        prestation = Prestation.objects.create(date=datetime.date(2026, 3, 1), label="Sejour",
+                                               famille=famille, montant=D("500.00"))
+        deductions = [Deduction.objects.create(
+            prestation=prestation, famille=famille, label=self.type_deduction,
+            date=datetime.date(2026, 3, 2), montant=D("25.00"), remb=False) for _ in range(2)]
+        self.client.post(self.url_ajout, self.donnees("50.00", deductions, libelle="RembDouble"))
+        operation = ComptaOperation.objects.get(libelle__startswith="RembDouble")
+        self.assertEqual(operation.libelle.count("MARTIN"), 1)
+
+    def test_sans_deduction_le_libelle_est_inchange(self):
+        self.client.post(self.url_ajout, self.donnees("12.00", [], libelle="Recette simple"))
+        operation = ComptaOperation.objects.get(libelle="Recette simple")
+        self.assertEqual(operation.libelle, "Recette simple")
+
+    def test_deduction_deja_remboursee_non_proposee(self):
+        a = self.creer_deduction("MARTIN", "30.00")
+        a.remb = True
+        a.save(update_fields=["remb"])
+        from comptabilite.forms.operations_tresorerie import Formulaire
+        requete = self.client.request().wsgi_request
+        requete.user = self.comptable
+        formulaire = Formulaire(None, request=requete, categorie=self.compte.pk, type="credit")
+        self.assertNotIn(a, formulaire.fields["deductions"].queryset)
+
+    def test_champ_deductions_absent_au_debit(self):
+        """ Une déduction se solde par une recette : pas de champ sur une dépense """
+        from comptabilite.forms.operations_tresorerie import Formulaire
+        requete = self.client.request().wsgi_request
+        requete.user = self.comptable
+        au_debit = Formulaire(None, request=requete, categorie=self.compte.pk, type="debit")
+        au_credit = Formulaire(None, request=requete, categorie=self.compte.pk, type="credit")
+        self.assertNotIn("deductions", au_debit.fields)
+        self.assertIn("deductions", au_credit.fields)
+
+    def test_page_ajout_depense_sans_champ_deductions(self):
+        url = reverse("operations_tresorerie_ajouter_debit", kwargs={"categorie": self.compte.pk})
+        html = self.client.get(url).content.decode("utf-8")
+        self.assertNotIn('name="deductions"', html)
+        html_credit = self.client.get(self.url_ajout).content.decode("utf-8")
+        self.assertIn('name="deductions"', html_credit)

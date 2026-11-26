@@ -3,7 +3,7 @@
 #  Noethysweb, application de gestion multi-activités.
 #  Distribué sous licence GNU GPL.
 
-import datetime, json
+import datetime, json, decimal
 from django import forms
 from django.forms import ModelForm
 from django.db.models import Q
@@ -168,10 +168,14 @@ AIDE_VENTILATION = """
 
 
 class Formulaire(FormulaireBase, ModelForm):
-    deduction = forms.ModelChoiceField(
-        queryset=TypeDeduction.objects.none(),
+    #  Une même recette peut solder plusieurs déductions à la fois (un seul virement
+    #  reçu pour plusieurs familles) : le montant saisi doit couvrir leur somme.
+    deductions = forms.ModelMultipleChoiceField(
+        queryset=Deduction.objects.none(),
+        widget=Select2MultipleWidget(),
         required=False,
-        label="Déduction"
+        label="Déductions",
+        help_text="Déductions soldées par cette opération. Le montant doit être égal à leur total.",
     )
 
     class Meta:
@@ -211,15 +215,20 @@ class Formulaire(FormulaireBase, ModelForm):
         if "document" in self.fields:
             self.fields["document"].help_text = "Formats acceptés : PDF, JPG, PNG "
 
-        self.fields["deduction"].queryset = Deduction.objects.filter(
-            label__remb=True,  # filtre sur le champ remb de TypeDeduction
-            label__structure__in=self.request.user.structures.all(),  # filtre par structures
-            remb=False
-        ).order_by("label")
+        # Une déduction est une somme due à une famille : elle ne se solde que par une
+        # recette. Le champ n'a donc pas de sens sur une dépense.
+        if type == "debit":
+            self.fields.pop("deductions", None)
+        else:
+            self.fields["deductions"].queryset = Deduction.objects.filter(
+                label__remb=True,  # filtre sur le champ remb de TypeDeduction
+                label__structure__in=self.request.user.structures.all(),  # filtre par structures
+                remb=False
+            ).select_related("famille", "label").order_by("label", "famille__nom")
 
-        self.fields["deduction"].label_from_instance = lambda obj: (
-            f"Déduction de {obj.montant}€ pour la famille {obj.famille.nom}"
-        )
+            self.fields["deductions"].label_from_instance = lambda obj: (
+                f"Déduction de {obj.montant}€ pour la famille {obj.famille.nom if obj.famille else '?'}"
+            )
 
         # --- Gestion du numéro de pièce ---
         if type == "debit":
@@ -260,11 +269,10 @@ class Formulaire(FormulaireBase, ModelForm):
         if "document" in self.fields:
             fields_general.append(Field("document"))
 
-        fields_general += [
-            Field("avance"),
-            Field("deduction"),
-            PrependedText("montant", utils_preferences.Get_symbole_monnaie()),
-        ]
+        fields_general.append(Field("avance"))
+        if "deductions" in self.fields:
+            fields_general.append(Field("deductions"))
+        fields_general.append(PrependedText("montant", utils_preferences.Get_symbole_monnaie()))
 
 
         # Affichage
@@ -295,18 +303,20 @@ class Formulaire(FormulaireBase, ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         montant = cleaned_data.get("montant")
-        deduction = cleaned_data.get("deduction")
+        deductions = cleaned_data.get("deductions")
 
         # --- Vérifie que le montant est renseigné ---
         if not montant:
             self.add_error("montant", "Vous devez saisir un montant.")
             return cleaned_data  # inutile de continuer si pas de montant
 
-        # --- Si une déduction est sélectionnée, vérifier le montant ---
-        if deduction:
-            if montant != deduction.montant:
-                self.add_error(
-                    "montant",
-                    f"Le montant saisi ({montant}€) doit correspondre au montant de la déduction ({deduction.montant}€)."
-                )
+        # --- Le montant doit couvrir exactement le total des déductions soldées ---
+        if deductions:
+            total = sum((deduction.montant for deduction in deductions), decimal.Decimal("0"))
+            if montant != total:
+                if len(deductions) == 1:
+                    detail = "au montant de la déduction (%s€)" % total
+                else:
+                    detail = "au total des %d déductions sélectionnées (%s€)" % (len(deductions), total)
+                self.add_error("montant", "Le montant saisi (%s€) doit correspondre %s." % (montant, detail))
         return cleaned_data
