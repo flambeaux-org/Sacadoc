@@ -471,6 +471,7 @@ def GetMenuPrincipal(organisateur=None, user=None):
     menu_comptabilite_analyse.Add(code="suivi_compta", titre="Bilan financier", icone="file-text-o")
     menu_comptabilite_analyse.Add(code="suivi_budget", titre="Suivi du budget", icone="file-text-o")
     menu_comptabilite_analyse.Add(code="liste_ventilation", titre="Liste des opérations par catégorie", icone="file-text-o")
+    menu_comptabilite_analyse.Add(code="export_compta", titre="Export compta", icone="file-excel-o")
 
 
     # Outils
