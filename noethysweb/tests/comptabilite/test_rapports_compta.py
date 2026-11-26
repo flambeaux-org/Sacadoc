@@ -352,3 +352,107 @@ class TestTotauxRapports(RapportsMixin, TestCase):
         self.assertEqual(t["ecart_projet_banque"], t["resultat_projet"] - t["mouvements_bancaires"])
         # Le budget compte aussi la catégorie hors bilan : seul l'écart de l'avance (30) subsiste
         self.assertEqual(t["ecart_projet_banque"], D("-30.00"))
+
+
+class TestBilanOrganisateur(RapportsMixin, TestCase):
+    """ Page staff : détail de catégories choisies et résultat, structure par structure """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.creer_donnees()
+        # Une seconde caisse dans la même structure : les deux comptes doivent être agrégés
+        cls.caisse = CompteBancaire.objects.create(nom="Caisse Rapport", structure=cls.structure)
+        operation = ComptaOperation.objects.create(
+            compte=cls.caisse, type="credit", date=datetime.date(2026, 5, 4),
+            montant=D("60.00"), libelle="Especes", mode=cls.mode)
+        ComptaVentilation.objects.create(
+            operation=operation, categorie=cls.cat_rec, analytique=cls.analytique,
+            montant=D("60.00"), date_budget=operation.date)
+
+    def vue(self):
+        from comptabilite.views import bilan_organisateur
+        vue = bilan_organisateur.View()
+        vue.request = self.requete()
+        return vue
+
+    def resultats(self, structures=None, categories=None):
+        structures = structures if structures is not None else Structure.objects.filter(pk=self.structure.pk)
+        categories = categories if categories is not None else ComptaCategorie.objects.filter(
+            pk__in=[self.cat_rec.pk, self.cat_dep.pk])
+        return self.vue().Get_resultats({
+            "structures": structures, "categories": categories,
+            "date_debut": datetime.date(2026, 1, 1), "date_fin": datetime.date(2026, 12, 31)})
+
+    def ligne(self, contexte, label):
+        return [l for l in contexte["lignes_categories"] if l["label"] == label][0]
+
+    def test_reserve_au_staff(self):
+        """ Un utilisateur non-staff est refusé même s'il a la permission """
+        vue = self.vue()
+        self.assertTrue(vue.test_func_page())
+        vue.request.user.is_staff = False
+        self.assertFalse(vue.test_func_page())
+
+    def test_colonne_agrege_tous_les_comptes_de_la_structure(self):
+        """ Caisse + compte courant d'une même structure ne font qu'une colonne """
+        contexte = self.resultats()
+        colonne = contexte["colonnes"][0]
+        self.assertEqual(colonne["nom"], "Groupe Rapport")
+        self.assertCountEqual([c.nom for c in colonne["comptes"]], ["Compte Rapport", "Caisse Rapport"])
+        # 90 sur le compte courant + 60 sur la caisse
+        self.assertEqual(self.ligne(contexte, "Pensions")["montants"], [D("150.00")])
+
+    def test_detail_des_categories_selectionnees(self):
+        contexte = self.resultats()
+        # Recette en positif, dépense en négatif pour que la colonne s'additionne
+        self.assertEqual(self.ligne(contexte, "Alimentation")["montants"], [D("-40.00")])
+        self.assertEqual(contexte["total_categories"]["montants"], [D("110.00")])
+
+    def test_resultat_identique_au_bilan_financier(self):
+        """ Le résultat doit être celui du Bilan financier sur les mêmes comptes """
+        from comptabilite.views import suivi_compta
+        contexte = self.resultats()
+
+        vue_bilan = suivi_compta.View()
+        vue_bilan.request = self.requete()
+        totaux = vue_bilan.Get_resultats({
+            "comptes": CompteBancaire.objects.filter(structure=self.structure),
+            "periode": "2026-01-01;2026-12-31"})[4]
+
+        self.assertEqual(contexte["ligne_resultat"]["montants"][0], totaux["resultat_projet"])
+
+    def test_une_colonne_par_structure_et_total(self):
+        structures = Structure.objects.filter(pk__in=[self.structure.pk, self.autre_structure.pk])
+        contexte = self.resultats(structures=structures)
+        self.assertEqual([c["nom"] for c in contexte["colonnes"]], ["Groupe Rapport", "Groupe Voisin"])
+        ligne = self.ligne(contexte, "Pensions")
+        self.assertEqual(ligne["montants"], [D("150.00"), D("0.00")])
+        self.assertEqual(ligne["total"], D("150.00"))
+        self.assertEqual(contexte["nbre_colonnes"], 2)
+
+    def test_sans_categorie_selectionnee_le_resultat_reste_affiche(self):
+        contexte = self.resultats(categories=ComptaCategorie.objects.none())
+        self.assertEqual(contexte["lignes_categories"], [])
+        self.assertEqual(len(contexte["ligne_resultat"]["montants"]), 1)
+
+    def test_compte_sans_structure_ignore(self):
+        """ Un compte sans structure n'appartient à aucune colonne """
+        compte_orphelin = CompteBancaire.objects.create(nom="Compte sans structure", structure=None)
+        operation = ComptaOperation.objects.create(
+            compte=compte_orphelin, type="credit", date=datetime.date(2026, 7, 7),
+            montant=D("999.00"), libelle="Hors perimetre", mode=self.mode)
+        ComptaVentilation.objects.create(
+            operation=operation, categorie=self.cat_rec, analytique=self.analytique,
+            montant=D("999.00"), date_budget=operation.date)
+        contexte = self.resultats()
+        noms = [nom for colonne in contexte["colonnes"] for nom in [c.nom for c in colonne["comptes"]]]
+        self.assertNotIn("Compte sans structure", noms)
+        self.assertEqual(self.ligne(contexte, "Pensions")["montants"], [D("150.00")])
+
+    def test_seules_les_structures_de_l_utilisateur_sont_proposees(self):
+        from comptabilite.forms.bilan_organisateur import Formulaire
+        etrangere = Structure.objects.create(nom="Structure etrangere", actif=True)
+        formulaire = Formulaire(request=self.requete())
+        proposees = list(formulaire.fields["structures"].queryset.values_list("pk", flat=True))
+        self.assertIn(self.structure.pk, proposees)
+        self.assertNotIn(etrangere.pk, proposees)

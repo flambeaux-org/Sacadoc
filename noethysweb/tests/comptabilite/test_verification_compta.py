@@ -14,8 +14,8 @@ from django.test import TestCase
 from django.urls import reverse
 
 from core.models import (ComptaAnalytique, ComptaAvance, ComptaCategorie, ComptaOperation,
-                         ComptaVentilation, ComptaVirement, CompteBancaire, ModeReglement,
-                         Structure, Utilisateur)
+                         ComptaVentilation, ComptaVirement, CompteBancaire, Deduction, Famille,
+                         ModeReglement, Prestation, Structure, TypeDeduction, Utilisateur)
 
 D = decimal.Decimal
 
@@ -303,16 +303,61 @@ class TestControles(ComptaFictiveMixin, TestCase):
         self.assertNotIn(self.op_stripe_a, c["detail"])
         self.assertNotIn(self.op_stripe_b, c["detail"])
 
-    def test_mode_reglement_manquant(self):
-        c = self.controles[8]
+    def creer_deduction(self, montant="20.00", remb=False):
+        """ Une déduction accordée à une famille, rattachée à la structure du compte """
+        type_deduction = TypeDeduction.objects.create(nom="Fond d'aide", structure=self.structure)
+        famille = Famille.objects.create(nom="MARTIN")
+        prestation = Prestation.objects.create(date=datetime.date(2026, 3, 1), label="Sejour",
+                                               famille=famille, montant=D("100.00"))
+        return Deduction.objects.create(
+            prestation=prestation, famille=famille, label=type_deduction,
+            date=datetime.date(2026, 3, 2), montant=D(montant), remb=remb)
+
+    def controle_deductions(self):
+        return {c["numero"]: c for c in self.utils_controles.Get_controles(self.compte.pk)}[8]
+
+    def test_deduction_non_regularisee_signalee(self):
+        deduction = self.creer_deduction()
+        c = self.controle_deductions()
         self.assertEqual(c["etat"], "AVERTISSEMENT")
-        self.assertIn(self.op_sans_mode, c["detail"])
+        self.assertEqual(c["reel"], D("20.00"))
+        self.assertIn(deduction, c["detail"])
+        # Le gabarit affiche le détail comme une opération : les attributs doivent exister
+        self.assertIn("MARTIN", c["detail"][0].libelle)
+        self.assertTrue(c["detail"][0].url_modifier)
+
+    def test_deduction_regularisee_non_signalee(self):
+        self.creer_deduction(remb=True)
+        c = self.controle_deductions()
+        self.assertEqual(c["etat"], "OK")
+        self.assertEqual(c["detail"], [])
+
+    def test_deduction_d_une_autre_structure_ignoree(self):
+        autre = Structure.objects.create(nom="Autre", actif=True)
+        type_deduction = TypeDeduction.objects.create(nom="Hors perimetre", structure=autre)
+        famille = Famille.objects.create(nom="DURAND")
+        prestation = Prestation.objects.create(date=datetime.date(2026, 3, 1), label="Sejour",
+                                               famille=famille, montant=D("100.00"))
+        Deduction.objects.create(prestation=prestation, famille=famille, label=type_deduction,
+                                 date=datetime.date(2026, 3, 2), montant=D("50.00"), remb=False)
+        self.assertEqual(self.controle_deductions()["etat"], "OK")
+
+    def test_compte_sans_structure_controle_inactif(self):
+        compte = CompteBancaire.objects.create(nom="Sans structure", structure=None)
+        c = {x["numero"]: x for x in self.utils_controles.Get_controles(compte.pk)}[8]
+        self.assertIsNone(c["etat"])
+        self.assertEqual(c["detail"], [])
+
+    def test_controle_mode_reglement_supprime(self):
+        """ Le contrôle du mode de règlement a été retiré : plus aucun ne le mentionne """
+        libelles = [c["libelle"] for c in self.controles.values()]
+        self.assertNotIn("Mode de règlement renseigné", libelles)
 
     def test_synthese(self):
         liste = list(self.controles.values())
         ok, erreurs, avertissements, etat = self.utils_controles.Get_synthese(liste)
         self.assertEqual(erreurs, 3)          # ventilations débit, crédit, justificatifs
-        self.assertEqual(avertissements, 3)   # avances, doublons, mode de règlement
+        self.assertEqual(avertissements, 2)   # avances, doublons
         self.assertEqual(etat, "ERREUR")
 
     def test_compta_saine_ne_remonte_aucune_erreur(self):

@@ -10,7 +10,8 @@
 
 from collections import defaultdict
 from django.db.models import Q, Sum
-from core.models import ComptaOperation, ComptaVentilation, ComptaVirement
+from django.urls import reverse
+from core.models import ComptaOperation, ComptaVentilation, ComptaVirement, CompteBancaire, Deduction
 from core.utils import utils_texte
 from comptabilite.utils import utils_rapprochement
 from comptabilite.utils.utils_compta import ZERO, Arrondi, Get_url_modifier
@@ -214,23 +215,57 @@ def Get_controles(idcompte, solde_releve=None, perimetre=None, retour=None):
     ))
 
     # ------------------------------------------------------------------
-    # 8. Mode de règlement renseigné
+    # 8. Déductions non régularisées
+    #    Une déduction accordée à une famille reste due tant qu'elle n'est pas
+    #    remboursée : c'est un encours à solder avant la clôture.
     # ------------------------------------------------------------------
-    sans_mode = list(operations.filter(mode__isnull=True).order_by("date"))
-    controles.append(_controle(
-        8, "Mode de règlement renseigné",
-        theorique=0, reel=len(sans_mode), format="nombre", niveau="avertissement",
-        aide="Le mode de règlement facilite le rapprochement avec les lignes du relevé.",
-        detail=sans_mode,
-    ))
+    controles.append(_Controle_deductions(idcompte))
 
     # Lien vers l'écran de modification adapté (virement, régularisation ou opération),
-    # en gardant la trace de la page appelante pour y revenir après l'enregistrement
+    # en gardant la trace de la page appelante pour y revenir après l'enregistrement.
+    # Les contrôles qui listent autre chose que des opérations ont déjà posé leur lien.
     for controle in controles:
         for operation in controle["detail"]:
-            operation.url_modifier = Get_url_modifier(operation, retour=retour)
+            if getattr(operation, "url_modifier", None) is None:
+                operation.url_modifier = Get_url_modifier(operation, retour=retour)
 
     return controles
+
+
+def _Controle_deductions(idcompte):
+    """
+    Contrôle 8 : déductions non régularisées de la structure du compte.
+
+    Le détail est affiché par le même gabarit que les opérations : on pose donc sur
+    chaque déduction les attributs attendus (libelle, url_modifier, num_piece).
+    """
+    compte = CompteBancaire.objects.filter(pk=idcompte).first()
+    structure_id = compte.structure_id if compte else None
+    if not structure_id:
+        return _controle(
+            8, "Déductions régularisées", niveau="avertissement",
+            aide="Rattachez ce compte à une structure pour activer ce contrôle.",
+        )
+
+    deductions = list(
+        Deduction.objects.filter(label__structure_id=structure_id, remb=False)
+        .select_related("label", "famille").order_by("date", "pk")
+    )
+    for deduction in deductions:
+        famille = deduction.famille.nom if deduction.famille else "Famille inconnue"
+        type_deduction = deduction.label.nom if deduction.label else "Déduction"
+        deduction.libelle = "%s — %s" % (famille, type_deduction)
+        deduction.num_piece = None
+        deduction.url_modifier = reverse(
+            "famille_prestations_liste", args=[deduction.famille_id]) if deduction.famille_id else ""
+
+    return _controle(
+        8, "Déductions régularisées",
+        theorique=ZERO, reel=_arrondi(sum((d.montant for d in deductions), ZERO)),
+        niveau="avertissement",
+        aide="Une déduction non remboursée reste due à la famille ; elle doit être régularisée avant la clôture.",
+        detail=deductions,
+    )
 
 
 def _solde(queryset):

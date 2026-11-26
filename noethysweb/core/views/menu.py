@@ -472,6 +472,7 @@ def GetMenuPrincipal(organisateur=None, user=None):
     menu_comptabilite_analyse.Add(code="suivi_budget", titre="Suivi du budget", icone="file-text-o")
     menu_comptabilite_analyse.Add(code="liste_ventilation", titre="Liste des opérations par catégorie", icone="file-text-o")
     menu_comptabilite_analyse.Add(code="export_compta", titre="Export compta", icone="file-excel-o")
+    menu_comptabilite_analyse.Add(code="bilan_organisateur", titre="Bilan organisateur", icone="institution", staff_only=True)
 
 
     # Outils
@@ -547,7 +548,7 @@ def GetMenuPrincipal(organisateur=None, user=None):
 
 
 class Menu():
-    def __init__(self, parent=None, code="", titre="", icone=None, url=None, user=None, toujours_afficher=False, compatible_demo=True, args=None):
+    def __init__(self, parent=None, code="", titre="", icone=None, url=None, user=None, toujours_afficher=False, compatible_demo=True, args=None, staff_only=False):
         self.parent = parent
         self.code = code
         self.titre = titre
@@ -558,6 +559,7 @@ class Menu():
         self.user = user
         self.toujours_afficher = toujours_afficher
         self.compatible_demo = compatible_demo
+        self.staff_only = staff_only
 
     def __repr__(self):
         return "<Menu '%s'>" % self.titre
@@ -565,8 +567,13 @@ class Menu():
     def GetParent(self):
         return self.parent
 
-    def Add(self, code="", titre="", icone="", url=None, toujours_afficher=False, compatible_demo=True, args=None):
-        menu = Menu(self, code=code, titre=titre, icone=icone, url=url, args=args, user=self.user, compatible_demo=compatible_demo, toujours_afficher=toujours_afficher)
+    def Add(self, code="", titre="", icone="", url=None, toujours_afficher=False, compatible_demo=True, args=None, staff_only=False):
+        menu = Menu(self, code=code, titre=titre, icone=icone, url=url, args=args, user=self.user, compatible_demo=compatible_demo, toujours_afficher=toujours_afficher, staff_only=staff_only)
+        # Entrée réservée aux membres du staff. Quand user vaut None (génération de la
+        # liste des permissions possibles), l'entrée est conservée pour que sa permission
+        # reste déclarée.
+        if staff_only and self.user and not self.user.is_staff:
+            return menu
         if not code or not self.user or toujours_afficher or code.endswith("_toc") or self.user.has_perm("core.%s" % code):
             self.children.append(menu)
         return menu
