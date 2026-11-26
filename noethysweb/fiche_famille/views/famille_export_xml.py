@@ -4,6 +4,7 @@
 #  Distribué sous licence GNU GPL.
 
 from django.urls import reverse_lazy
+from django.shortcuts import get_object_or_404
 from core.models import Famille
 from django.views.generic.detail import DetailView
 from fiche_famille.views.famille import Onglet
@@ -25,6 +26,6 @@ class View(Onglet, DetailView):
         return context
 
     def get_object(self):
-        return Famille.objects.get(pk=self.kwargs['idfamille'])
+        return get_object_or_404(Famille, pk=self.kwargs['idfamille'])
 
 

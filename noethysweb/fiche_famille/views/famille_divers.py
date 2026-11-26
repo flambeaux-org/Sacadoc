@@ -5,6 +5,7 @@
 
 from django.urls import reverse_lazy
 from core.views import crud
+from django.shortcuts import get_object_or_404
 from core.models import Famille
 from fiche_famille.forms.famille_divers import Formulaire
 from fiche_famille.views.famille import Onglet
@@ -24,7 +25,7 @@ class Consulter(Onglet, crud.Modifier):
         return context
 
     def get_object(self):
-        return Famille.objects.get(pk=self.kwargs['idfamille'])
+        return get_object_or_404(Famille, pk=self.kwargs['idfamille'])
 
     def get_form_kwargs(self, **kwargs):
         form_kwargs = super(Consulter, self).get_form_kwargs(**kwargs)
