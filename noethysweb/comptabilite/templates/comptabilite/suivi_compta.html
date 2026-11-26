@@ -41,17 +41,15 @@
                                 <tr><td class="text-muted">dont hors bilan (non compté)</td>
                                     <td class="text-right text-muted">{{ totaux.total_hors_bilan }} €</td></tr>
                             {% endif %}
+                            {% if totaux.total_encaissement %}
+                                <tr><td class="text-muted">dont {{ totaux.label_encaissement }}<br><small>hors comptes bancaires</small></td>
+                                    <td class="text-right text-muted">{{ totaux.total_encaissement }} €</td></tr>
+                            {% endif %}
                             <tr><td colspan="2"><hr style="margin:4px 0;"></td></tr>
                             <tr>
                                 <td>Solde bancaire des comptes{% if totaux.date_fin %}<br><small class="text-muted">au {{ totaux.date_fin|date:"d/m/Y" }}</small>{% endif %}</td>
                                 <td class="text-right">{{ totaux.solde_bancaire }} €</td>
                             </tr>
-                            <tr>
-                                <td>Mouvements bancaires{% if totaux.date_debut or totaux.date_fin %}<br><small class="text-muted">sur la période</small>{% endif %}</td>
-                                <td class="text-right">{{ totaux.mouvements_bancaires }} €</td>
-                            </tr>
-                            <tr><td class="text-muted">Écart projet / banque<br><small>résultat − mouvements bancaires</small></td>
-                                <td class="text-right text-muted">{{ totaux.ecart_projet_banque }} €</td></tr>
                         </table>
                     </div>
                 </div>
@@ -65,9 +63,7 @@
                     bancaire (avances, sommes encaissées par le Mouvement).<br>
                     <b>Solde bancaire</b> — périmètre bancaire : uniquement ce qui est réellement
                     passé sur les comptes, depuis l'à-nouveau s'il est renseigné. C'est ce montant
-                    que rapproche la page <i>Vérification comptable</i>.<br>
-                    <b>Écart projet / banque</b> — compare le résultat aux mouvements bancaires
-                    de la même période : il correspond aux opérations hors banque.
+                    que rapproche la page <i>Vérification comptable</i>.
                 </small>
             </p>
 
@@ -192,7 +188,7 @@
             <!-- Card Règlements Encaissement -->
             <div class="card card-default mt-3">
                 <div class="card-header with-border">
-                    <h3 class="card-title"><i class="fa fa-file-text-o margin-r-5"></i> Détail des règlements encaissés par l'organisateur (pas comptabilisés dans le tableau)</h3>
+                    <h3 class="card-title"><i class="fa fa-file-text-o margin-r-5"></i> Détail des règlements encaissés par l'organisateur (comptabilisés en recettes)</h3>
                     <div class="card-tools">
                         <button type="button" class="btn btn-tool" data-card-widget="collapse" title="Réduire">
                             <i class="fa fa-minus"></i>

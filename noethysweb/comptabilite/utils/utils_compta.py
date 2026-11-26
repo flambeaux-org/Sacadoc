@@ -6,8 +6,9 @@
 
 import datetime
 import decimal
+from collections import defaultdict
 
-from django.db.models import Case, DecimalField, F, Sum, When
+from django.db.models import Case, DecimalField, F, Q, Sum, When
 from django.urls import reverse
 
 ZERO = decimal.Decimal("0.00")
@@ -51,6 +52,76 @@ def Agreger(queryset):
     total_debit = stats["total_debit"] or ZERO
     total_credit = stats["total_credit"] or ZERO
     return total_debit, total_credit, total_credit - total_debit
+
+
+def Cle_tri_categorie(categorie):
+    """
+    Ordre d'affichage des catégories dans les tableaux d'analyse.
+
+    Les catégories liées à l'organisateur (part orga., cotisations...) sont reléguées
+    en fin de groupe Crédit ou Débit : ce sont des sommes qui ne relèvent pas de la
+    gestion courante du projet, on les lit après les catégories ordinaires.
+    """
+    return (categorie.type, bool(categorie.orga), categorie.nom)
+
+
+def Get_label_encaissement():
+    """ Libellé de la case "Encaissé par l'organisateur" cochée sur le mode de règlement.
+        On le reprend du modèle pour que l'affichage suive si le champ est renommé. """
+    from core.models import ModeReglement
+    verbose_name = str(ModeReglement._meta.get_field("encaissement").verbose_name)
+    return verbose_name[:1].lower() + verbose_name[1:]
+
+
+def Get_reglements_encaissement(structures=None, date_debut=None, date_fin=None):
+    """
+    Règlements encaissés par l'organisateur (chèques vacances, bons CAF...), regroupés par mode.
+
+    Ces règlements ne transitent pas par les comptes bancaires mais constituent bien une
+    recette du projet : le Bilan financier et le Suivi du budget les comptent tous deux.
+    Le périmètre suit les structures passées par l'appelant (celles des comptes analysés),
+    et non la structure du premier compte seulement.
+    """
+    from core.models import Ventilation
+
+    if not structures:
+        return []
+
+    conditions = Q(
+        reglement__mode__encaissement=True,
+        prestation__activite__structure__in=structures,
+    )
+    if date_debut:
+        conditions &= Q(reglement__date__gte=date_debut)
+    if date_fin:
+        conditions &= Q(reglement__date__lte=date_fin)
+
+    ventilations = (
+        Ventilation.objects.filter(conditions)
+        .select_related("reglement", "reglement__famille", "reglement__mode", "reglement__compte")
+        .order_by("reglement__date")
+    )
+
+    reglements_par_mode = defaultdict(list)
+    for ventilation in ventilations:
+        reglement = ventilation.reglement
+        reglements_par_mode[reglement.mode.label].append({
+            "id": reglement.idreglement,
+            "date": reglement.date.strftime("%d/%m/%Y") if reglement.date else "",
+            "compte": reglement.compte.nom if reglement.compte else "",
+            "famille": reglement.famille.nom if reglement.famille else "",
+            "montant": Arrondi(ventilation.montant),
+        })
+
+    resultat = []
+    for mode_label in sorted(reglements_par_mode.keys()):
+        liste = reglements_par_mode[mode_label]
+        resultat.append({
+            "mode": mode_label,
+            "reglements": liste,
+            "total": sum((r["montant"] for r in liste), ZERO),
+        })
+    return resultat
 
 
 def Get_url_modifier(operation):

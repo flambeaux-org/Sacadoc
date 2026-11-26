@@ -8,10 +8,10 @@ from collections import Counter
 from django.views.generic import TemplateView
 from django.db.models import Q, Sum
 from core.views.base import CustomView
-from core.models import ComptaVentilation, ComptaOperationBudgetaire, ComptaCategorieBudget, ComptaCategorie, CompteBancaire, Deduction, TypeDeduction, Reglement, Activite, Prestation, Famille, Ventilation
+from core.models import ComptaVentilation, ComptaCategorie, Deduction
 from comptabilite.forms.suivi_compta import Formulaire
 from core.utils import utils_dates
-from comptabilite.utils import utils_rapprochement
+from comptabilite.utils import utils_rapprochement, utils_compta
 from comptabilite.utils.utils_compta import Arrondi as _arrondi
 from collections import defaultdict
 
@@ -57,6 +57,16 @@ class View(CustomView, TemplateView):
         if date_fin:
             condition_periode &= Q(operation__date__lte=date_fin)
 
+        # Structures concernées (utilisées par plusieurs blocs ci-dessous)
+        structures_comptes = [s for s in comptes.values_list("structure", flat=True) if s]
+        structures_analysees = structures_comptes or list(
+            self.request.user.structures.values_list("pk", flat=True))
+
+        # Règlements encaissés par l'organisateur (chèques vacances, bons CAF...).
+        # Calculés avant la construction des lignes car ils alimentent les recettes du bilan.
+        liste_reglements_encaissement = utils_compta.Get_reglements_encaissement(
+            structures=structures_analysees, date_debut=date_debut, date_fin=date_fin)
+
         condition_structure = (Q(structure__in=self.request.user.structures.all()) | Q(structure__isnull=True)) & Q(
             bilan=True)
 
@@ -73,23 +83,39 @@ class View(CustomView, TemplateView):
 
         # Création des lignes de catégories
         categories = {**dict_realise}.keys()
-        categories = sorted(categories, key=lambda x: (x.type, x.nom))
+        categories = sorted(categories, key=utils_compta.Cle_tri_categorie)
 
         # Création des lignes
         lignes = []
         regroupements = {}
-        for categorie in categories:
-            # Création du regroupement (débit ou crédit) s'il n'existe pas encore
-            if not categorie.type in regroupements:
-                regroupements[categorie.type] = {
+
+        def Get_regroupement(type_operation, label):
+            """ Renvoie la ligne parente du type (débit ou crédit), en la créant au besoin """
+            if type_operation not in regroupements:
+                regroupements[type_operation] = {
                     "id": 1000000 + len(regroupements),
                     "pid": 0,
                     "regroupement": True,
-                    "label": categorie.get_type_display(),
+                    "label": label,
                     "realise": decimal.Decimal(0)
                 }
                 # On ajoute la ligne parente directement
-                lignes.append(regroupements[categorie.type])
+                lignes.append(regroupements[type_operation])
+            return regroupements[type_operation]
+
+        def Ajouter_en_fin_de_groupe(ligne, regroupement):
+            """ Insère la ligne après le dernier enfant de son regroupement, pour que
+                l'ordre de la liste corresponde à l'ordre d'affichage de l'arbre """
+            position = len(lignes)
+            for index in range(len(lignes) - 1, -1, -1):
+                if lignes[index] is regroupement or lignes[index].get("pid") == regroupement["id"]:
+                    position = index + 1
+                    break
+            lignes.insert(position, ligne)
+
+        for categorie in categories:
+            # Création du regroupement (débit ou crédit) s'il n'existe pas encore
+            Get_regroupement(categorie.type, categorie.get_type_display())
 
             # Calcul des données de la ligne enfant
             realise = dict_realise.get(categorie, decimal.Decimal(0))
@@ -105,6 +131,26 @@ class View(CustomView, TemplateView):
                 "label": categorie.nom,
                 "realise": float(_arrondi(realise)),
             })
+
+        # Les règlements encaissés par l'organisateur (chèques vacances...) n'ont pas de
+        # ventilation comptable sur les comptes bancaires, mais ils constituent bien une
+        # recette du projet : on les ajoute comme lignes de crédit.
+        label_encaissement = utils_compta.Get_label_encaissement()
+        total_encaissement = decimal.Decimal(0)
+        for index, bloc in enumerate(liste_reglements_encaissement):
+            montant = decimal.Decimal(str(bloc["total"]))
+            if not montant:
+                continue
+            regroupement = Get_regroupement("credit", "Crédit")
+            regroupement["realise"] += montant
+            total_encaissement += montant
+            Ajouter_en_fin_de_groupe({
+                "id": 3000000 + index,
+                "pid": regroupement["id"],
+                "regroupement": False,
+                "label": "%s (%s)" % (bloc["mode"], label_encaissement),
+                "realise": float(_arrondi(montant)),
+            }, regroupement)
 
         # --- CALCUL DU SOLDE GÉNÉRAL (en Decimal, avant conversion en float) ---
         total_credit = regroupements.get("credit", {}).get("realise", decimal.Decimal(0))
@@ -125,7 +171,6 @@ class View(CustomView, TemplateView):
 
         # Soldes hors bilan
         # Les catégories partagées (sans structure) doivent être incluses, sinon ce bloc reste vide
-        structures_comptes = [s for s in comptes.values_list("structure", flat=True) if s]
         categories_hors_bilan = ComptaCategorie.objects.filter(
             Q(structure__in=structures_comptes) | Q(structure__isnull=True),
             bilan=False
@@ -144,8 +189,6 @@ class View(CustomView, TemplateView):
         # --- Bloc déductions non remboursées ---######
 
         # Restreint aux structures des comptes analysés, et à la période
-        structures_analysees = structures_comptes or list(
-            self.request.user.structures.values_list("pk", flat=True))
         deductions = Deduction.objects.filter(
             label__structure__in=structures_analysees,
             remb=False
@@ -199,56 +242,6 @@ class View(CustomView, TemplateView):
 
 
 
-        # --- Règlements encaissés par l'organisateur (chèques vacances, bons CAF...) ---
-        # Toutes les structures des comptes analysés, et non la première seulement
-        liste_reglements_encaissement = []
-
-        if structures_analysees:
-            conditions_reglements = Q(
-                reglement__mode__encaissement=True,
-                prestation__activite__structure__in=structures_analysees,
-            )
-            if date_debut:
-                conditions_reglements &= Q(reglement__date__gte=date_debut)
-            if date_fin:
-                conditions_reglements &= Q(reglement__date__lte=date_fin)
-            ventilations = (
-                Ventilation.objects.filter(conditions_reglements)
-                .select_related(
-                    "reglement",
-                    "reglement__famille",
-                    "reglement__mode",
-                    "reglement__compte",
-                )
-                .order_by("reglement__date")
-            )
-
-            # On regroupe par mode de règlement
-            reglements_par_mode = defaultdict(list)
-
-            for v in ventilations:
-                reglement = v.reglement
-
-                reglements_par_mode[reglement.mode.label].append({
-                    "id": reglement.idreglement,
-                    "date": reglement.date.strftime("%d/%m/%Y") if reglement.date else "",
-                    "compte": reglement.compte.nom if reglement.compte else "",
-                    "famille": reglement.famille.nom if reglement.famille else "",
-                    "montant": float(v.montant or 0),
-                })
-
-            # Format final pour template
-            for mode_label in sorted(reglements_par_mode.keys()):
-                liste_regs = reglements_par_mode[mode_label]
-
-                total = sum(r["montant"] for r in liste_regs)
-
-                liste_reglements_encaissement.append({
-                    "mode": mode_label,
-                    "reglements": liste_regs,
-                    "total": total
-                })
-
         # --- Totaux de la page : résultat du projet et contrepoint bancaire ---
         total_hors_bilan = sum((montant for _, montant, _ in soldes_hors_bilan), decimal.Decimal(0))
         solde_bancaire = utils_rapprochement.Get_solde_bancaire(comptes, date_fin=date_fin)
@@ -262,7 +255,11 @@ class View(CustomView, TemplateView):
             "total_hors_bilan": _arrondi(total_hors_bilan),
             "solde_bancaire": _arrondi(solde_bancaire),
             "mouvements_bancaires": _arrondi(mouvements_bancaires),
-            "ecart_projet_banque": _arrondi(total_realise - mouvements_bancaires),
+            # Les règlements encaissés par l'organisateur comptent dans le résultat mais ne
+            # transitent pas par les comptes : on les neutralise pour que l'écart reste lisible.
+            "total_encaissement": _arrondi(total_encaissement),
+            "label_encaissement": label_encaissement,
+            "ecart_projet_banque": _arrondi(total_realise - total_encaissement - mouvements_bancaires),
             "date_debut": date_debut,
             "date_fin": date_fin,
         }

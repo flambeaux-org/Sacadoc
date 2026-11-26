@@ -4,13 +4,12 @@
 #  Distribué sous licence GNU GPL.
 
 import json, decimal
-from collections import Counter
 from django.views.generic import TemplateView
 from django.db.models import Q, Sum
 from core.views.base import CustomView
-from core.models import ComptaVentilation, ComptaOperationBudgetaire, ComptaCategorieBudget, ComptaCategorie, Reglement, Ventilation
+from core.models import ComptaVentilation, ComptaCategorieBudget, ComptaCategorie
 from comptabilite.forms.suivi_budget import Formulaire
-from comptabilite.utils import utils_rapprochement
+from comptabilite.utils import utils_rapprochement, utils_compta
 from comptabilite.utils.utils_compta import Arrondi as _arrondi
 
 
@@ -64,30 +63,51 @@ class View(CustomView, TemplateView):
 
         dict_realise = {v["categorie"]: v["total"] for v in ventilations_data if v["categorie"]}
 
-        # --- Règlements encaissés par l'organisateur (ligne fictive au crédit) ---
+        # --- Règlements encaissés par l'organisateur (chèques vacances, bons CAF...) ---
         # Toutes les structures des comptes du budget, et non la première seulement.
         # La structure du budget n'est pas retenue : elle sert au cloisonnement des
         # droits, pas au périmètre d'analyse, qui suit les comptes comme le réalisé.
         structures = [s for s in comptes.values_list("structure", flat=True) if s]
-
-        total_reglements_encaissement = decimal.Decimal("0")
-
-        if structures:
-            somme_data = Ventilation.objects.filter(
-                reglement__mode__encaissement=True,
-                prestation__activite__structure__in=structures,
-                reglement__date__gte=budget.date_debut,
-                reglement__date__lte=budget.date_fin,
-            ).aggregate(total=Sum("montant"))
-
-            total_reglements_encaissement = somme_data["total"] or decimal.Decimal("0")
+        liste_reglements_encaissement = utils_compta.Get_reglements_encaissement(
+            structures=structures, date_debut=budget.date_debut, date_fin=budget.date_fin)
 
         # 4. CONSTRUCTION DES LIGNES
         lignes = []
         regroupements = {}
 
-        # Tri des catégories de base par type puis par nom
-        categories_triees = sorted(toutes_les_categories, key=lambda x: (x.type, x.nom))
+        def Get_regroupement(type_operation, label):
+            """ Renvoie la ligne parente du type (débit ou crédit), en la créant au besoin """
+            if type_operation not in regroupements:
+                regroupements[type_operation] = {
+                    "id": 1000000 + len(regroupements),
+                    "pid": 0,
+                    "regroupement": True,
+                    "label": label,
+                    "realise": decimal.Decimal(0),
+                    "budgete": decimal.Decimal(0),
+                }
+                lignes.append(regroupements[type_operation])
+            return regroupements[type_operation]
+
+        def Ajouter_en_fin_de_groupe(ligne, regroupement):
+            """ Insère la ligne après le dernier enfant de son regroupement, pour que
+                l'ordre de la liste corresponde à l'ordre d'affichage de l'arbre """
+            position = len(lignes)
+            for index in range(len(lignes) - 1, -1, -1):
+                if lignes[index] is regroupement or lignes[index].get("pid") == regroupement["id"]:
+                    position = index + 1
+                    break
+            lignes.insert(position, ligne)
+
+        def Get_ecart(type_operation, realise, budgete):
+            """ Un écart est favorable quand on dépense moins, ou quand on encaisse plus """
+            return (budgete - realise) if type_operation == "debit" else (realise - budgete)
+
+        def Get_pourcentage(realise, budgete):
+            return (float(realise) * 100 / float(budgete)) if budgete else None
+
+        # Tri par type, puis les catégories liées à l'organisateur en fin de groupe
+        categories_triees = sorted(toutes_les_categories, key=utils_compta.Cle_tri_categorie)
 
         for categorie in categories_triees:
             budgete = dict_budgete.get(categorie.pk, decimal.Decimal(0))
@@ -97,121 +117,98 @@ class View(CustomView, TemplateView):
             if budgete == 0 and realise == 0:
                 continue
 
-            # Initialisation du regroupement parent (Débit ou Crédit)
-            if categorie.type not in regroupements:
-                regroupements[categorie.type] = {
-                    "id": 1000000 + len(regroupements),
-                    "pid": 0,
-                    "regroupement": True,
-                    "label": "Débit" if categorie.type == "debit" else "Crédit",
-                    "realise": decimal.Decimal(0),
-                    "budgete": decimal.Decimal(0)
-                }
-                lignes.append(regroupements[categorie.type])
-
-            # Calculs des indicateurs de la ligne enfant
-            pourcentage = (float(realise) * 100 / float(budgete)) if budgete else None
-            ecart = (budgete - realise) if categorie.type == "debit" else (realise - budgete)
+            regroupement = Get_regroupement(categorie.type, categorie.get_type_display())
 
             # Cumul dans le totalisateur parent (Débit ou Crédit)
-            regroupements[categorie.type]["realise"] += realise
-            regroupements[categorie.type]["budgete"] += budgete
+            regroupement["realise"] += realise
+            regroupement["budgete"] += budgete
 
             lignes.append({
                 "id": categorie.pk,
-                "pid": regroupements[categorie.type]["id"],
+                "pid": regroupement["id"],
                 "regroupement": False,
                 "label": categorie.nom,
-                "realise": float(realise),
-                "budgete": float(budgete),
-                "pourcentage": pourcentage,
-                "ecart": float(ecart),
+                "realise": float(_arrondi(realise)),
+                "budgete": float(_arrondi(budgete)),
+                "pourcentage": Get_pourcentage(realise, budgete),
+                "ecart": float(_arrondi(Get_ecart(categorie.type, realise, budgete))),
             })
 
-        # --- INJECTION DE LA LIGNE FICTIVE DANS LES CRÉDITS (Prise en compte dans les totaux) ---
-        if total_reglements_encaissement > 0:
-            type_fictif = "credit"
-            # Sécurité au cas où aucune catégorie "crédit" n'était initialisée
-            if type_fictif not in regroupements:
-                regroupements[type_fictif] = {
-                    "id": 1000000 + len(regroupements),
-                    "pid": 0,
-                    "regroupement": True,
-                    "label": "Crédit",
-                    "realise": decimal.Decimal(0),
-                    "budgete": decimal.Decimal(0)
-                }
-                lignes.append(regroupements[type_fictif])
-
-            # On AJOUTE le montant au cumul du total Crédit
-            regroupements[type_fictif]["realise"] += total_reglements_encaissement
-
-            # On insère la ligne fictive juste en dessous
-            lignes.append({
-                "id": 9999,
-                "pid": regroupements[type_fictif]["id"],
+        # Les règlements encaissés par l'organisateur n'ont pas de ventilation comptable sur
+        # les comptes bancaires, mais ils constituent bien une recette : on les ajoute au
+        # crédit, comme le Bilan financier. Ils ne sont jamais budgétés.
+        label_encaissement = utils_compta.Get_label_encaissement()
+        total_encaissement = decimal.Decimal(0)
+        for index, bloc in enumerate(liste_reglements_encaissement):
+            montant = bloc["total"]
+            if not montant:
+                continue
+            regroupement = Get_regroupement("credit", "Crédit")
+            regroupement["realise"] += montant
+            total_encaissement += montant
+            Ajouter_en_fin_de_groupe({
+                "id": 3000000 + index,
+                "pid": regroupement["id"],
                 "regroupement": False,
-                "label": "Règlements encaissés par l'organisateur (Chèque Vacances,...)",
-                "realise": float(total_reglements_encaissement),
+                "label": "%s (%s)" % (bloc["mode"], label_encaissement),
+                "realise": float(_arrondi(montant)),
                 "budgete": 0.0,
                 "pourcentage": None,
-                "ecart": float(total_reglements_encaissement),
-            })
+                "ecart": float(_arrondi(montant)),
+            }, regroupement)
 
-        # --- CALCUL ET FORMATTAGE FINAL DES TOTALISATIONS PARENTES ---
-        for type_key, reg_line in regroupements.items():
-            t_realise = reg_line["realise"]
-            t_budgete = reg_line["budgete"]
-            t_pourcentage = (float(t_realise) * 100 / float(t_budgete)) if t_budgete else None
-            t_ecart = (t_budgete - t_realise) if type_key == "debit" else (t_realise - t_budgete)
-
-            reg_line["realise"] = float(t_realise)
-            reg_line["budgete"] = float(t_budgete)
-            reg_line["pourcentage"] = t_pourcentage
-            reg_line["ecart"] = float(t_ecart)
-
-        # 5. AJOUT DU SOLDE GÉNÉRAL (Maintenant exact car basé sur les totaux à jour)
-        total_realise = (regroupements["credit"]["realise"] if "credit" in regroupements else 0.0) - (
-            regroupements["debit"]["realise"] if "debit" in regroupements else 0.0)
-        total_budgete = (regroupements["credit"]["budgete"] if "credit" in regroupements else 0.0) - (
-            regroupements["debit"]["budgete"] if "debit" in regroupements else 0.0)
-        total_pourcentage = (float(total_realise) * 100 / float(total_budgete)) if total_budgete else None
+        # --- TOTAUX (en Decimal, avant conversion en float pour le JSON) ---
+        total_credit = regroupements.get("credit", {}).get("realise", decimal.Decimal(0))
+        total_debit = regroupements.get("debit", {}).get("realise", decimal.Decimal(0))
+        budget_credit = regroupements.get("credit", {}).get("budgete", decimal.Decimal(0))
+        budget_debit = regroupements.get("debit", {}).get("budgete", decimal.Decimal(0))
+        total_realise = total_credit - total_debit
+        total_budgete = budget_credit - budget_debit
         total_ecart = total_realise - total_budgete
+
+        # --- FORMATTAGE DES LIGNES PARENTES POUR LE JSON ---
+        for type_key, reg_line in regroupements.items():
+            t_realise, t_budgete = reg_line["realise"], reg_line["budgete"]
+            reg_line["realise"] = float(_arrondi(t_realise))
+            reg_line["budgete"] = float(_arrondi(t_budgete))
+            reg_line["pourcentage"] = Get_pourcentage(t_realise, t_budgete)
+            reg_line["ecart"] = float(_arrondi(Get_ecart(type_key, t_realise, t_budgete)))
 
         lignes.append({
             "id": 99999998,
             "pid": 99999999,
             "regroupement": False,
             "label": "SOLDE GENERAL",
-            "realise": float(total_realise),
-            "budgete": float(total_budgete),
-            "pourcentage": total_pourcentage,
-            "ecart": float(total_ecart)
+            "realise": float(_arrondi(total_realise)),
+            "budgete": float(_arrondi(total_budgete)),
+            "pourcentage": Get_pourcentage(total_realise, total_budgete),
+            "ecart": float(_arrondi(total_ecart)),
         })
 
         # --- Totaux de la page : résultat du projet et contrepoint bancaire ---
-        credit = regroupements.get("credit", {})
-        debit = regroupements.get("debit", {})
         solde_bancaire = utils_rapprochement.Get_solde_bancaire(comptes, date_fin=budget.date_fin)
         # Le réalisé couvre la période du budget : on le compare à la variation
         # du solde bancaire sur cette même période, pas au solde cumulé.
         mouvements_bancaires = utils_rapprochement.Get_mouvements_bancaires(
             comptes, date_debut=budget.date_debut, date_fin=budget.date_fin)
-        resultat_projet = decimal.Decimal(str(total_realise))
         totaux = {
             "nom_budget": budget.nom,
             "date_debut": budget.date_debut,
             "date_fin": budget.date_fin,
-            "total_recettes": _arrondi(credit.get("realise", 0)),
-            "total_depenses": _arrondi(debit.get("realise", 0)),
-            "recettes_budgetees": _arrondi(credit.get("budgete", 0)),
-            "depenses_budgetees": _arrondi(debit.get("budgete", 0)),
-            "resultat_projet": _arrondi(resultat_projet),
+            "total_recettes": _arrondi(total_credit),
+            "total_depenses": _arrondi(total_debit),
+            "recettes_budgetees": _arrondi(budget_credit),
+            "depenses_budgetees": _arrondi(budget_debit),
+            "resultat_projet": _arrondi(total_realise),
             "resultat_budgete": _arrondi(total_budgete),
-            "ecart_resultat": _arrondi(decimal.Decimal(str(total_ecart))),
+            "ecart_resultat": _arrondi(total_ecart),
             "solde_bancaire": _arrondi(solde_bancaire),
             "mouvements_bancaires": _arrondi(mouvements_bancaires),
-            "ecart_projet_banque": _arrondi(resultat_projet - mouvements_bancaires),
+            # Comme au Bilan financier : ces recettes comptent dans le résultat mais ne
+            # transitent pas par les comptes, on les neutralise pour l'écart bancaire.
+            "total_encaissement": _arrondi(total_encaissement),
+            "label_encaissement": label_encaissement,
+            "ecart_projet_banque": _arrondi(total_realise - total_encaissement - mouvements_bancaires),
         }
 
         return lignes, totaux

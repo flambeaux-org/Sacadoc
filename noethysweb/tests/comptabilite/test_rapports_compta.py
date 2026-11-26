@@ -68,6 +68,28 @@ class RapportsMixin:
         requete.user = self.utilisateur
         return requete
 
+    def enfants_par_groupe(self, lignes):
+        """ Renvoie {label du groupe: [labels des lignes enfants, dans l'ordre d'affichage]} """
+        parents = {l["id"]: l["label"] for l in lignes if l.get("regroupement")}
+        groupes = {}
+        for ligne in lignes:
+            if not ligne.get("regroupement") and ligne["pid"] in parents:
+                groupes.setdefault(parents[ligne["pid"]], []).append(ligne["label"])
+        return groupes
+
+    def creer_categories_orga(self):
+        """ Deux catégories liées à l'organisateur, nommées pour arriver en TÊTE si le tri
+            ne se faisait que sur le nom : elles doivent malgré tout finir en fin de groupe. """
+        for nom, type_op in (("AAA Part organisateur", "credit"), ("AAA Cotisation Mouvement", "debit")):
+            categorie = ComptaCategorie.objects.create(
+                nom=nom, type=type_op, structure=self.structure, orga=True)
+            operation = ComptaOperation.objects.create(
+                compte=self.compte, type=type_op, date=datetime.date(2026, 6, 1),
+                montant=D("5.00"), libelle=nom, mode=self.mode)
+            ComptaVentilation.objects.create(
+                operation=operation, categorie=categorie, analytique=self.analytique,
+                montant=D("5.00"), date_budget=operation.date)
+
 
 class TestBilanFinancier(RapportsMixin, TestCase):
 
@@ -102,6 +124,15 @@ class TestBilanFinancier(RapportsMixin, TestCase):
     def test_periode_anterieure_vide(self):
         lignes, _, _, _, _ = self.resultats(periode="2020-01-01;2020-12-31")
         self.assertEqual(self.solde(lignes), 0.0)
+
+    def test_categories_orga_classees_en_fin_de_groupe(self):
+        """ Les catégories liées à l'organisateur se lisent après les catégories ordinaires """
+        self.creer_categories_orga()
+        groupes = self.enfants_par_groupe(self.resultats()[0])
+        self.assertEqual(groupes["Crédit"][-1], "AAA Part organisateur")
+        self.assertEqual(groupes["Débit"][-1], "AAA Cotisation Mouvement")
+        self.assertGreater(len(groupes["Crédit"]), 1)
+        self.assertGreater(len(groupes["Débit"]), 1)
 
     def test_categorie_hors_bilan_exclue_du_solde(self):
         lignes, _, _, _, _ = self.resultats()
@@ -207,17 +238,40 @@ class TestSuiviBudget(RapportsMixin, TestCase):
         self.assertEqual(lignes["SOLDE GENERAL"]["realise"], 75.0)
         self.assertEqual(lignes["SOLDE GENERAL"]["budgete"], 500.0)
 
+    def test_categories_orga_classees_en_fin_de_groupe(self):
+        """ Les catégories liées à l'organisateur se lisent après les catégories ordinaires """
+        self.creer_categories_orga()
+        groupes = self.enfants_par_groupe(self.resultats())
+        self.assertEqual(groupes["Crédit"][-1], "AAA Part organisateur")
+        self.assertEqual(groupes["Débit"][-1], "AAA Cotisation Mouvement")
+        self.assertGreater(len(groupes["Crédit"]), 1)
+        self.assertGreater(len(groupes["Débit"]), 1)
+
     def test_categorie_hors_bilan_presente_dans_le_budget(self):
         lignes = self.lignes_par_label(self.resultats())
         self.assertIn("Recettes pour le Mouvement", lignes)
 
     def test_encaissements_limites_aux_structures_des_comptes(self):
-        """ Régression : seule la structure du premier compte était prise en compte """
+        """ Régression : seule la structure du premier compte était prise en compte.
+            On vérifie que la vue transmet bien TOUTES les structures de ses comptes
+            à la recherche des règlements encaissés par l'organisateur. """
+        from unittest import mock
         from comptabilite.views import suivi_budget
-        import inspect
-        source = inspect.getsource(suivi_budget.View.Get_resultats)
-        self.assertNotIn("comptes.first()", source)
-        self.assertIn("structure__in=structures", source)
+
+        self.budget.compte.add(self.compte_voisin)
+        try:
+            vue = suivi_budget.View()
+            vue.request = self.requete()
+            with mock.patch("comptabilite.views.suivi_budget.utils_compta.Get_reglements_encaissement",
+                            return_value=[]) as recherche:
+                vue.Get_resultats({"budget": self.budget})
+            structures = recherche.call_args.kwargs["structures"]
+            self.assertCountEqual(structures, [self.structure.pk, self.autre_structure.pk])
+            # Le périmètre suit la période du budget
+            self.assertEqual(recherche.call_args.kwargs["date_debut"], self.budget.date_debut)
+            self.assertEqual(recherche.call_args.kwargs["date_fin"], self.budget.date_fin)
+        finally:
+            self.budget.compte.remove(self.compte_voisin)
 
 
 class TestTotauxRapports(RapportsMixin, TestCase):

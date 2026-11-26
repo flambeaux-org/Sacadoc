@@ -47,15 +47,15 @@
                                 <td class="text-right text-muted">{{ totaux.resultat_budgete }} €</td></tr>
                             <tr><td class="text-muted">Écart au budget</td>
                                 <td class="text-right text-muted" colspan="2">{{ totaux.ecart_resultat }} €</td></tr>
+                            {% if totaux.total_encaissement %}
+                                <tr><td class="text-muted">dont {{ totaux.label_encaissement }}<br><small>hors comptes bancaires</small></td>
+                                    <td class="text-right text-muted" colspan="2">{{ totaux.total_encaissement }} €</td></tr>
+                            {% endif %}
                             <tr><td colspan="3"><hr style="margin:4px 0;"></td></tr>
                             <tr>
                                 <td>Solde bancaire des comptes<br><small class="text-muted">au {{ totaux.date_fin|date:"d/m/Y" }}</small></td>
                                 <td class="text-right" colspan="2">{{ totaux.solde_bancaire }} €</td>
                             </tr>
-                            <tr><td>Mouvements bancaires<br><small class="text-muted">sur la période du budget</small></td>
-                                <td class="text-right" colspan="2">{{ totaux.mouvements_bancaires }} €</td></tr>
-                            <tr><td class="text-muted">Écart projet / banque<br><small>résultat − mouvements bancaires</small></td>
-                                <td class="text-right text-muted" colspan="2">{{ totaux.ecart_projet_banque }} €</td></tr>
                         </table>
                     </div>
                 </div>
@@ -68,9 +68,7 @@
                     comptes du budget, y compris ce qui ne transite pas par le compte bancaire
                     (avances, sommes encaissées par le Mouvement).<br>
                     <b>Solde bancaire</b> — périmètre bancaire : uniquement ce qui est réellement
-                    passé sur les comptes, à la date de fin du budget.<br>
-                    <b>Écart projet / banque</b> — compare le résultat aux mouvements bancaires
-                    de la période du budget : il correspond aux opérations hors banque.
+                    passé sur les comptes, à la date de fin du budget.
                 </small>
             </p>
 
